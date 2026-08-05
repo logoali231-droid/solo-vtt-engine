@@ -154,7 +154,8 @@ export type GmProviderId =
   | "gemini"
   | "openrouter"
   | "huggingface"
-  | "ollama";
+  | "ollama"
+  | "gradio";
 
 export interface GmSettings {
   provider: GmProviderId;
@@ -508,6 +509,12 @@ export interface EnemyState {
   damage: string;
 }
 
+export interface InventoryItem {
+  id: string;
+  name: string;
+  qty: number;
+}
+
 export interface LogEntry {
   id: string;
   kind: "system" | "player" | "gm" | "dice" | "combat";
@@ -526,6 +533,10 @@ export interface AdventureState {
   quest: string[];
   enemies: EnemyState[];
   gmMode: "local" | "live";
+  xp?: number;
+  gold?: number;
+  inventory?: InventoryItem[];
+  memory?: string; // auto-generated session summary injected into the GM context
   createdAt: number;
   updatedAt: number;
 }

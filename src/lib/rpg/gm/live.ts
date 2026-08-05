@@ -2,7 +2,7 @@ import { api } from "@/convex/_generated/api";
 import { useAction } from "convex/react";
 import type { AdventureState, GmSettings, GmTurn } from "../types";
 import { payloadToJson, serializeAdventure } from "../serializer";
-import { chatWithProvider, MAX_RECENT_MESSAGES } from "./providers";
+import { MAX_RECENT_MESSAGES, streamChatWithProvider } from "./providers";
 import { localRespond } from "./local";
 
 export interface GmReply {
@@ -78,9 +78,23 @@ export function useGmClient(settings: GmSettings) {
     turn: GmTurn,
     adventure: AdventureState,
   ): Promise<GmReply> {
-    if (adventure.gmMode !== "live") {
-      return { text: localRespond(turn, adventure, settings.language), usedFallback: true };
-    }
+    return streamRespond(turn, adventure, () => undefined);
+  }
+
+  /** Same as respond, but streams tokens to onDelta as they arrive (typing
+   *  effect in the narrative hub). onDelta receives the accumulated text. */
+  async function streamRespond(
+    turn: GmTurn,
+    adventure: AdventureState,
+    onDelta: (text: string) => void,
+  ): Promise<GmReply> {
+    const fallback = (): GmReply => {
+      const text = localRespond(turn, adventure, settings.language);
+      onDelta(text);
+      return { text, usedFallback: true };
+    };
+    if (adventure.gmMode !== "live") return fallback();
+
     const payload = payloadToJson(serializeAdventure(adventure));
     const history = buildHistory(adventure);
     try {
@@ -92,6 +106,7 @@ export function useGmClient(settings: GmSettings) {
           language: settings.language,
         });
         if (res.ok && res.text) {
+          onDelta(res.text);
           return { text: res.text, usedFallback: false };
         }
       } else {
@@ -100,14 +115,20 @@ export function useGmClient(settings: GmSettings) {
           { role: "system" as const, content: system },
           { role: "user" as const, content: buildUserPrompt(turn) },
         ];
-        const text = await chatWithProvider(settings, messages);
+        let acc = "";
+        const text = await streamChatWithProvider(settings, messages, (chunk) => {
+          // onDelta receives the full accumulated text so the log entry can
+          // be replaced wholesale (cheap and avoids ordering bugs).
+          acc += chunk;
+          onDelta(acc);
+        });
         if (text) return { text, usedFallback: false };
       }
     } catch {
       // fall through to the local narrator
     }
-    return { text: localRespond(turn, adventure, settings.language), usedFallback: true };
+    return fallback();
   }
 
-  return { respond };
+  return { respond, streamRespond };
 }

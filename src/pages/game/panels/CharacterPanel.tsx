@@ -4,19 +4,43 @@ import type {
   Character,
   DnDCharacter,
   GameSystem,
+  GmLanguage,
   GurpsCharacter,
+  InventoryItem,
   LorebookEntry,
   Pf2eCharacter,
   PfRank,
 } from "@/lib/rpg/types";
 import type { DndDerived, GurpsDerived, Pf2eDerived } from "@/lib/rpg/character";
+import CampaignPanel from "./CampaignPanel";
 import ConditionsPanel from "./ConditionsPanel";
-import GearPanel from "./GearPanel";
+import GearPanel, { InventoryEditor } from "./GearPanel";
 import LorebookPanel from "./LorebookPanel";
 import DndSheet from "./sheets/DndSheet";
 import GurpsSheet from "./sheets/GurpsSheet";
 import Pf2eSheet from "./sheets/Pf2eSheet";
 import type { RollRequest } from "../types";
+
+export interface CampaignPanelData {
+  sceneTitle: string;
+  location: string;
+  quests: string[];
+  xp: number;
+  gold: number;
+  memory?: string;
+  level: number;
+  maxLevel: number;
+  xpNeeded: number;
+  gurpsSpare?: number;
+  onScene: (title: string, location: string) => void;
+  onAddQuest: (q: string) => void;
+  onRemoveQuest: (i: number) => void;
+  onAwardXp: (n: number) => void;
+  onLevelUp: () => void;
+  onGold: (n: number) => void;
+  onRewardCp: () => void;
+  onClearHistory: () => void;
+}
 
 export interface PanelActions {
   onRoll: (r: RollRequest) => void;
@@ -55,6 +79,10 @@ interface Props {
   actions: PanelActions;
   lorebook?: LorebookEntry[];
   onLorebookChange?: (entries: LorebookEntry[]) => void;
+  inventory?: InventoryItem[];
+  onInventoryChange?: (items: InventoryItem[]) => void;
+  campaign?: CampaignPanelData;
+  gmLanguage?: GmLanguage;
 }
 
 export default function CharacterPanel({
@@ -64,8 +92,12 @@ export default function CharacterPanel({
   actions,
   lorebook = [],
   onLorebookChange,
+  inventory = [],
+  onInventoryChange,
+  campaign,
+  gmLanguage = "en",
 }: Props) {
-  const [tab, setTab] = useState<"sheet" | "gear" | "conditions" | "lorebook">("sheet");
+  const [tab, setTab] = useState<"sheet" | "gear" | "conditions" | "lorebook" | "campaign">("sheet");
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -76,6 +108,7 @@ export default function CharacterPanel({
             ["gear", "Gear"],
             ["conditions", "Conditions"],
             ["lorebook", "Lorebook"],
+            ["campaign", "Campaign"],
           ] as const
         ).map(([id, label]) => (
           <button
@@ -143,16 +176,24 @@ export default function CharacterPanel({
             <GearPanel
               character={character as DnDCharacter}
               derived={derived as DndDerived}
+              inventory={inventory}
+              onInventoryChange={(items) => onInventoryChange?.(items)}
               onSetWeapon={actions.onSetWeapon}
               onSetArmor={actions.onSetArmor}
               onToggleShield={actions.onToggleShield}
               onAttack={actions.onAttack}
             />
           ) : (
-            <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 text-sm text-slate-400">
-              {system === "pf2e"
-                ? "Pathfinder equipment slots live in the action economy — equip items from the sheet as you adventure."
-                : "GURPS gear is tracked by points. Your DR is shown on the sheet."}
+            <div className="flex flex-col gap-4">
+              <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 text-xs leading-relaxed text-slate-400">
+                {system === "pf2e"
+                  ? "Pathfinder equipment is tracked through the action economy — equip weapons and gear from the sheet. Track your carried loot below."
+                  : "GURPS gear is budgeted with character points; your DR shows on the sheet. Track your carried loot below."}
+              </div>
+              <InventoryEditor
+                inventory={inventory}
+                onChange={(items) => onInventoryChange?.(items)}
+              />
             </div>
           ))}
         {tab === "conditions" && (
@@ -164,6 +205,9 @@ export default function CharacterPanel({
         )}
         {tab === "lorebook" && onLorebookChange && (
           <LorebookPanel entries={lorebook} onChange={onLorebookChange} />
+        )}
+        {tab === "campaign" && campaign && (
+          <CampaignPanel system={system} language={gmLanguage} {...campaign} />
         )}
       </div>
     </div>

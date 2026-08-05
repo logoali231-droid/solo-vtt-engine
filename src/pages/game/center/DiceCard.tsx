@@ -1,7 +1,8 @@
 import { cn } from "@/lib/utils";
 import type { DiceResult } from "@/lib/rpg/types";
 import { formatMod } from "@/lib/rpg/dice";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, Vibrate } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 const OUTCOME_STYLES: Record<DiceResult["outcome"], { label: string; cls: string }> = {
   "critical-success": { label: "CRITICAL SUCCESS", cls: "bg-emerald-500/15 text-emerald-300 border-emerald-500/40" },
@@ -19,6 +20,39 @@ export default function DiceCard({ result, onReroll }: Props) {
   const style = OUTCOME_STYLES[result.outcome];
   const total = result.total;
 
+  // Gyroscope tilt (mobile) — gentle 3D lean of the dice
+  const [tilt, setTilt] = useState({ x: 0, y: 0 });
+  useEffect(() => {
+    if (typeof window === "undefined" || !("DeviceOrientationEvent" in window)) return;
+    const handler = (e: DeviceOrientationEvent) => {
+      if (e.beta == null || e.gamma == null) return;
+      setTilt({
+        x: Math.max(-10, Math.min(10, (e.beta - 45) * 0.3)),
+        y: Math.max(-12, Math.min(12, e.gamma * 0.4)),
+      });
+    };
+    window.addEventListener("deviceorientation", handler);
+    return () => window.removeEventListener("deviceorientation", handler);
+  }, []);
+
+  // Shake-to-roll (mobile accelerometer)
+  const lastShake = useRef(0);
+  useEffect(() => {
+    if (!onReroll || typeof window === "undefined" || !("DeviceMotionEvent" in window)) return;
+    const handler = (e: DeviceMotionEvent) => {
+      const a = e.accelerationIncludingGravity;
+      if (!a) return;
+      const mag = Math.abs(a.x ?? 0) + Math.abs(a.y ?? 0) + Math.abs(a.z ?? 0);
+      const now = Date.now();
+      if (mag > 32 && now - lastShake.current > 2500) {
+        lastShake.current = now;
+        onReroll({});
+      }
+    };
+    window.addEventListener("devicemotion", handler);
+    return () => window.removeEventListener("devicemotion", handler);
+  }, [onReroll]);
+
   return (
     <div className="overflow-hidden rounded-xl border border-slate-700/80 bg-slate-900/80 shadow-lg">
       <div className="flex items-center justify-between border-b border-slate-800 px-3 py-2">
@@ -29,16 +63,19 @@ export default function DiceCard({ result, onReroll }: Props) {
       </div>
 
       <div className="flex items-center gap-4 px-3 py-3">
-        {/* Dice faces */}
-        <div className="flex flex-wrap items-center gap-1.5">
+        {/* Dice faces — 3D tumble + gyro tilt */}
+        <div
+          className="flex flex-wrap items-center gap-1.5"
+          style={{ transform: `rotateX(${tilt.x}deg) rotateY(${tilt.y}deg)` }}
+        >
           {(result.advantage || result.disadvantage) && result.rolls.length > 1 ? (
             <>
-              <DieFace value={result.rolls[0]} dimmed={result.rolls[0] !== result.total} />
+              <DieFace value={result.rolls[0]} dimmed={result.rolls[0] !== result.total} rollKey={result.id} />
               <span className="text-[10px] font-bold text-slate-500">{result.disadvantage ? "⇣" : "⇡"}</span>
-              <DieFace value={result.rolls[1]} dimmed={result.rolls[1] !== result.total} />
+              <DieFace value={result.rolls[1]} dimmed={result.rolls[1] !== result.total} rollKey={`${result.id}-b`} />
             </>
           ) : (
-            result.rolls.map((r, i) => <DieFace key={i} value={r} />)
+            result.rolls.map((r, i) => <DieFace key={i} value={r} rollKey={`${result.id}-${i}`} />)
           )}
         </div>
 
@@ -53,9 +90,7 @@ export default function DiceCard({ result, onReroll }: Props) {
         </div>
 
         <div className="shrink-0 text-right">
-          <p className="font-mono text-[10px] uppercase tracking-widest text-slate-500">
-            {result.target !== undefined ? "total" : "total"}
-          </p>
+          <p className="font-mono text-[10px] uppercase tracking-widest text-slate-500">total</p>
           <p className={cn("font-mono text-2xl font-bold leading-none", result.critical ? "text-amber-300" : "text-slate-100")}>
             {total}
           </p>
@@ -96,17 +131,36 @@ export default function DiceCard({ result, onReroll }: Props) {
           >
             <RefreshCw className="size-3" /> Roll again
           </button>
+          <span className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[9px] text-slate-600 sm:hidden">
+            <Vibrate className="size-3" /> shake to reroll
+          </span>
         </div>
       )}
     </div>
   );
 }
 
-function DieFace({ value, dimmed }: { value: number; dimmed?: boolean }) {
+function DieFace({
+  value,
+  dimmed,
+  rollKey,
+}: {
+  value: number;
+  dimmed?: boolean;
+  rollKey: string;
+}) {
+  const [rolling, setRolling] = useState(false);
+  useEffect(() => {
+    setRolling(true);
+    const t = setTimeout(() => setRolling(false), 920);
+    return () => clearTimeout(t);
+  }, [rollKey]);
+
   return (
     <span
       className={cn(
-        "flex size-9 items-center justify-center rounded-md border font-mono text-base font-bold",
+        "die3d flex size-9 items-center justify-center rounded-md border font-mono text-base font-bold",
+        rolling && "die3d-rolling",
         dimmed
           ? "border-slate-700/60 text-slate-600"
           : value === 20

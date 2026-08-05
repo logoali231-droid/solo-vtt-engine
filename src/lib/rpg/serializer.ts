@@ -44,6 +44,10 @@ export interface LLMPayload {
     enemies: { name: string; hp: number; maxHp: number; ac: number }[];
     conditions: SerializedCondition[];
     hp: { current: number; max: number };
+    xp: number;
+    gold: number;
+    inventory: { name: string; qty: number }[];
+    memory: string | null;
   };
   diceLog: Record<string, unknown>[];
 }
@@ -246,6 +250,10 @@ export function serializeAdventure(adventure: AdventureState): LLMPayload {
         active: c.state.conditions.includes(cd.id),
       })),
       hp,
+      xp: adventure.xp ?? 0,
+      gold: adventure.gold ?? 0,
+      inventory: (adventure.inventory ?? []).map((i) => ({ name: i.name, qty: i.qty })),
+      memory: adventure.memory ?? null,
     },
     diceLog: adventure.diceLog.slice(-14).map((d) => ({
       label: d.label,

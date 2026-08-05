@@ -75,6 +75,15 @@ export const GM_PROVIDERS: GmProviderDef[] = [
     needsBaseUrl: true,
     models: ["llama3.2", "qwen2.5:7b", "mistral"],
   },
+  {
+    id: "gradio",
+    name: "HF Gradio Space",
+    tagline: "Free: paste any HuggingFace Space URL that exposes an OpenAI-compatible endpoint (--openai-api). No key needed.",
+    tier: "free",
+    needsKey: false,
+    needsBaseUrl: true,
+    models: ["default"],
+  },
 ];
 
 export function providerOf(id: GmSettings["provider"]): GmProviderDef {
@@ -223,6 +232,14 @@ export async function chatWithProvider(
         undefined,
         settings.temperature,
       );
+    case "gradio":
+      return openAiCompatible(
+        `${settings.baseUrl.replace(/\/$/, "")}/v1/chat/completions`,
+        settings.model || "default",
+        trimmed,
+        undefined,
+        settings.temperature,
+      );
     case "huggingface":
       return openAiCompatible(
         `https://api-inference.huggingface.co/models/${encodeURIComponent(settings.model)}/v1/chat/completions`,
@@ -236,4 +253,178 @@ export async function chatWithProvider(
     case "builtin":
       throw new Error("builtin provider is handled by the Convex action");
   }
+}
+
+// ---------------------------------------------------------------------------
+// Streaming (SSE) — live token-by-token GM narration
+// ---------------------------------------------------------------------------
+
+async function readSSE(res: Response, onDelta: (chunk: string) => void): Promise<string> {
+  if (!res.body) throw new Error("no response body");
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let full = "";
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+    for (const line of lines) {
+      const t = line.trim();
+      if (!t.startsWith("data:")) continue;
+      const data = t.slice(5).trim();
+      if (!data || data === "[DONE]") continue;
+      try {
+        const json = JSON.parse(data);
+        const chunk: string =
+          json?.choices?.[0]?.delta?.content ??
+          json?.choices?.[0]?.message?.content ??
+          json?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text ?? "").join("") ??
+          "";
+        if (chunk) {
+          full += chunk;
+          onDelta(chunk);
+        }
+      } catch {
+        // partial JSON line — ignore
+      }
+    }
+  }
+  // Some endpoints return a plain JSON body instead of SSE.
+  if (!full && buffer.trim()) {
+    try {
+      const json = JSON.parse(buffer.trim());
+      const text: string = json?.choices?.[0]?.message?.content?.trim?.() ?? "";
+      if (text) {
+        full = text;
+        onDelta(text);
+      }
+    } catch {
+      // not JSON either
+    }
+  }
+  return full;
+}
+
+async function streamOpenAI(
+  url: string,
+  settings: GmSettings,
+  messages: ChatMessage[],
+  onDelta: (chunk: string) => void,
+): Promise<string> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (settings.apiKey) headers.Authorization = `Bearer ${settings.apiKey}`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      model: settings.model || "default",
+      temperature: settings.temperature,
+      max_tokens: 650,
+      stream: true,
+      messages,
+    }),
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`${res.status} — ${body.slice(0, 220)}`);
+  }
+  return readSSE(res, onDelta);
+}
+
+async function streamGemini(
+  model: string,
+  messages: ChatMessage[],
+  apiKey: string,
+  onDelta: (chunk: string) => void,
+  temperature: number,
+): Promise<string> {
+  const system = messages
+    .filter((m) => m.role === "system")
+    .map((m) => m.content)
+    .join("\n");
+  const contents = messages
+    .filter((m) => m.role !== "system")
+    .map((m) => ({
+      role: m.role === "assistant" ? "model" : "user",
+      parts: [{ text: m.content }],
+    }));
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:streamGenerateContent?alt=sse&key=${encodeURIComponent(apiKey)}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        systemInstruction: system ? { parts: [{ text: system }] } : undefined,
+        contents,
+        generationConfig: { temperature, maxOutputTokens: 650 },
+      }),
+    },
+  );
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`${res.status} — ${body.slice(0, 220)}`);
+  }
+  return readSSE(res, onDelta);
+}
+
+/** Stream a completion from the configured client-side provider, calling
+ *  onDelta with each token as it arrives. Returns the full text. */
+export async function streamChatWithProvider(
+  settings: GmSettings,
+  messages: ChatMessage[],
+  onDelta: (chunk: string) => void,
+): Promise<string> {
+  const trimmed = trimMessages(messages);
+  switch (settings.provider) {
+    case "groq":
+      return streamOpenAI("https://api.groq.com/openai/v1/chat/completions", settings, trimmed, onDelta);
+    case "openrouter":
+      return streamOpenAI("https://openrouter.ai/api/v1/chat/completions", settings, trimmed, onDelta);
+    case "ollama":
+      return streamOpenAI(`${settings.baseUrl.replace(/\/$/, "")}/v1/chat/completions`, settings, trimmed, onDelta);
+    case "gradio":
+      return streamOpenAI(`${settings.baseUrl.replace(/\/$/, "")}/v1/chat/completions`, settings, trimmed, onDelta);
+    case "huggingface":
+      return streamOpenAI(
+        `https://api-inference.huggingface.co/models/${encodeURIComponent(settings.model)}/v1/chat/completions`,
+        settings,
+        trimmed,
+        onDelta,
+      );
+    case "gemini":
+      return streamGemini(settings.model, trimmed, settings.apiKey, onDelta, settings.temperature);
+    case "builtin":
+      throw new Error("builtin provider is handled by the Convex action");
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Session summarization — condense old history into a memory recap
+// ---------------------------------------------------------------------------
+
+const SUMMARY_TRIGGER = 30; // summarize once the narrative passes this many entries
+
+export function shouldSummarize(
+  narrativeCount: number,
+  hasMemory: boolean,
+): boolean {
+  return narrativeCount > SUMMARY_TRIGGER && !hasMemory;
+}
+
+export async function summarizeConversation(
+  settings: GmSettings,
+  historyLines: string[],
+): Promise<string> {
+  const messages: ChatMessage[] = [
+    {
+      role: "system",
+      content:
+        "You condense tabletop RPG session history into a memory recap. Output 3-6 concise bullet points covering key events, NPCs, locations, discoveries and unresolved threads. Keep names and facts accurate. Output only the bullets.",
+    },
+    { role: "user", content: historyLines.join("\n") },
+  ];
+  return chatWithProvider(settings, messages);
 }

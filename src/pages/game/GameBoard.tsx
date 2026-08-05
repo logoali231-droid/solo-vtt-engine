@@ -32,6 +32,10 @@ import {
 } from "@/lib/rpg/storage";
 import { generateOpening } from "@/lib/rpg/gm/local";
 import { useGmClient } from "@/lib/rpg/gm/live";
+import {
+  shouldSummarize,
+  summarizeConversation,
+} from "@/lib/rpg/gm/providers";
 import { compileLorebook } from "@/lib/rpg/lorebook";
 import type {
   AdventureState,
@@ -39,6 +43,7 @@ import type {
   DnDCharacter,
   EnemyState,
   FeatureDef,
+  GameSystem,
   GmLanguage,
   GmSettings,
   GmTurn,
@@ -66,6 +71,14 @@ interface Props {
   onSignOut: () => void;
 }
 
+function xpNeededFor(level: number, system: GameSystem): number {
+  return system === "pf2e" ? 1000 : level * 300;
+}
+
+function charLevel(ch: Character): number {
+  return ch.system === "gurps" ? 1 : ch.level;
+}
+
 function createAdventure(character: Character, language: GmLanguage = "en"): AdventureState {
   const system = character.system;
   const adventure: AdventureState = {
@@ -78,6 +91,9 @@ function createAdventure(character: Character, language: GmLanguage = "en"): Adv
     quest: ["Find the sealed door beneath the hills"],
     enemies: [],
     gmMode: "local",
+    xp: 0,
+    gold: 0,
+    inventory: [],
     createdAt: Date.now(),
     updatedAt: Date.now(),
   };
@@ -137,7 +153,9 @@ function fingerprint(c: Character): string {
 
 export default function GameBoard({ character, onNewCharacter, onSignOut }: Props) {
   const [settings, setSettings] = useState<GmSettings>(() => loadGmSettings());
-  const [lorebook, setLorebook] = useState<LorebookEntry[]>(() => loadLorebook());
+  const [lorebook, setLorebook] = useState<LorebookEntry[]>(() =>
+    loadLorebook(fingerprint(character)),
+  );
   const [adventure, setAdventure] = useState<AdventureState>(() => {
     const saved = loadAdventure();
     if (saved && fingerprint(saved.character) === fingerprint(character)) {
@@ -170,8 +188,8 @@ export default function GameBoard({ character, onNewCharacter, onSignOut }: Prop
   }, [settings]);
 
   useEffect(() => {
-    saveLorebook(lorebook);
-  }, [lorebook]);
+    saveLorebook(fingerprint(c), lorebook);
+  }, [c, lorebook]);
 
   const derived = useMemo(() => {
     if (c.system === "dnd5e") return getDndDerived(c as DnDCharacter);
@@ -205,8 +223,30 @@ export default function GameBoard({ character, onNewCharacter, onSignOut }: Prop
         const snap = adventureRef.current;
         const recent = snap.logs.slice(-6).map((l) => l.text);
         const lore = compileLorebook(loreRef.current, recent, turn.playerText ?? "");
-        const reply = await gm.respond({ ...turn, lorebook: lore || undefined }, snap);
-        if (reply.text) pushLog("gm", reply.text);
+        const entryId = uid();
+        setAdventure((prev) => ({
+          ...prev,
+          logs: [...prev.logs, { id: entryId, kind: "gm" as const, text: "", timestamp: Date.now() }],
+          updatedAt: Date.now(),
+        }));
+        const reply = await gm.streamRespond(
+          { ...turn, lorebook: lore || undefined },
+          snap,
+          (acc) => {
+            setAdventure((prev) => ({
+              ...prev,
+              logs: prev.logs.map((l) => (l.id === entryId ? { ...l, text: acc } : l)),
+              updatedAt: Date.now(),
+            }));
+          },
+        );
+        setAdventure((prev) => ({
+          ...prev,
+          logs: prev.logs.map((l) =>
+            l.id === entryId ? { ...l, text: reply.text || l.text } : l,
+          ),
+          updatedAt: Date.now(),
+        }));
         if (reply.usedFallback && snap.gmMode === "live") {
           toast.info(
             settingsRef.current.language === "pt-BR"
@@ -218,7 +258,29 @@ export default function GameBoard({ character, onNewCharacter, onSignOut }: Prop
         setGmBusy(false);
       }
     },
-    [gm, pushLog],
+    [gm],
+  );
+
+  // Auto-summarization: condense the oldest history into a memory recap
+  // once the session grows past the threshold (client-side providers only).
+  const summarizeNow = useCallback(
+    async (snap: AdventureState) => {
+      try {
+        const lines = snap.logs
+          .filter((l) => l.kind === "gm" || l.kind === "player" || l.kind === "combat")
+          .slice(-24)
+          .map((l) => l.text)
+          .filter(Boolean);
+        const summary = await summarizeConversation(settingsRef.current, lines);
+        if (summary) {
+          setAdventure((prev) => ({ ...prev, memory: summary, updatedAt: Date.now() }));
+          pushLog("system", "Session memory updated.");
+        }
+      } catch {
+        // summarization is best-effort — never block play
+      }
+    },
+    [pushLog],
   );
 
   // -------------------------------------------------------------------------
@@ -511,9 +573,20 @@ export default function GameBoard({ character, onNewCharacter, onSignOut }: Prop
   const sendCommand = useCallback(
     (text: string) => {
       pushLog("player", text);
+      const snap = adventureRef.current;
+      const narrative = snap.logs.filter(
+        (l) => l.kind === "gm" || l.kind === "player" || l.kind === "combat",
+      ).length;
+      if (
+        snap.gmMode === "live" &&
+        settingsRef.current.provider !== "builtin" &&
+        shouldSummarize(narrative, !!snap.memory)
+      ) {
+        void summarizeNow(snap);
+      }
       void gmRespond({ playerText: text });
     },
-    [pushLog, gmRespond],
+    [pushLog, gmRespond, summarizeNow],
   );
 
   const shortRest = useCallback(() => {
@@ -617,6 +690,77 @@ export default function GameBoard({ character, onNewCharacter, onSignOut }: Prop
     pushLog("system", "Long rest — fully recovered.");
     void gmRespond({ playerText: "I take a long rest." });
   }, [updateChar, pushLog, gmRespond]);
+
+  // -------------------------------------------------------------------------
+  // Campaign: level up, CP reward, fresh scene
+  // -------------------------------------------------------------------------
+  const levelUp = useCallback(() => {
+    const snap = adventureRef.current;
+    if (snap.system === "gurps") return;
+    const lvl = charLevel(snap.character);
+    const needed = xpNeededFor(lvl, snap.system);
+    if ((snap.xp ?? 0) < needed || lvl >= 20) return;
+    setAdventure((prev) => {
+      const ch = prev.character;
+      if (ch.system === "gurps") return prev;
+      const next: Character = { ...ch, level: ch.level + 1 };
+      return {
+        ...prev,
+        character: next,
+        xp: (prev.xp ?? 0) - needed,
+        logs: [
+          ...prev.logs,
+          {
+            id: uid(),
+            kind: "system",
+            text: `Level up! ${next.name} is now level ${next.level}.`,
+            timestamp: Date.now(),
+          },
+        ],
+        updatedAt: Date.now(),
+      };
+    });
+  }, []);
+
+  const rewardCp = useCallback(() => {
+    updateChar((ch) =>
+      ch.system === "gurps"
+        ? { ...ch, points: { ...ch.points, budget: ch.points.budget + 5 } }
+        : ch,
+    );
+    pushLog("system", "+5 character points awarded — budget increased.");
+  }, [updateChar, pushLog]);
+
+  const clearHistory = useCallback(() => {
+    setAdventure((prev) => {
+      const fresh: AdventureState = {
+        ...prev,
+        logs: [],
+        diceLog: [],
+        enemies: [],
+        updatedAt: Date.now(),
+      };
+      const opening = generateOpening(fresh, settingsRef.current.language);
+      fresh.logs = [
+        { id: uid(), kind: "gm", text: opening, timestamp: Date.now() },
+        {
+          id: uid(),
+          kind: "system",
+          text:
+            settingsRef.current.language === "pt-BR"
+              ? "Nova cena — sua história continua."
+              : "Fresh scene — your story continues.",
+          timestamp: Date.now(),
+        },
+      ];
+      return fresh;
+    });
+    toast.success(
+      settingsRef.current.language === "pt-BR"
+        ? "Nova cena iniciada."
+        : "Fresh scene started.",
+    );
+  }, []);
 
   const useFeature = useCallback(
     (featureId: string) => {
@@ -1068,6 +1212,65 @@ export default function GameBoard({ character, onNewCharacter, onSignOut }: Prop
             actions={panelActions}
             lorebook={lorebook}
             onLorebookChange={setLorebook}
+            inventory={adventure.inventory ?? []}
+            onInventoryChange={(items) =>
+              setAdventure((prev) => ({
+                ...prev,
+                inventory: items,
+                updatedAt: Date.now(),
+              }))
+            }
+            gmLanguage={settings.language}
+            campaign={{
+              sceneTitle: adventure.sceneTitle,
+              location: adventure.location,
+              quests: adventure.quest,
+              xp: adventure.xp ?? 0,
+              gold: adventure.gold ?? 0,
+              memory: adventure.memory,
+              level: charLevel(c),
+              maxLevel: system === "gurps" ? charLevel(c) : 20,
+              xpNeeded: system === "gurps" ? 0 : xpNeededFor(charLevel(c), system),
+              gurpsSpare:
+                system === "gurps"
+                  ? (c as GurpsCharacter).points.budget -
+                    (derived as ReturnType<typeof getGurpsDerived>).pointTotal
+                  : undefined,
+              onScene: (title, location) =>
+                setAdventure((prev) => ({
+                  ...prev,
+                  sceneTitle: title,
+                  location,
+                  updatedAt: Date.now(),
+                })),
+              onAddQuest: (q) =>
+                setAdventure((prev) => ({
+                  ...prev,
+                  quest: [...prev.quest, q],
+                  updatedAt: Date.now(),
+                })),
+              onRemoveQuest: (i) =>
+                setAdventure((prev) => ({
+                  ...prev,
+                  quest: prev.quest.filter((_, j) => j !== i),
+                  updatedAt: Date.now(),
+                })),
+              onAwardXp: (n) =>
+                setAdventure((prev) => ({
+                  ...prev,
+                  xp: (prev.xp ?? 0) + n,
+                  updatedAt: Date.now(),
+                })),
+              onLevelUp: levelUp,
+              onGold: (n) =>
+                setAdventure((prev) => ({
+                  ...prev,
+                  gold: Math.max(0, (prev.gold ?? 0) + n),
+                  updatedAt: Date.now(),
+                })),
+              onRewardCp: rewardCp,
+              onClearHistory: clearHistory,
+            }}
           />
         </aside>
         <main className="flex min-w-0 flex-1 flex-col">

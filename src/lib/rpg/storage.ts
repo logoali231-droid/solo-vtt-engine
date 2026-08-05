@@ -11,7 +11,8 @@ import { serializeAdventure } from "./serializer";
 const CHARACTER_KEY = "oraculum.character.v1";
 const ADVENTURE_KEY = "oraculum.adventure.v1";
 const SETTINGS_KEY = "oraculum.gmSettings.v1";
-const LOREBOOK_KEY = "oraculum.lorebook.v1";
+const LOREBOOK_KEY = "oraculum.lorebook.v1"; // legacy global array
+const LOREBOOK_V2_KEY = "oraculum.lorebook.v2"; // per-campaign map
 const LIBRARY_KEY = "oraculum.library.v1";
 
 export function saveCharacter(character: Character): void {
@@ -87,10 +88,11 @@ export function saveGmSettings(settings: GmSettings): void {
 }
 
 // ---------------------------------------------------------------------------
-// Lorebook (per-campaign world facts)
+// Lorebook (world facts — scoped per campaign via a campaign key)
 // ---------------------------------------------------------------------------
 
-export function loadLorebook(): LorebookEntry[] {
+/** Load legacy global lorebook entries (v1) for migration. */
+function loadLegacyLorebook(): LorebookEntry[] {
   try {
     const raw = localStorage.getItem(LOREBOOK_KEY);
     if (!raw) return [];
@@ -101,9 +103,42 @@ export function loadLorebook(): LorebookEntry[] {
   }
 }
 
-export function saveLorebook(entries: LorebookEntry[]): void {
+function loadLorebookMap(): Record<string, LorebookEntry[]> {
   try {
-    localStorage.setItem(LOREBOOK_KEY, JSON.stringify(entries));
+    const raw = localStorage.getItem(LOREBOOK_V2_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? (parsed as Record<string, LorebookEntry[]>) : {};
+  } catch {
+    return {};
+  }
+}
+
+export function loadLorebook(campaignKey: string): LorebookEntry[] {
+  const map = loadLorebookMap();
+  if (map[campaignKey]) return map[campaignKey];
+  // Migrate the legacy global entries into this campaign on first access.
+  const legacy = loadLegacyLorebook();
+  if (legacy.length > 0) {
+    const next = { ...map, [campaignKey]: legacy };
+    try {
+      localStorage.setItem(LOREBOOK_V2_KEY, JSON.stringify(next));
+      localStorage.removeItem(LOREBOOK_KEY);
+    } catch {
+      // non-fatal
+    }
+    return legacy;
+  }
+  return [];
+}
+
+export function saveLorebook(campaignKey: string, entries: LorebookEntry[]): void {
+  try {
+    const map = loadLorebookMap();
+    localStorage.setItem(
+      LOREBOOK_V2_KEY,
+      JSON.stringify({ ...map, [campaignKey]: entries }),
+    );
   } catch {
     // non-fatal
   }
