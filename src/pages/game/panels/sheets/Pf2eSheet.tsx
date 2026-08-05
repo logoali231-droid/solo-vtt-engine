@@ -8,6 +8,7 @@ import {
 import type { Pf2eDerived } from "@/lib/rpg/character";
 import { formatMod, pfTierBonus } from "@/lib/rpg/dice";
 import { PF2E_SKILLS } from "@/lib/rpg/data/pf2e";
+import IdentityChips from "./IdentityChips";
 import type { RollRequest, SheetProps } from "../../types";
 
 const RANKS: PfRank[] = ["untrained", "trained", "expert", "master", "legendary"];
@@ -69,8 +70,9 @@ export default function Pf2eSheet({ character: c, derived: d, onRoll, actions }:
           <div>
             <p className="font-mono text-sm font-bold tracking-wide text-slate-100">{c.name}</p>
             <p className="font-mono text-[10px] text-teal-400">
-              {d.ancestryName} · {d.className} · {d.backgroundName}
+              {d.ancestryName}{d.heritageName ? ` (${d.heritageName})` : ""} · {d.className} · {d.backgroundName}
             </p>
+            <IdentityChips identity={c.identity} tone="dark" />
           </div>
           <span className="rounded bg-teal-400/10 px-2 py-0.5 font-mono text-[10px] font-bold text-teal-300">
             LVL {c.level}

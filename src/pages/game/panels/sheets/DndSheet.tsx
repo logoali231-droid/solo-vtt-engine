@@ -9,6 +9,7 @@ import type { DndDerived } from "@/lib/rpg/character";
 import { formatMod } from "@/lib/rpg/dice";
 import { CLASS_MAP } from "@/lib/rpg/data/dnd";
 import { Wand2, Zap } from "lucide-react";
+import IdentityChips from "./IdentityChips";
 import type { RollRequest, SheetProps } from "../../types";
 
 interface Props extends SheetProps<DnDCharacter> {
@@ -53,6 +54,7 @@ export default function DndSheet({ character: c, derived: d, onRoll, onUseFeatur
         <p className="mt-0.5 text-[10px] italic text-[#8a7444]">
           {d.backgroundName} · Level {c.level} {c.customOrigin && "· Tasha's Custom Origin"}
         </p>
+        <IdentityChips identity={c.identity} tone="light" />
         {c.state.activeStatus.length > 0 && (
           <div className="mt-1.5 flex flex-wrap justify-center gap-1">
             {c.state.activeStatus.map((s) => (

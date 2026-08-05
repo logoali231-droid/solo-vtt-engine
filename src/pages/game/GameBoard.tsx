@@ -23,19 +23,28 @@ import {
   exportAdventureJSON,
   importAdventureJSON,
   loadAdventure,
+  loadGmSettings,
+  loadLorebook,
   saveAdventure,
+  saveGmSettings,
+  saveLorebook,
+  saveToLibrary,
 } from "@/lib/rpg/storage";
 import { generateOpening } from "@/lib/rpg/gm/local";
 import { useGmClient } from "@/lib/rpg/gm/live";
+import { compileLorebook } from "@/lib/rpg/lorebook";
 import type {
   AdventureState,
   Character,
   DnDCharacter,
   EnemyState,
   FeatureDef,
+  GmLanguage,
+  GmSettings,
   GmTurn,
   GurpsCharacter,
   LogEntry,
+  LorebookEntry,
   Pf2eCharacter,
   PendingBonus,
   RollModifierLine,
@@ -57,7 +66,7 @@ interface Props {
   onSignOut: () => void;
 }
 
-function createAdventure(character: Character): AdventureState {
+function createAdventure(character: Character, language: GmLanguage = "en"): AdventureState {
   const system = character.system;
   const adventure: AdventureState = {
     system,
@@ -72,7 +81,7 @@ function createAdventure(character: Character): AdventureState {
     createdAt: Date.now(),
     updatedAt: Date.now(),
   };
-  const opening = generateOpening(adventure);
+  const opening = generateOpening(adventure, language);
   adventure.logs.push({
     id: uid(),
     kind: "gm",
@@ -127,19 +136,27 @@ function fingerprint(c: Character): string {
 }
 
 export default function GameBoard({ character, onNewCharacter, onSignOut }: Props) {
+  const [settings, setSettings] = useState<GmSettings>(() => loadGmSettings());
+  const [lorebook, setLorebook] = useState<LorebookEntry[]>(() => loadLorebook());
   const [adventure, setAdventure] = useState<AdventureState>(() => {
     const saved = loadAdventure();
     if (saved && fingerprint(saved.character) === fingerprint(character)) {
       return saved;
     }
-    return createAdventure(character);
+    return createAdventure(character, settings.language);
   });
   const [gmBusy, setGmBusy] = useState(false);
   const [rollPrefs, setRollPrefs] = useState({ adv: false, dis: false, dc: 13 });
   const [featurePicker, setFeaturePicker] = useState(false);
-  const gm = useGmClient();
+  const [saveDialog, setSaveDialog] = useState(false);
+  const [saveLabel, setSaveLabel] = useState("");
+  const gm = useGmClient(settings);
   const adventureRef = useRef(adventure);
   adventureRef.current = adventure;
+  const settingsRef = useRef(settings);
+  settingsRef.current = settings;
+  const loreRef = useRef(lorebook);
+  loreRef.current = lorebook;
 
   const system = adventure.system;
   const c = adventure.character as Character;
@@ -147,6 +164,14 @@ export default function GameBoard({ character, onNewCharacter, onSignOut }: Prop
   useEffect(() => {
     saveAdventure(adventure);
   }, [adventure]);
+
+  useEffect(() => {
+    saveGmSettings(settings);
+  }, [settings]);
+
+  useEffect(() => {
+    saveLorebook(lorebook);
+  }, [lorebook]);
 
   const derived = useMemo(() => {
     if (c.system === "dnd5e") return getDndDerived(c as DnDCharacter);
@@ -177,10 +202,17 @@ export default function GameBoard({ character, onNewCharacter, onSignOut }: Prop
     async (turn: GmTurn) => {
       setGmBusy(true);
       try {
-        const reply = await gm.respond(turn, adventureRef.current);
+        const snap = adventureRef.current;
+        const recent = snap.logs.slice(-6).map((l) => l.text);
+        const lore = compileLorebook(loreRef.current, recent, turn.playerText ?? "");
+        const reply = await gm.respond({ ...turn, lorebook: lore || undefined }, snap);
         if (reply.text) pushLog("gm", reply.text);
-        if (reply.usedFallback && adventureRef.current.gmMode === "live") {
-          toast.info("Live GM unavailable — switched to the local narrator.");
+        if (reply.usedFallback && snap.gmMode === "live") {
+          toast.info(
+            settingsRef.current.language === "pt-BR"
+              ? "GM ao vivo indisponível — o narrador local assumiu."
+              : "Live GM unavailable — switched to the local narrator.",
+          );
         }
       } finally {
         setGmBusy(false);
@@ -1015,10 +1047,16 @@ export default function GameBoard({ character, onNewCharacter, onSignOut }: Prop
       <TopBar
         adventure={adventure}
         hpText={hpText}
+        settings={settings}
+        onSettings={setSettings}
         onGmMode={(m) => setAdventure((prev) => ({ ...prev, gmMode: m, updatedAt: Date.now() }))}
         onNewCharacter={onNewCharacter}
         onExport={() => exportAdventureJSON(adventure)}
         onImport={handleImport}
+        onSaveToLibrary={() => {
+          setSaveLabel(c.name);
+          setSaveDialog(true);
+        }}
         onSignOut={onSignOut}
       />
       <div className="flex min-h-0 flex-1">
@@ -1028,6 +1066,8 @@ export default function GameBoard({ character, onNewCharacter, onSignOut }: Prop
             character={c}
             derived={derived}
             actions={panelActions}
+            lorebook={lorebook}
+            onLorebookChange={setLorebook}
           />
         </aside>
         <main className="flex min-w-0 flex-1 flex-col">
@@ -1078,6 +1118,41 @@ export default function GameBoard({ character, onNewCharacter, onSignOut }: Prop
                 <p className="mt-0.5 text-xs leading-relaxed text-slate-400">{f.summary}</p>
               </button>
             ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Save to library */}
+      <Dialog open={saveDialog} onOpenChange={setSaveDialog}>
+        <DialogContent className="border-slate-800 bg-slate-900 text-slate-100 sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-base font-semibold">Save to Character Library</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-3">
+            <p className="text-xs leading-relaxed text-slate-400">
+              Saved heroes are reusable across adventures and listed on your library screen.
+            </p>
+            <input
+              value={saveLabel}
+              onChange={(e) => setSaveLabel(e.target.value)}
+              placeholder="Library label"
+              className="h-10 rounded-lg border border-slate-700 bg-slate-950 px-3 text-sm text-slate-100 outline-none transition-colors placeholder:text-slate-600 focus:border-amber-500/60"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                saveToLibrary(c, saveLabel);
+                toast.success(
+                  settings.language === "pt-BR"
+                    ? "Herói salvo na biblioteca."
+                    : "Character saved to library.",
+                );
+                setSaveDialog(false);
+              }}
+              className="flex items-center justify-center gap-1.5 rounded-lg bg-amber-500 py-2.5 text-sm font-bold text-slate-950 transition-colors hover:bg-amber-400"
+            >
+              Save hero
+            </button>
           </div>
         </DialogContent>
       </Dialog>

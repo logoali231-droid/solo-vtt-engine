@@ -2,6 +2,7 @@ import { cn } from "@/lib/utils";
 import type { GurpsCharacter } from "@/lib/rpg/types";
 import type { GurpsDerived } from "@/lib/rpg/character";
 import { GURPS_ARMOR_MAP } from "@/lib/rpg/data/gurps";
+import IdentityChips from "./IdentityChips";
 import type { RollRequest, SheetProps } from "../../types";
 
 interface Props extends SheetProps<GurpsCharacter> {
@@ -54,6 +55,7 @@ export default function GurpsSheet({ character: c, derived: d, onRoll, actions }
           <div>
             <p className="text-sm font-bold tracking-wide text-amber-100">{c.name.toUpperCase()}</p>
             <p className="text-[9px] text-amber-600/70">GURPS CHARACTER SHEET · {d.pointTotal} pts</p>
+            <IdentityChips identity={c.identity} tone="amber" />
           </div>
           <span className="rounded border border-amber-900/60 px-2 py-0.5 text-[9px] font-bold text-amber-400">
             BUDGET {c.points.budget}
@@ -139,11 +141,33 @@ export default function GurpsSheet({ character: c, derived: d, onRoll, actions }
             </div>
           </div>
         )}
+        {/* Disadvantages */}
+        {d.disadvantages.length > 0 && (
+          <div className="border-t border-amber-900/40 px-4 py-3">
+            <p className="mb-2 text-[9px] font-bold uppercase tracking-widest text-red-400/70">
+              Disadvantages
+            </p>
+            <div className="flex flex-col gap-1">
+              {d.disadvantages.map((a) => (
+                <div key={a.id} className="rounded border border-red-900/40 bg-[#1c1810] px-2.5 py-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-red-300">
+                      {a.name.toUpperCase()}
+                    </span>
+                    <span className="text-[8px] font-bold text-red-400">{a.points} pts</span>
+                  </div>
+                  <p className="mt-0.5 text-[9px] leading-relaxed text-amber-600/60">{a.summary}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         {/* Points ledger */}
-        <div className="mt-3 grid grid-cols-4 gap-1.5 text-center">
+        <div className="mt-3 grid grid-cols-5 gap-1.5 text-center">
           {[
             ["ATTRIBUTES", c.points.attributes],
             ["ADVANTAGES", c.points.advantages],
+            ["DISADV", c.points.disadvantages ?? 0],
             ["SKILLS", c.points.skills],
             ["TOTAL", d.pointTotal],
           ].map(([label, value]) => (

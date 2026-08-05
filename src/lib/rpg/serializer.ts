@@ -12,6 +12,7 @@ import type {
   GurpsCharacter,
   Pf2eCharacter,
 } from "./types";
+import { identityOf } from "./types";
 import {
   getDndDerived,
   getGurpsDerived,
@@ -56,6 +57,7 @@ function serializeDnd5e(c: DnDCharacter): Record<string, unknown> {
   return {
     system: "dnd5e",
     name: c.name,
+    identity: identityOf(c.identity),
     level: c.level,
     race: {
       id: race.id,
@@ -142,9 +144,14 @@ function serializePf2e(c: Pf2eCharacter): Record<string, unknown> {
   return {
     system: "pf2e",
     name: c.name,
+    identity: identityOf(c.identity),
     level: c.level,
     ancestryId: c.ancestryId,
+    ancestryName: d.ancestryName,
+    heritageId: c.heritageId ?? null,
+    heritageName: d.heritageName || null,
     classId: c.classId,
+    className: d.className,
     backgroundId: c.backgroundId,
     scores: c.scores,
     mods: d.mods,
@@ -165,6 +172,7 @@ function serializeGurps(c: GurpsCharacter): Record<string, unknown> {
   return {
     system: "gurps",
     name: c.name,
+    identity: identityOf(c.identity),
     attributes: c.attributes,
     advantages: d.advantages.map((a) => ({
       id: a.id,
@@ -172,8 +180,14 @@ function serializeGurps(c: GurpsCharacter): Record<string, unknown> {
       points: a.points,
       summary: GURPS_ADVANTAGE_MAP[a.id]?.summary ?? a.summary,
     })),
+    disadvantages: d.disadvantages.map((a) => ({
+      id: a.id,
+      name: a.name,
+      points: a.points,
+      summary: a.summary,
+    })),
     skills: d.skills.map((s) => ({ id: s.id, name: s.name, level: s.level, points: s.points })),
-    points: { ...c.points, total: d.pointTotal },
+    points: { ...c.points, disadvantages: d.disadvPoints, total: d.pointTotal },
     hpMax: d.hpMax,
     fpMax: d.fpMax,
     basicSpeed: d.basicSpeed,

@@ -5,12 +5,14 @@ import type {
   DnDCharacter,
   GameSystem,
   GurpsCharacter,
+  LorebookEntry,
   Pf2eCharacter,
   PfRank,
 } from "@/lib/rpg/types";
 import type { DndDerived, GurpsDerived, Pf2eDerived } from "@/lib/rpg/character";
 import ConditionsPanel from "./ConditionsPanel";
 import GearPanel from "./GearPanel";
+import LorebookPanel from "./LorebookPanel";
 import DndSheet from "./sheets/DndSheet";
 import GurpsSheet from "./sheets/GurpsSheet";
 import Pf2eSheet from "./sheets/Pf2eSheet";
@@ -51,10 +53,19 @@ interface Props {
   character: Character;
   derived: DndDerived | Pf2eDerived | GurpsDerived;
   actions: PanelActions;
+  lorebook?: LorebookEntry[];
+  onLorebookChange?: (entries: LorebookEntry[]) => void;
 }
 
-export default function CharacterPanel({ system, character, derived, actions }: Props) {
-  const [tab, setTab] = useState<"sheet" | "gear" | "conditions">("sheet");
+export default function CharacterPanel({
+  system,
+  character,
+  derived,
+  actions,
+  lorebook = [],
+  onLorebookChange,
+}: Props) {
+  const [tab, setTab] = useState<"sheet" | "gear" | "conditions" | "lorebook">("sheet");
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -64,6 +75,7 @@ export default function CharacterPanel({ system, character, derived, actions }: 
             ["sheet", "Sheet"],
             ["gear", "Gear"],
             ["conditions", "Conditions"],
+            ["lorebook", "Lorebook"],
           ] as const
         ).map(([id, label]) => (
           <button
@@ -149,6 +161,9 @@ export default function CharacterPanel({ system, character, derived, actions }: 
             active={(character as { state: { conditions: string[] } }).state.conditions}
             onToggle={actions.onToggleCondition}
           />
+        )}
+        {tab === "lorebook" && onLorebookChange && (
+          <LorebookPanel entries={lorebook} onChange={onLorebookChange} />
         )}
       </div>
     </div>
