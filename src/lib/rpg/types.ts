@@ -105,6 +105,96 @@ export interface DiceResult {
 }
 
 // ---------------------------------------------------------------------------
+// Character identity & appearance (shared across systems)
+// ---------------------------------------------------------------------------
+
+export interface CharacterIdentity {
+  gender: string;
+  pronouns: string;
+  sexuality: string;
+  age: string;
+  height: string;
+  weight: string;
+  eyeColor: string;
+  hairColor: string;
+  skinColor: string;
+  personality: string;
+  features: string;
+}
+
+export const DEFAULT_IDENTITY: CharacterIdentity = {
+  gender: "",
+  pronouns: "they/them",
+  sexuality: "",
+  age: "",
+  height: "",
+  weight: "",
+  eyeColor: "",
+  hairColor: "",
+  skinColor: "",
+  personality: "",
+  features: "",
+};
+
+export function identityOf(
+  identity: Partial<CharacterIdentity> | undefined,
+): CharacterIdentity {
+  return { ...DEFAULT_IDENTITY, ...(identity ?? {}) };
+}
+
+// ---------------------------------------------------------------------------
+// Game Master settings (AI provider configuration — localStorage only)
+// ---------------------------------------------------------------------------
+
+export type GmLanguage = "en" | "pt-BR";
+
+export type GmProviderId =
+  | "builtin"
+  | "groq"
+  | "gemini"
+  | "openrouter"
+  | "huggingface"
+  | "ollama";
+
+export interface GmSettings {
+  provider: GmProviderId;
+  model: string;
+  apiKey: string;
+  baseUrl: string; // used by local / ollama-style endpoints
+  language: GmLanguage;
+  temperature: number;
+}
+
+export const DEFAULT_GM_SETTINGS: GmSettings = {
+  provider: "builtin",
+  model: "gpt-4o-mini",
+  apiKey: "",
+  baseUrl: "http://localhost:11434",
+  language: "en",
+  temperature: 1,
+};
+
+// ---------------------------------------------------------------------------
+// Lorebook (per-campaign world facts injected into the GM context)
+// ---------------------------------------------------------------------------
+
+export interface LorebookEntry {
+  id: string;
+  name: string;
+  description: string;
+  keywords: string[];
+  updatedAt: number;
+}
+
+export interface SavedCharacterRecord {
+  id: string;
+  label: string;
+  system: GameSystem;
+  character: Character;
+  createdAt: number;
+}
+
+// ---------------------------------------------------------------------------
 // Conditions (shared across systems, system-aware effects)
 // ---------------------------------------------------------------------------
 
@@ -294,6 +384,7 @@ export interface DnDCharacter {
   weaponId: string;
   armorId: string;
   shield: boolean;
+  identity?: Partial<CharacterIdentity>;
   state: {
     hpDamage: number;
     tempHp: number;
@@ -356,6 +447,7 @@ export interface Pf2eCharacter {
   name: string;
   level: number;
   ancestryId: string;
+  heritageId?: string;
   classId: string;
   backgroundId: string;
   scores: AbilityScores;
@@ -364,6 +456,7 @@ export interface Pf2eCharacter {
   saveRanks: Record<AbilityId, PfRank>;
   perceptionRank: PfRank;
   armorId: string;
+  identity?: Partial<CharacterIdentity>;
   state: {
     hpDamage: number;
     actions: number;
@@ -388,8 +481,10 @@ export interface GurpsCharacter {
   attributes: { st: number; dx: number; iq: number; ht: number };
   skills: { id: string; points: number }[];
   advantages: { id: string; points: number }[];
+  disadvantages?: { id: string; points: number }[];
   armorId: string;
-  points: { attributes: number; advantages: number; skills: number; budget: number };
+  identity?: Partial<CharacterIdentity>;
+  points: { attributes: number; advantages: number; skills: number; disadvantages?: number; budget: number };
   state: {
     hpDamage: number;
     fpDamage: number;
@@ -439,6 +534,7 @@ export interface GmTurn {
   playerText?: string;
   dice?: DiceResult;
   action?: string;
+  lorebook?: string; // compiled lorebook context for the live GM
 }
 
 export function uid(): string {

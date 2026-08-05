@@ -2,9 +2,11 @@ import { cn } from "@/lib/utils";
 import {
   GURPS_ADVANTAGES,
   GURPS_ARMORS,
+  GURPS_DISADVANTAGES,
   GURPS_SKILLS,
   gurpsAdvantageCost,
   gurpsAttributeCost,
+  gurpsDisadvantageRefund,
   gurpsSkillLevel,
 } from "@/lib/rpg/data/gurps";
 import { Check, Minus, Plus } from "lucide-react";
@@ -29,17 +31,20 @@ const ATTR_LABELS: Record<keyof Attrs, { name: string; desc: string }> = {
 export function AttributesStep({
   attrs,
   setAttrs,
+  disadvantages = [],
 }: {
   attrs: Attrs;
   setAttrs: (v: Attrs) => void;
+  disadvantages?: { id: string; points: number }[];
 }) {
   const spent = gurpsAttributeCost(attrs);
-  const remaining = GURPS_BUDGET - spent;
+  const refund = gurpsDisadvantageRefund(disadvantages); // negative
+  const remaining = GURPS_BUDGET - spent - refund;
 
   const change = (key: keyof Attrs, delta: number) => {
     const next = Math.max(6, Math.min(20, attrs[key] + delta));
     const trial = { ...attrs, [key]: next };
-    if (gurpsAttributeCost(trial) > GURPS_BUDGET) return;
+    if (gurpsAttributeCost(trial) - refund > GURPS_BUDGET) return;
     setAttrs(trial);
   };
 
@@ -93,14 +98,17 @@ export function AdvantagesStep({
   attrs,
   advantages,
   setAdvantages,
+  disadvantages = [],
 }: {
   attrs: Attrs;
   advantages: { id: string; points: number }[];
   setAdvantages: (v: { id: string; points: number }[]) => void;
+  disadvantages?: { id: string; points: number }[];
 }) {
   const spentAttrs = gurpsAttributeCost(attrs);
   const spentAdv = gurpsAdvantageCost(advantages);
-  const remaining = GURPS_BUDGET - spentAttrs - spentAdv;
+  const refund = gurpsDisadvantageRefund(disadvantages); // negative
+  const remaining = GURPS_BUDGET - spentAttrs - spentAdv - refund;
 
   const toggle = (id: string) => {
     const def = GURPS_ADVANTAGES.find((a) => a.id === id);
@@ -169,14 +177,17 @@ export function SkillsStep({
   attrs,
   skills,
   setSkills,
+  disadvantages = [],
 }: {
   attrs: Attrs;
   skills: { id: string; points: number }[];
   setSkills: (v: { id: string; points: number }[]) => void;
+  disadvantages?: { id: string; points: number }[];
 }) {
   const spentAttrs = gurpsAttributeCost(attrs);
   const spentSkills = skills.reduce((a, s) => a + s.points, 0);
-  const remaining = GURPS_BUDGET - spentAttrs - spentSkills;
+  const refund = gurpsDisadvantageRefund(disadvantages); // negative
+  const remaining = GURPS_BUDGET - spentAttrs - spentSkills - refund;
 
   const statOf = (id: string): number => {
     const def = GURPS_SKILLS.find((s) => s.id === id);
@@ -297,6 +308,7 @@ export function GurpsReviewCard({
   attrs,
   skills,
   advantages,
+  disadvantages = [],
   armorId,
   points,
 }: {
@@ -304,11 +316,12 @@ export function GurpsReviewCard({
   attrs: Attrs;
   skills: { id: string; points: number }[];
   advantages: { id: string; points: number }[];
+  disadvantages?: { id: string; points: number }[];
   armorId: string;
-  points: { attributes: number; advantages: number; skills: number; budget: number };
+  points: { attributes: number; advantages: number; skills: number; disadvantages?: number; budget: number };
 }) {
   const armor = GURPS_ARMORS.find((a) => a.id === armorId);
-  const total = points.attributes + points.advantages + points.skills;
+  const total = points.attributes + points.advantages + (points.disadvantages ?? 0) + points.skills;
   return (
     <div className="rounded-xl border border-stone-200 bg-white p-5">
       <p className="text-xs font-bold uppercase tracking-widest text-stone-400">GURPS 4e · {name}</p>
@@ -335,6 +348,21 @@ export function GurpsReviewCard({
           </div>
         </div>
       )}
+      {disadvantages.length > 0 && (
+        <div className="mt-3">
+          <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-stone-400">Disadvantages</p>
+          <div className="flex flex-wrap gap-1.5">
+            {disadvantages.map((a) => {
+              const def = GURPS_DISADVANTAGES.find((x) => x.id === a.id);
+              return (
+                <span key={a.id} className="rounded-full bg-rose-50 px-2.5 py-1 text-xs font-medium text-rose-700">
+                  {def?.name ?? a.id} · {a.points} pts
+                </span>
+              );
+            })}
+          </div>
+        </div>
+      )}
       <div className="mt-3 flex flex-wrap gap-1.5">
         {skills.map((s) => {
           const def = GURPS_SKILLS.find((x) => x.id === s.id);
@@ -354,5 +382,87 @@ export function GurpsReviewCard({
         </span>
       </div>
     </div>
+  );
+}
+
+export function DisadvantagesStep({
+  attrs,
+  advantages,
+  disadvantages,
+  setDisadvantages,
+}: {
+  attrs: Attrs;
+  advantages: { id: string; points: number }[];
+  disadvantages: { id: string; points: number }[];
+  setDisadvantages: (v: { id: string; points: number }[]) => void;
+}) {
+  const spentAttrs = gurpsAttributeCost(attrs);
+  const spentAdv = gurpsAdvantageCost(advantages);
+  const refund = gurpsDisadvantageRefund(disadvantages); // negative
+  const remaining = GURPS_BUDGET - spentAttrs - spentAdv - refund;
+  const limit = 50; // GURPS caps disadvantage points at -50
+
+  const toggle = (id: string) => {
+    const def = GURPS_DISADVANTAGES.find((d) => d.id === id);
+    if (!def) return;
+    if (disadvantages.some((d) => d.id === id)) {
+      setDisadvantages(disadvantages.filter((d) => d.id !== id));
+    } else if (Math.abs(refund + def.points) <= limit) {
+      setDisadvantages([...disadvantages, { id, points: def.points }]);
+    }
+  };
+
+  return (
+    <StepShell
+      title="Disadvantages"
+      subtitle="Flaws refund character points into your budget (−5 to −20 each, capped at −50 total). The Game Master will use them against you — that's the point."
+    >
+      <div className="mb-4 flex items-center justify-between rounded-xl border border-stone-200 bg-white px-4 py-3">
+        <span className="text-sm font-medium text-stone-600">Points available</span>
+        <span className={cn("text-lg font-bold", remaining >= 0 ? "text-stone-900" : "text-red-600")}>
+          {remaining} <span className="text-sm font-normal text-stone-400">/ {GURPS_BUDGET}</span>
+          <span className="ml-2 text-xs font-semibold text-rose-500">
+            {refund} pts from flaws
+          </span>
+        </span>
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2">
+        {GURPS_DISADVANTAGES.map((d) => {
+          const selected = disadvantages.some((x) => x.id === d.id);
+          const overCap = !selected && Math.abs(refund + d.points) > limit;
+          return (
+            <button
+              key={d.id}
+              type="button"
+              disabled={overCap}
+              onClick={() => toggle(d.id)}
+              className={cn(
+                "group relative rounded-xl border p-3 text-left transition-all duration-150",
+                selected
+                  ? "border-rose-500 bg-rose-50 shadow-[0_0_0_1px_rgba(225,29,72,0.25)]"
+                  : overCap
+                    ? "cursor-not-allowed border-stone-200 bg-stone-50 opacity-50"
+                    : "border-stone-200 bg-white hover:border-rose-300 hover:shadow-sm",
+              )}
+            >
+              {selected && (
+                <span className="absolute right-2.5 top-2.5 flex size-5 items-center justify-center rounded-full bg-rose-600 text-white">
+                  <Check className="size-3" strokeWidth={3} />
+                </span>
+              )}
+              <div className="flex items-start justify-between gap-2 pr-5">
+                <p className={cn("text-sm font-semibold", selected ? "text-rose-900" : "text-stone-900")}>
+                  {d.name}
+                </p>
+                <span className="shrink-0 rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-bold text-rose-600">
+                  {d.points} pts
+                </span>
+              </div>
+              <p className="mt-1 text-xs leading-relaxed text-stone-500">{d.summary}</p>
+            </button>
+          );
+        })}
+      </div>
+    </StepShell>
   );
 }

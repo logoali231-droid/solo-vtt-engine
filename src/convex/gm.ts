@@ -7,6 +7,8 @@ export const generate = action({
   args: {
     payload: v.string(), // strict serialized adventure JSON (see src/lib/rpg/serializer.ts)
     history: v.array(v.string()), // recent narrative/player log lines
+    model: v.optional(v.string()), // OpenAI model id
+    language: v.optional(v.string()), // "en" | "pt-BR"
   },
   handler: async (_ctx, args) => {
     const key = process.env.OPENAI_API_KEY;
@@ -14,12 +16,16 @@ export const generate = action({
       return { ok: false, code: "not_configured" };
     }
 
+    const lang = args.language === "pt-BR" ? "pt-BR" : "en";
     const system = [
       "You are the Game Master for a solo tabletop RPG running inside Oraculum, a strict rules engine.",
       "The player supplies actions and dice results. You provide vivid, second-person narration in 2-5 short paragraphs.",
       "Respect the mechanics in the payload exactly: honor success/failure/critical outcomes, DCs, HP, spell slots, conditions and resources.",
       "Keep continuity with the history. Advance a believable fantasy scene. Never roll dice yourself; the engine rolls.",
       "End each response with a single evocative question or hook for the player's next move.",
+      lang === "pt-BR"
+        ? "Narre sempre em português brasileiro, com tom envolvente e imagens vívidas."
+        : "Always respond in English.",
     ].join(" ");
 
     const user = [
@@ -40,7 +46,7 @@ export const generate = action({
           Authorization: `Bearer ${key}`,
         },
         body: JSON.stringify({
-          model: "gpt-4o-mini",
+          model: args.model || "gpt-4o-mini",
           temperature: 1,
           max_tokens: 650,
           messages: [

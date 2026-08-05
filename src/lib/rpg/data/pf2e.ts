@@ -41,6 +41,47 @@ export const PF2E_ANCESTRY_MAP = Object.fromEntries(
   PF2E_ANCESTRIES.map((a) => [a.id, a]),
 );
 
+export interface Pf2eHeritageDef {
+  id: string;
+  name: string;
+  ancestryId?: string; // undefined = universal heritage
+  summary: string;
+  feat?: string;
+}
+
+export const PF2E_HERITAGES: Pf2eHeritageDef[] = [
+  { id: "standard", name: "Standard Heritage", summary: "No special heritage — the pure traits of your ancestry." },
+  { id: "versatile", name: "Versatile Heritage", summary: "You gain one 1st-level general feat of your choice.", feat: "General feat" },
+  // Human
+  { id: "skilled-human", name: "Skilled Heritage", ancestryId: "human", summary: "You gain training in one additional skill of your choice.", feat: "Additional trained skill" },
+  { id: "wintertouched-human", name: "Wintertouched Human", ancestryId: "human", summary: "Cold resistance 5 and training in Survival.", feat: "Cold resistance" },
+  { id: "double-heart", name: "Double-Hearted", ancestryId: "human", summary: "Extraordinary endurance: you gain 8 additional Hit Points.", feat: "+8 HP" },
+  // Elf
+  { id: "cavern-elf", name: "Cavern Elf", ancestryId: "elf", summary: "Darkvision and a sensitivity to sunlight." },
+  { id: "woodland-elf", name: "Woodland Elf", ancestryId: "elf", summary: "Stealth in forests and the ability to hide in brush.", feat: "Nature-adapted" },
+  { id: "seer-elf", name: "Seer Elf", ancestryId: "elf", summary: "You can glimpse strands of fate — cast augury-like insight." },
+  // Dwarf
+  { id: "forge-dwarf", name: "Forge Dwarf", ancestryId: "dwarf", summary: "Fire resistance and expertise in crafting and metalwork.", feat: "Fire resistance" },
+  { id: "rock-dwarf", name: "Rock Dwarf", ancestryId: "dwarf", summary: "Stonecunning and darkvision from a life under the mountain." },
+  { id: "strong-blood-dwarf", name: "Strong-Blooded Dwarf", ancestryId: "dwarf", summary: "+2 to saving throws against poison and disease." },
+  // Goblin
+  { id: "razor-goblin", name: "Razor-Tooth Goblin", ancestryId: "goblin", summary: "A biting jaw attack — deal 1d6 piercing damage." },
+  { id: "snow-goblin", name: "Snow Goblin", ancestryId: "goblin", summary: "Cold resistance, sure footing on ice and snow stealth." },
+  { id: "tail-whisker-goblin", name: "Tail and Whisker Goblin", ancestryId: "goblin", summary: "Exaggerated ears and tail — +1 to Stealth and Perception." },
+  // Halfling
+  { id: "twilight-halfling", name: "Twilight Halfling", ancestryId: "halfling", summary: "See in the dark like a twilight cat — low-light vision." },
+  { id: "nomadic-halfling", name: "Nomadic Halfling", ancestryId: "halfling", summary: "Acclimatize to the weather of any region." },
+  { id: "jumpy-halfling", name: "Jumpy Halfling", ancestryId: "halfling", summary: "Startling reactions: you are never flat-footed while conscious." },
+  // Orc
+  { id: "badlands-orc", name: "Badlands Orc", ancestryId: "orc", summary: "Heat resistance and survival training for the wastes." },
+  { id: "winter-orc", name: "Winter Orc", ancestryId: "orc", summary: "Cold resistance and unshakeable tundra instincts." },
+  { id: "hold-scarred-orc", name: "Hold-Scarred Orc", ancestryId: "orc", summary: "Scars of old battles — +2 Hit Points per level." },
+];
+
+export const PF2E_HERITAGE_MAP = Object.fromEntries(
+  PF2E_HERITAGES.map((h) => [h.id, h]),
+);
+
 export const PF2E_BACKGROUNDS: Pf2eBackgroundDef[] = [
   { id: "acolyte", name: "Acolyte", boosts: ["wis", "int"], skills: ["religion"], feature: "You know the rites and hierarchies of your faith." },
   { id: "criminal", name: "Criminal", boosts: ["dex", "int"], skills: ["stealth", "thievery"], feature: "You have contacts in the underworld." },

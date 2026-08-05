@@ -31,6 +31,7 @@ import {
 import {
   GURPS_ADVANTAGE_MAP,
   GURPS_ARMOR_MAP,
+  GURPS_DISADVANTAGE_MAP,
   GURPS_SKILL_MAP,
   gurpsSkillLevel,
 } from "./data/gurps";
@@ -39,6 +40,7 @@ import {
   PF2E_ARMOR_MAP,
   PF2E_BACKGROUND_MAP,
   PF2E_CLASS_MAP,
+  PF2E_HERITAGE_MAP,
 } from "./data/pf2e";
 
 // ---------------------------------------------------------------------------
@@ -290,6 +292,7 @@ export function getDndDerived(c: DnDCharacter): DndDerived {
 
 export interface Pf2eDerived {
   ancestryName: string;
+  heritageName: string;
   className: string;
   backgroundName: string;
   mods: Record<AbilityId, number>;
@@ -318,6 +321,7 @@ export function getPf2eDerived(c: Pf2eCharacter): Pf2eDerived {
 
   return {
     ancestryName: ancestry.name,
+    heritageName: c.heritageId ? PF2E_HERITAGE_MAP[c.heritageId]?.name ?? c.heritageId : "",
     className: klass.name,
     backgroundName: background.name,
     mods,
@@ -352,7 +356,9 @@ export interface GurpsDerived {
   dr: number;
   skills: { id: string; name: string; stat: number; level: number; points: number }[];
   advantages: GurpsAdvantageView[];
+  disadvantages: GurpsAdvantageView[];
   advPoints: number;
+  disadvPoints: number;
   pointTotal: number;
 }
 
@@ -400,15 +406,39 @@ export function getGurpsDerived(c: GurpsCharacter): GurpsDerived {
       points: s.points,
     };
   });
+  const disadvantages: GurpsAdvantageView[] = (c.disadvantages ?? []).map((a) => {
+    const def = GURPS_DISADVANTAGE_MAP[a.id];
+    return {
+      id: a.id,
+      name: def?.name ?? a.id,
+      points: a.points,
+      summary: def?.summary ?? "",
+    };
+  });
   const advPoints = c.advantages.reduce((a, s) => a + s.points, 0);
+  const disadvPoints = (c.disadvantages ?? []).reduce((a, s) => a + s.points, 0);
   const pointTotal =
     (c.attributes.st - 10) * 10 +
     (c.attributes.dx - 10) * 10 +
     (c.attributes.iq - 10) * 10 +
     (c.attributes.ht - 10) * 10 +
     advPoints +
+    disadvPoints +
     c.skills.reduce((a, s) => a + s.points, 0);
-  return { hpMax, fpMax, basicSpeed, move, dodge, dr, skills, pointTotal, advantages, advPoints };
+  return {
+    hpMax,
+    fpMax,
+    basicSpeed,
+    move,
+    dodge,
+    dr,
+    skills,
+    pointTotal,
+    advantages,
+    disadvantages,
+    advPoints,
+    disadvPoints,
+  };
 }
 
 // ---------------------------------------------------------------------------

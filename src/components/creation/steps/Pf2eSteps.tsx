@@ -9,6 +9,7 @@ import {
   PF2E_ANCESTRIES,
   PF2E_BACKGROUNDS,
   PF2E_CLASSES,
+  PF2E_HERITAGES,
 } from "@/lib/rpg/data/pf2e";
 import { ChoiceGrid, SectionLabel, StepShell } from "../ui";
 import { dndMod } from "./AbilityScoresStep";
@@ -35,6 +36,40 @@ export function AncestryStep({
         }))}
         selected={ancestryId}
         onSelect={setAncestryId}
+      />
+    </StepShell>
+  );
+}
+
+export function HeritageStep({
+  ancestryId,
+  heritageId,
+  setHeritageId,
+}: {
+  ancestryId: string;
+  heritageId: string;
+  setHeritageId: (v: string) => void;
+}) {
+  const options = PF2E_HERITAGES.filter(
+    (h) => !h.ancestryId || h.ancestryId === ancestryId,
+  );
+  return (
+    <StepShell
+      title="Choose a Heritage"
+      subtitle="Heritages refine your ancestry with a specific cultural or physiological gift. Ancestry-specific options unlock based on your pick."
+    >
+      <ChoiceGrid
+        columns={2}
+        items={options.map((h) => ({
+          id: h.id,
+          title: h.name,
+          subtitle: h.summary,
+          badge: h.ancestryId
+            ? `${PF2E_ANCESTRIES.find((a) => a.id === h.ancestryId)?.name} only${h.feat ? ` · ${h.feat}` : ""}`
+            : h.feat ?? "All ancestries",
+        }))}
+        selected={heritageId}
+        onSelect={setHeritageId}
       />
     </StepShell>
   );
@@ -190,6 +225,7 @@ export function PfReviewCard({
   system,
   name,
   ancestryId,
+  heritageId,
   classId,
   backgroundId,
   boosts,
@@ -197,6 +233,7 @@ export function PfReviewCard({
   system: GameSystem;
   name: string;
   ancestryId: string;
+  heritageId?: string;
   classId: string;
   backgroundId: string;
   boosts: AbilityId[];
@@ -204,13 +241,15 @@ export function PfReviewCard({
   const ancestry = PF2E_ANCESTRIES.find((a) => a.id === ancestryId)!;
   const klass = PF2E_CLASSES.find((c) => c.id === classId)!;
   const background = PF2E_BACKGROUNDS.find((b) => b.id === backgroundId)!;
+  const heritage = PF2E_HERITAGES.find((h) => h.id === heritageId);
   const autoBoosts = [...ancestry.boosts, klass.keyAbility, ...background.boosts];
   return (
     <div className={cn("rounded-xl border border-stone-200 bg-white p-5")}>
       <p className="text-xs font-bold uppercase tracking-widest text-stone-400">Pathfinder 2e · {name}</p>
-      <div className="mt-3 grid grid-cols-3 gap-3 text-center">
+      <div className="mt-3 grid grid-cols-4 gap-3 text-center">
         {[
           ["Ancestry", ancestry.name],
+          ["Heritage", heritage?.name ?? "—"],
           ["Class", klass.name],
           ["Background", background.name],
         ].map(([label, value]) => (

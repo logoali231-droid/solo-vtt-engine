@@ -133,8 +133,79 @@ export const GURPS_ADVANTAGE_MAP = Object.fromEntries(
   GURPS_ADVANTAGES.map((a) => [a.id, a]),
 );
 
+// ---------------------------------------------------------------------------
+// Disadvantages (GURPS character points — negative cost, refund into budget)
+// ---------------------------------------------------------------------------
+
+export interface GurpsDisadvantageDef {
+  id: string;
+  name: string;
+  points: number; // negative
+  summary: string;
+}
+
+export const GURPS_DISADVANTAGES: GurpsDisadvantageDef[] = [
+  { id: "addiction", name: "Addiction", points: -5, summary: "A consuming habit you must feed or suffer withdrawal." },
+  { id: "alcoholism", name: "Alcoholism", points: -15, summary: "Self-control roll to avoid drinking; impairment while intoxicated." },
+  { id: "bad-temper", name: "Bad Temper", points: -10, summary: "Self-control roll to avoid violent outbursts when provoked." },
+  { id: "bad-smell", name: "Bad Smell", points: -10, summary: "-2 on reactions and social rolls in close proximity." },
+  { id: "bloodlust", name: "Bloodlust", points: -10, summary: "Self-control roll to avoid killing disabled enemies." },
+  { id: "code-of-honor", name: "Code of Honor", points: -10, summary: "Personal creed you will not break, even at great cost." },
+  { id: "compulsive-carousing", name: "Compulsive Carousing", points: -5, summary: "Self-control roll to avoid drinking and partying." },
+  { id: "compulsive-gambling", name: "Compulsive Gambling", points: -5, summary: "Self-control roll to avoid betting on anything." },
+  { id: "compulsive-liar", name: "Compulsive Liar", points: -15, summary: "Self-control roll to avoid lying, even when pointless." },
+  { id: "curious", name: "Curious", points: -5, summary: "Self-control roll to avoid investigating every mystery." },
+  { id: "deafness", name: "Deafness", points: -20, summary: "No hearing at all — no Hearing rolls, -4 to perception." },
+  { id: "dependents", name: "Dependents", points: -10, summary: "People who rely on you — and need rescuing." },
+  { id: "duty", name: "Duty", points: -5, summary: "Obligations to an employer, guild or cause." },
+  { id: "enemy", name: "Enemy", points: -10, summary: "Someone powerful and determined who hunts you." },
+  { id: "flashbacks", name: "Flashbacks", points: -5, summary: "Disabling memories trigger on trauma; Will roll to stay in control." },
+  { id: "greed", name: "Greed", points: -15, summary: "Self-control roll to avoid risky plays for profit." },
+  { id: "honesty", name: "Honesty", points: -10, summary: "Cannot knowingly break the law." },
+  { id: "impulsiveness", name: "Impulsiveness", points: -10, summary: "Self-control roll to avoid acting before you think." },
+  { id: "intolerance", name: "Intolerance", points: -5, summary: "Deep bias against a group; -3 on reactions with them." },
+  { id: "jealousy", name: "Jealousy", points: -10, summary: "Self-control roll to avoid sabotaging rivals." },
+  { id: "kleptomania", name: "Kleptomania", points: -15, summary: "Self-control roll to avoid stealing, even with no need." },
+  { id: "light-sleeper", name: "Light Sleeper", points: -5, summary: "Awakened by any disturbance; only truly rest in perfect silence." },
+  { id: "lunacy", name: "Lunacy", points: -10, summary: "When the moon is full, you lose control of yourself." },
+  { id: "megalomania", name: "Megalomania", points: -10, summary: "You are destined to rule the world; delusions of grandeur." },
+  { id: "nervous-stomach", name: "Nervous Stomach", points: -5, summary: "Vomit under extreme stress or gore." },
+  { id: "nightmares", name: "Nightmares", points: -5, summary: "Terrifying dreams; rest poorly and lose FP." },
+  { id: "no-sense-of-humor", name: "No Sense of Humor", points: -10, summary: "Literal-minded and deadpan; -2 on social reactions." },
+  { id: "obsession", name: "Obsession", points: -5, summary: "A single driving obsession you pursue relentlessly." },
+  { id: "overconfidence", name: "Overconfidence", points: -5, summary: "Self-control roll to avoid taking foolish risks." },
+  { id: "pacifism", name: "Pacifism", points: -10, summary: "Cannot kill — at worst, cannot fight at all." },
+  { id: "paranoia", name: "Paranoia", points: -10, summary: "Everyone is out to get you. Treat everyone with suspicion." },
+  { id: "phobia", name: "Phobia (pick one)", points: -5, summary: "Crippling fear of a specific thing — cower or flee on failure." },
+  { id: "post-combat-shakes", name: "Post-Combat Shakes", points: -5, summary: "Trembling and -2 on tasks for a while after battle." },
+  { id: "poverty", name: "Poverty", points: -10, summary: "Barely any money; no starting wealth to speak of." },
+  { id: "pyromania", name: "Pyromania", points: -5, summary: "Self-control roll to avoid setting things on fire." },
+  { id: "self-centered", name: "Self-Centered", points: -5, summary: "You look out for number one, to everyone's cost." },
+  { id: "shyness", name: "Shyness", points: -10, summary: "-2 on social rolls with strangers; painful in crowds." },
+  { id: "sleepwalker", name: "Sleepwalker", points: -5, summary: "You wander and act while asleep." },
+  { id: "slow-healing", name: "Slow Healing", points: -5, summary: "Take twice as long to recover from injury." },
+  { id: "smell-blindness", name: "Smell Blindness", points: -5, summary: "No sense of smell." },
+  { id: "squeamish", name: "Squeamish", points: -10, summary: "-2 on rolls near blood and gore." },
+  { id: "stubbornness", name: "Stubbornness", points: -5, summary: "Self-control roll to back down from a position." },
+  { id: "truthfulness", name: "Truthfulness", points: -5, summary: "Self-control roll to tell a lie, even a useful one." },
+  { id: "unluckiness", name: "Unluckiness", points: -10, summary: "Once per session, the GM turns your success into failure." },
+  { id: "weakness", name: "Weakness (common)", points: -10, summary: "Take damage when exposed to a common substance (e.g. sunlight)." },
+  { id: "wealth-poor", name: "Poor", points: -15, summary: "Severe money troubles; starting wealth one-fifth of normal." },
+  { id: "weirdness-magnet", name: "Weirdness Magnet", points: -15, summary: "Strange and supernatural events follow you everywhere." },
+  { id: "workaholic", name: "Workaholic", points: -5, summary: "Cannot relax; self-control roll to stop working." },
+  { id: "xenophilia", name: "Xenophilia", points: -5, summary: "Irresistible fascination with the alien and unknown." },
+];
+
+export const GURPS_DISADVANTAGE_MAP = Object.fromEntries(
+  GURPS_DISADVANTAGES.map((d) => [d.id, d]),
+);
+
 export function gurpsAdvantageCost(advantages: { id: string; points: number }[]): number {
   return advantages.reduce((a, s) => a + s.points, 0);
+}
+
+export function gurpsDisadvantageRefund(disadvantages: { id: string; points: number }[]): number {
+  return disadvantages.reduce((a, s) => a + s.points, 0);
 }
 
 /** Skill level given controlling attribute and invested points. */
