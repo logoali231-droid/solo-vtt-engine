@@ -30,7 +30,7 @@ export const GM_PROVIDERS: GmProviderDef[] = [
   {
     id: "groq",
     name: "Groq",
-    tagline: "Blazing-fast open models. Free tier available.",
+    tagline: "Blazing-fast open models. Free tier: ~1k requests/day.",
     tier: "free",
     needsKey: true,
     models: ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "gemma2-9b-it"],
@@ -39,10 +39,10 @@ export const GM_PROVIDERS: GmProviderDef[] = [
   {
     id: "gemini",
     name: "Google Gemini",
-    tagline: "Free-tier API key, generous limits, strong storytelling.",
+    tagline: "Free API key, generous daily quota, strong storytelling.",
     tier: "free",
     needsKey: true,
-    models: ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"],
+    models: ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"],
     keyPlaceholder: "AIza…",
   },
   {
@@ -64,10 +64,17 @@ export const GM_PROVIDERS: GmProviderDef[] = [
   {
     id: "openrouter",
     name: "OpenRouter",
-    tagline: "One key for hundreds of models (Claude, GPT, Llama…).",
+    tagline: "One key for hundreds of models. :free variants cost $0.",
     tier: "key",
     needsKey: true,
-    models: ["openrouter/auto", "anthropic/claude-3.5-haiku", "meta-llama/llama-3.3-70b-instruct"],
+    models: [
+      "meta-llama/llama-3.3-70b-instruct:free",
+      "deepseek/deepseek-chat-v3-0324:free",
+      "meta-llama/llama-3.1-8b-instruct:free",
+      "openrouter/auto",
+      "anthropic/claude-3.5-haiku",
+      "meta-llama/llama-3.3-70b-instruct",
+    ],
     keyPlaceholder: "sk-or-…",
   },
   {
