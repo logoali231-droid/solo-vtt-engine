@@ -48,12 +48,15 @@ export const GM_PROVIDERS: GmProviderDef[] = [
   {
     id: "huggingface",
     name: "HuggingFace",
-    tagline: "Inference API with a free monthly quota using your HF token.",
+    tagline: "Inference API with a free monthly quota using your HF token. Great for RPG/roleplay-tuned models.",
     tier: "free",
     needsKey: true,
     models: [
-      "meta-llama/Llama-3.3-70B-Instruct",
       "mistralai/Mistral-7B-Instruct-v0.3",
+      "teknium/OpenHermes-2.5-Mistral-7B",
+      "SanjiWatsuki/Kunoichi-DPO-v2-7B",
+      "NeverSleep/Llama-3-Lumimaid-8B",
+      "meta-llama/Llama-3.3-70B-Instruct",
     ],
     keyPlaceholder: "hf_…",
   },
@@ -241,17 +244,55 @@ export async function chatWithProvider(
         settings.temperature,
       );
     case "huggingface":
-      return openAiCompatible(
-        `https://api-inference.huggingface.co/models/${encodeURIComponent(settings.model)}/v1/chat/completions`,
-        settings.model,
-        trimmed,
-        settings.apiKey,
-        settings.temperature,
-      );
+      return huggingFaceChat(settings, trimmed);
     case "gemini":
       return geminiChat(settings.model, trimmed, settings.apiKey, settings.temperature);
     case "builtin":
       throw new Error("builtin provider is handled by the Convex action");
+  }
+}
+
+/** HuggingFace chat with automatic fallback to the unified router endpoint
+ *  (router.huggingface.co), which also accepts :fastest / :cheapest suffixes. */
+async function huggingFaceChat(
+  settings: GmSettings,
+  messages: ChatMessage[],
+): Promise<string> {
+  const direct = `https://api-inference.huggingface.co/models/${encodeURIComponent(settings.model)}/v1/chat/completions`;
+  try {
+    return await openAiCompatible(
+      direct,
+      settings.model,
+      messages,
+      settings.apiKey,
+      settings.temperature,
+    );
+  } catch {
+    return openAiCompatible(
+      "https://router.huggingface.co/v1/chat/completions",
+      settings.model,
+      messages,
+      settings.apiKey,
+      settings.temperature,
+    );
+  }
+}
+
+async function streamHuggingFace(
+  settings: GmSettings,
+  messages: ChatMessage[],
+  onDelta: (chunk: string) => void,
+): Promise<string> {
+  const direct = `https://api-inference.huggingface.co/models/${encodeURIComponent(settings.model)}/v1/chat/completions`;
+  try {
+    return await streamOpenAI(direct, settings, messages, onDelta);
+  } catch {
+    return streamOpenAI(
+      "https://router.huggingface.co/v1/chat/completions",
+      settings,
+      messages,
+      onDelta,
+    );
   }
 }
 
@@ -388,12 +429,7 @@ export async function streamChatWithProvider(
     case "gradio":
       return streamOpenAI(`${settings.baseUrl.replace(/\/$/, "")}/v1/chat/completions`, settings, trimmed, onDelta);
     case "huggingface":
-      return streamOpenAI(
-        `https://api-inference.huggingface.co/models/${encodeURIComponent(settings.model)}/v1/chat/completions`,
-        settings,
-        trimmed,
-        onDelta,
-      );
+      return streamHuggingFace(settings, trimmed, onDelta);
     case "gemini":
       return streamGemini(settings.model, trimmed, settings.apiKey, onDelta, settings.temperature);
     case "builtin":

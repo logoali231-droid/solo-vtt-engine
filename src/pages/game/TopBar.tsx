@@ -209,17 +209,22 @@ export default function TopBar({
               <p className="mb-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-500">
                 Model
               </p>
-              <select
+              <input
+                list="gm-model-options"
                 value={settings.model}
                 onChange={(e) => patch({ model: e.target.value })}
-                className="h-9 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 text-xs text-slate-100 outline-none focus:border-teal-500/60"
-              >
+                placeholder={provider.models[0] ?? "model id…"}
+                className="h-9 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 font-mono text-xs text-slate-100 outline-none transition-colors focus:border-teal-500/60"
+              />
+              <datalist id="gm-model-options">
                 {provider.models.map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
+                  <option key={m} value={m} />
                 ))}
-              </select>
+              </datalist>
+              <p className="mt-1.5 text-[10px] leading-relaxed text-slate-500">
+                Pick a suggestion or type any model ID — e.g. a HuggingFace repo like{" "}
+                <span className="font-mono text-teal-300/70">SanjiWatsuki/Kunoichi-DPO-v2-7B</span>.
+              </p>
             </div>
 
             {provider.needsBaseUrl && (
