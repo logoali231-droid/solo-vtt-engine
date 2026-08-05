@@ -414,7 +414,9 @@ export default function Wizard({ onLock, initial }: WizardProps) {
                 badgeTone: c.id === "artificer" ? "tcoe" : undefined,
               }))}
               selected={dnd.classId}
-              onSelect={(id) => patchDnd({ classId: id as DnDClassId, subclassId: null })}
+              onSelect={(id) =>
+                patchDnd({ classId: id as DnDClassId, subclassId: null, expertiseSkills: [] })
+              }
             />
           </StepShell>
         );
@@ -491,7 +493,15 @@ export default function Wizard({ onLock, initial }: WizardProps) {
         return (
           <FeatsStep
             feats={dnd.feats}
-            setFeats={(v) => patchDnd({ feats: v })}
+            setFeats={(v) =>
+              patchDnd({
+                feats: v,
+                expertiseSkills: dnd.expertiseSkills.slice(
+                  0,
+                  (dnd.classId === "rogue" ? 2 : 0) + (v.includes("skill-expert") ? 1 : 0),
+                ),
+              })
+            }
             level={level}
             raceId={dnd.raceId!}
             classId={dnd.classId}
