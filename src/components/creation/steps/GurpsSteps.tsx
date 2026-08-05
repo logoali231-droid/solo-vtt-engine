@@ -1,11 +1,13 @@
 import { cn } from "@/lib/utils";
 import {
+  GURPS_ADVANTAGES,
   GURPS_ARMORS,
   GURPS_SKILLS,
+  gurpsAdvantageCost,
   gurpsAttributeCost,
   gurpsSkillLevel,
 } from "@/lib/rpg/data/gurps";
-import { Minus, Plus } from "lucide-react";
+import { Check, Minus, Plus } from "lucide-react";
 import { ChoiceGrid, SectionLabel, StepShell } from "../ui";
 
 export const GURPS_BUDGET = 100;
@@ -83,6 +85,82 @@ export function AttributesStep({
       <p className="text-xs text-stone-400">
         Derived: HP = ST · FP = HT · Basic Speed = (DX+HT)/4 · Move = ⌊Basic Speed⌋ · Dodge = Move + 3
       </p>
+    </StepShell>
+  );
+}
+
+export function AdvantagesStep({
+  attrs,
+  advantages,
+  setAdvantages,
+}: {
+  attrs: Attrs;
+  advantages: { id: string; points: number }[];
+  setAdvantages: (v: { id: string; points: number }[]) => void;
+}) {
+  const spentAttrs = gurpsAttributeCost(attrs);
+  const spentAdv = gurpsAdvantageCost(advantages);
+  const remaining = GURPS_BUDGET - spentAttrs - spentAdv;
+
+  const toggle = (id: string) => {
+    const def = GURPS_ADVANTAGES.find((a) => a.id === id);
+    if (!def) return;
+    if (advantages.some((a) => a.id === id)) {
+      setAdvantages(advantages.filter((a) => a.id !== id));
+    } else if (remaining - def.points >= 0) {
+      setAdvantages([...advantages, { id, points: def.points }]);
+    }
+  };
+
+  return (
+    <StepShell
+      title="Advantages & Talents"
+      subtitle="Spend character points on advantages — natural gifts, training and talents. Each costs points from your 100-point budget, sharing it with attributes and skills."
+    >
+      <div className="mb-4 flex items-center justify-between rounded-xl border border-stone-200 bg-white px-4 py-3">
+        <span className="text-sm font-medium text-stone-600">Points remaining</span>
+        <span className={cn("text-lg font-bold", remaining >= 0 ? "text-stone-900" : "text-red-600")}>
+          {remaining} <span className="text-sm font-normal text-stone-400">/ {GURPS_BUDGET}</span>
+          <span className="ml-2 text-xs font-semibold text-stone-400">({spentAdv} on advantages)</span>
+        </span>
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2">
+        {GURPS_ADVANTAGES.map((a) => {
+          const selected = advantages.find((x) => x.id === a.id);
+          const affordable = remaining >= a.points && !selected;
+          return (
+            <button
+              key={a.id}
+              type="button"
+              disabled={!selected && !affordable}
+              onClick={() => toggle(a.id)}
+              className={cn(
+                "group relative rounded-xl border p-3 text-left transition-all duration-150",
+                selected
+                  ? "border-emerald-500 bg-emerald-50 shadow-[0_0_0_1px_rgba(16,150,100,0.3)]"
+                  : affordable
+                    ? "border-stone-200 bg-white hover:border-emerald-300 hover:shadow-sm"
+                    : "cursor-not-allowed border-stone-200 bg-stone-50 opacity-50",
+              )}
+            >
+              {selected && (
+                <span className="absolute right-2.5 top-2.5 flex size-5 items-center justify-center rounded-full bg-emerald-600 text-white">
+                  <Check className="size-3" strokeWidth={3} />
+                </span>
+              )}
+              <div className="flex items-start justify-between gap-2 pr-5">
+                <p className={cn("text-sm font-semibold", selected ? "text-emerald-900" : "text-stone-900")}>
+                  {a.name}
+                </p>
+                <span className="shrink-0 rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-bold text-stone-600">
+                  {a.points} pts{a.perLevel ? "/lvl" : ""}
+                </span>
+              </div>
+              <p className="mt-1 text-xs leading-relaxed text-stone-500">{a.summary}</p>
+            </button>
+          );
+        })}
+      </div>
     </StepShell>
   );
 }
@@ -218,16 +296,19 @@ export function GurpsReviewCard({
   name,
   attrs,
   skills,
+  advantages,
   armorId,
   points,
 }: {
   name: string;
   attrs: Attrs;
   skills: { id: string; points: number }[];
+  advantages: { id: string; points: number }[];
   armorId: string;
-  points: { attributes: number; skills: number; budget: number };
+  points: { attributes: number; advantages: number; skills: number; budget: number };
 }) {
   const armor = GURPS_ARMORS.find((a) => a.id === armorId);
+  const total = points.attributes + points.advantages + points.skills;
   return (
     <div className="rounded-xl border border-stone-200 bg-white p-5">
       <p className="text-xs font-bold uppercase tracking-widest text-stone-400">GURPS 4e · {name}</p>
@@ -239,6 +320,21 @@ export function GurpsReviewCard({
           </div>
         ))}
       </div>
+      {advantages.length > 0 && (
+        <div className="mt-3">
+          <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-stone-400">Advantages</p>
+          <div className="flex flex-wrap gap-1.5">
+            {advantages.map((a) => {
+              const def = GURPS_ADVANTAGES.find((x) => x.id === a.id);
+              return (
+                <span key={a.id} className="rounded-full bg-violet-50 px-2.5 py-1 text-xs font-medium text-violet-700">
+                  {def?.name ?? a.id} · {a.points} pts
+                </span>
+              );
+            })}
+          </div>
+        </div>
+      )}
       <div className="mt-3 flex flex-wrap gap-1.5">
         {skills.map((s) => {
           const def = GURPS_SKILLS.find((x) => x.id === s.id);
@@ -254,7 +350,7 @@ export function GurpsReviewCard({
       <div className="mt-3 flex items-center justify-between rounded-lg bg-stone-50 px-3 py-2 text-sm">
         <span className="text-stone-500">DR {armor?.dr ?? 0} · {armor?.name}</span>
         <span className="font-semibold text-stone-900">
-          {points.attributes + points.skills} / {points.budget} pts
+          {total} / {points.budget} pts
         </span>
       </div>
     </div>

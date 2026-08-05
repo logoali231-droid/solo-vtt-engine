@@ -189,6 +189,11 @@ export default function DndSheet({ character: c, derived: d, onRoll, onUseFeatur
                   <span className="text-[11px] text-[#4a3a20]">
                     {s.proficient && <span className="mr-1 inline-block size-1.5 rounded-full bg-[#5a7d4a]" />}
                     {s.name}
+                    {s.expert && (
+                      <span className="ml-1 rounded bg-violet-200/70 px-1 py-px text-[8px] font-bold text-violet-800">
+                        EX
+                      </span>
+                    )}
                   </span>
                   <span className={cn("text-[11px] font-bold", s.proficient ? "text-[#3b2f1b]" : "text-[#8a7444]")}>
                     {formatMod(s.total)}
@@ -284,6 +289,26 @@ export default function DndSheet({ character: c, derived: d, onRoll, onUseFeatur
                   </button>
                 );
               })}
+            </div>
+          </div>
+        )}
+
+        {/* Feats & Talents */}
+        {d.feats.length > 0 && (
+          <div>
+            <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-[#7a6436]">
+              Feats & Talents
+            </p>
+            <div className="flex flex-col gap-1.5">
+              {d.feats.map((f) => (
+                <div key={f.id} className="rounded-md border border-[#cbb98e] bg-[#f8f0dc] px-2.5 py-1.5">
+                  <p className="text-[11px] font-bold text-[#3b2f1b]">
+                    {f.name}
+                    <span className="ml-1.5 text-[9px] font-semibold text-[#8a7444]">{f.source}</span>
+                  </p>
+                  <p className="mt-0.5 text-[10px] leading-relaxed text-[#6b5530]">{f.summary}</p>
+                </div>
+              ))}
             </div>
           </div>
         )}

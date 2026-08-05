@@ -13,6 +13,7 @@ import {
   BACKGROUNDS,
   CLASSES,
   CLASS_MAP,
+  FEAT_MAP,
   RACES,
   RACE_MAP,
   WEAPONS,
@@ -30,12 +31,18 @@ import {
   PfReviewCard,
 } from "./steps/Pf2eSteps";
 import {
+  AdvantagesStep,
   AttributesStep,
   GURPS_BUDGET,
   GurpsEquipmentStep,
   GurpsReviewCard,
   SkillsStep,
 } from "./steps/GurpsSteps";
+import {
+  FeatsStep,
+  maxFeatSlots,
+  SkillsExpertiseStep,
+} from "./steps/TalentsStep";
 import { ChoiceGrid, SectionLabel, StepShell, WizardFooter } from "./ui";
 
 interface WizardProps {
@@ -55,16 +62,18 @@ interface DndDraft {
   pointBuys: Record<AbilityId, number>;
   arrayAssign: Record<AbilityId, number | null>;
   chosenSkills: string[];
+  feats: string[];
+  expertiseSkills: string[];
 }
 
 function dndSteps() {
-  return ["System", "Identity", "Race", "Class", "Subclass", "Background", "Abilities & Skills", "Review & Lock"];
+  return ["System", "Identity", "Race", "Class", "Subclass", "Background", "Abilities", "Talents & Feats", "Skills & Expertise", "Review & Lock"];
 }
 function pf2eSteps() {
   return ["System", "Identity", "Ancestry", "Class", "Background", "Ability Boosts", "Review & Lock"];
 }
 function gurpsSteps() {
-  return ["System", "Identity", "Attributes", "Skills", "Protection", "Review & Lock"];
+  return ["System", "Identity", "Attributes", "Advantages", "Skills", "Protection", "Review & Lock"];
 }
 
 export default function Wizard({ onLock, initial }: WizardProps) {
@@ -86,6 +95,8 @@ export default function Wizard({ onLock, initial }: WizardProps) {
     pointBuys: { str: 8, dex: 8, con: 8, int: 8, wis: 8, cha: 8 },
     arrayAssign: { str: null, dex: null, con: null, int: null, wis: null, cha: null },
     chosenSkills: [],
+    feats: [],
+    expertiseSkills: [],
   });
 
   // PF2e draft
@@ -99,9 +110,10 @@ export default function Wizard({ onLock, initial }: WizardProps) {
   // GURPS draft
   const [gurps, setGurps] = useState<{
     attrs: { st: number; dx: number; iq: number; ht: number };
+    advantages: { id: string; points: number }[];
     skills: { id: string; points: number }[];
     armorId: string;
-  }>({ attrs: { st: 10, dx: 12, iq: 12, ht: 11 }, skills: [], armorId: "leather-jacket" });
+  }>({ attrs: { st: 10, dx: 12, iq: 12, ht: 11 }, advantages: [], skills: [], armorId: "leather-jacket" });
 
   const steps = useMemo(
     () =>
@@ -137,7 +149,13 @@ export default function Wizard({ onLock, initial }: WizardProps) {
         }
         return true;
       }
-      if (step === 7) return true;
+      if (step === 7) return dnd.feats.length <= maxFeatSlots(level, dnd.raceId);
+      if (step === 8) {
+        const pool =
+          (dnd.classId === "rogue" ? 2 : 0) + (dnd.feats.includes("skill-expert") ? 1 : 0);
+        return dnd.expertiseSkills.length === pool;
+      }
+      if (step === 9) return true;
     }
     if (system === "pf2e") {
       if (step === 2) return !!pf2e.ancestryId;
@@ -148,12 +166,20 @@ export default function Wizard({ onLock, initial }: WizardProps) {
     }
     if (system === "gurps") {
       if (step === 2) return true;
-      if (step === 3) return true;
-      if (step === 4) return !!gurps.armorId;
-      if (step === 5) return true;
+      if (step === 3) {
+        const spent =
+          (gurps.attrs.st - 10) * 10 +
+          (gurps.attrs.dx - 10) * 10 +
+          (gurps.attrs.iq - 10) * 10 +
+          (gurps.attrs.ht - 10) * 10;
+        return spent + gurps.advantages.reduce((a, s) => a + s.points, 0) <= GURPS_BUDGET;
+      }
+      if (step === 4) return true;
+      if (step === 5) return !!gurps.armorId;
+      if (step === 6) return true;
     }
     return true;
-  }, [step, system, name, dnd, pf2e, gurps]);
+  }, [step, system, name, level, dnd, pf2e, gurps]);
 
   // -------------------------------------------------------------------------
   // Character builders
@@ -177,6 +203,8 @@ export default function Wizard({ onLock, initial }: WizardProps) {
       backgroundId: dnd.backgroundId!,
       baseScores,
       chosenSkills: dnd.chosenSkills,
+      expertiseSkills: dnd.expertiseSkills,
+      feats: dnd.feats,
       weaponId: "longsword",
       armorId: "leather",
       shield: false,
@@ -238,14 +266,16 @@ export default function Wizard({ onLock, initial }: WizardProps) {
   function buildGurps(): Character {
     const spentAttrs =
       (gurps.attrs.st - 10) * 10 + (gurps.attrs.dx - 10) * 10 + (gurps.attrs.iq - 10) * 10 + (gurps.attrs.ht - 10) * 10;
+    const spentAdv = gurps.advantages.reduce((a, s) => a + s.points, 0);
     const spentSkills = gurps.skills.reduce((a, s) => a + s.points, 0);
     return {
       system: "gurps",
       name: name.trim(),
       attributes: gurps.attrs,
+      advantages: gurps.advantages,
       skills: gurps.skills,
       armorId: gurps.armorId,
-      points: { attributes: spentAttrs, skills: spentSkills, budget: GURPS_BUDGET },
+      points: { attributes: spentAttrs, advantages: spentAdv, skills: spentSkills, budget: GURPS_BUDGET },
       state: { hpDamage: 0, fpDamage: 0, conditions: [] },
     };
   }
@@ -375,7 +405,11 @@ export default function Wizard({ onLock, initial }: WizardProps) {
               items={CLASSES.map((c) => ({
                 id: c.id,
                 title: c.name,
-                subtitle: c.blurb,
+                subtitle: `${c.blurb} Core bonuses: ${c.features
+                  .filter((f) => f.level <= level)
+                  .slice(0, 4)
+                  .map((f) => f.name)
+                  .join(", ")}${c.features.filter((f) => f.level <= level).length > 4 ? "…" : ""}`,
                 badge: `d${c.hitDie} · ${ABILITY_LABELS[c.primaryAbility]}${c.casterType ? ` · ${c.casterType === "pact" ? "pact caster" : c.casterType} caster` : ""}${c.id === "artificer" ? " · TCoE" : ""}`,
                 badgeTone: c.id === "artificer" ? "tcoe" : undefined,
               }))}
@@ -390,15 +424,18 @@ export default function Wizard({ onLock, initial }: WizardProps) {
         return (
           <StepShell
             title={`Choose a ${klass.name} Subclass`}
-            subtitle="Including the Tasha's Cauldron of Everything subclasses, marked TCoE."
+            subtitle="Including the Tasha's Cauldron of Everything subclasses, marked TCoE. Every card lists the mechanical features the subclass grants."
           >
             <ChoiceGrid
-              columns={3}
+              columns={2}
               items={klass.subclasses.map((s) => ({
                 id: s.id,
                 title: s.name,
-                subtitle: s.blurb,
-                badge: s.source,
+                subtitle: `${s.blurb} Bonus features at L${klass.subclassLevel}+: ${s.features
+                  .filter((f) => f.level <= level)
+                  .map((f) => `${f.name} (L${f.level}) — ${f.summary}`)
+                  .join(" · ")}`,
+                badge: `${s.features.filter((f) => f.level <= level).length} features · ${s.source}`,
                 badgeTone: s.source === "TCoE" ? "tcoe" : s.source === "XGtE" ? "xgte" : undefined,
               }))}
               selected={dnd.subclassId}
@@ -450,7 +487,30 @@ export default function Wizard({ onLock, initial }: WizardProps) {
           />
         );
       }
-      if (step === 7) {
+      if (step === 7 && dnd.classId) {
+        return (
+          <FeatsStep
+            feats={dnd.feats}
+            setFeats={(v) => patchDnd({ feats: v })}
+            level={level}
+            raceId={dnd.raceId!}
+            classId={dnd.classId}
+          />
+        );
+      }
+      if (step === 8 && dnd.classId && dnd.backgroundId) {
+        return (
+          <SkillsExpertiseStep
+            classId={dnd.classId}
+            backgroundId={dnd.backgroundId}
+            chosenSkills={dnd.chosenSkills}
+            expertiseSkills={dnd.expertiseSkills}
+            setExpertiseSkills={(v) => patchDnd({ expertiseSkills: v })}
+            feats={dnd.feats}
+          />
+        );
+      }
+      if (step === 9) {
         const klass = CLASS_MAP[dnd.classId!];
         const race = RACE_MAP[dnd.raceId!];
         const subclass = klass.subclasses.find((s) => s.id === dnd.subclassId);
@@ -464,7 +524,11 @@ export default function Wizard({ onLock, initial }: WizardProps) {
             scores[a] +
               (dnd.customOrigin
                 ? a === dnd.originFirst ? 2 : a === dnd.originSecond ? 1 : 0
-                : (race.asi[a] ?? 0)),
+                : (race.asi[a] ?? 0)) +
+              dnd.feats.reduce(
+                (sum, f) => sum + (FEAT_MAP[f]?.effects?.asi?.[a] ?? 0),
+                0,
+              ),
           ]),
         ) as Record<AbilityId, number>;
         return (
@@ -502,6 +566,11 @@ export default function Wizard({ onLock, initial }: WizardProps) {
                       Tasha's Custom Origin (+2 {ABILITY_LABELS[dnd.originFirst]}, +1 {ABILITY_LABELS[dnd.originSecond]})
                     </span>
                   )}
+                  {dnd.feats.map((f) => (
+                    <span key={f} className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-medium text-indigo-700">
+                      {FEAT_MAP[f]?.name ?? f}
+                    </span>
+                  ))}
                   {dnd.chosenSkills.map((s) => (
                     <span key={s} className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700">
                       {s.replace(/-/g, " ")}
@@ -512,6 +581,11 @@ export default function Wizard({ onLock, initial }: WizardProps) {
                       {s.replace(/-/g, " ")} (bg)
                     </span>
                   ))}
+                  {dnd.expertiseSkills.map((s) => (
+                    <span key={s} className="rounded-full bg-violet-100 px-2.5 py-1 text-xs font-bold text-violet-700">
+                      {s.replace(/-/g, " ")} (expertise)
+                    </span>
+                  ))}
                 </div>
               </div>
               <div className="rounded-xl border border-stone-200 bg-white p-5">
@@ -520,6 +594,7 @@ export default function Wizard({ onLock, initial }: WizardProps) {
                   <li className="flex gap-2"><ScrollText className="mt-0.5 size-4 shrink-0 text-amber-600" /> Level {level} · d{klass.hitDie} hit dice · proficiency +{(level <= 4 ? 2 : level <= 8 ? 3 : level <= 12 ? 4 : level <= 16 ? 5 : 6)}</li>
                   <li className="flex gap-2"><Shield className="mt-0.5 size-4 shrink-0 text-amber-600" /> Saves: {klass.saves.map((s) => ABILITY_LABELS[s]).join(", ")}</li>
                   <li className="flex gap-2"><Coins className="mt-0.5 size-4 shrink-0 text-amber-600" /> {subclass?.features.filter((f) => f.level <= level).length ?? 0} subclass feature(s) available</li>
+                  <li className="flex gap-2"><Sparkles className="mt-0.5 size-4 shrink-0 text-amber-600" /> {dnd.feats.length} feat(s): {dnd.feats.map((f) => FEAT_MAP[f]?.name ?? f).join(", ") || "none"}</li>
                   <li className="flex gap-2"><Flame className="mt-0.5 size-4 shrink-0 text-amber-600" /> Starting weapon: {WEAPONS.find((w) => w.id === "longsword")?.name}</li>
                   <li className="text-xs text-stone-400">Conditions, spell slots and class resources become fully interactive in the game dashboard.</li>
                 </ul>
@@ -564,18 +639,21 @@ export default function Wizard({ onLock, initial }: WizardProps) {
 
     if (system === "gurps") {
       if (step === 2) return <AttributesStep attrs={gurps.attrs} setAttrs={(v) => setGurps((g) => ({ ...g, attrs: v }))} />;
-      if (step === 3) return <SkillsStep attrs={gurps.attrs} skills={gurps.skills} setSkills={(v) => setGurps((g) => ({ ...g, skills: v }))} />;
-      if (step === 4) return <GurpsEquipmentStep armorId={gurps.armorId} setArmorId={(v) => setGurps((g) => ({ ...g, armorId: v }))} />;
-      if (step === 5) {
+      if (step === 3) return <AdvantagesStep attrs={gurps.attrs} advantages={gurps.advantages} setAdvantages={(v) => setGurps((g) => ({ ...g, advantages: v }))} />;
+      if (step === 4) return <SkillsStep attrs={gurps.attrs} skills={gurps.skills} setSkills={(v) => setGurps((g) => ({ ...g, skills: v }))} />;
+      if (step === 5) return <GurpsEquipmentStep armorId={gurps.armorId} setArmorId={(v) => setGurps((g) => ({ ...g, armorId: v }))} />;
+      if (step === 6) {
         return (
           <StepShell title="Review & Lock" subtitle="Lock in your point-budget hero and begin your adventure.">
             <GurpsReviewCard
               name={name}
               attrs={gurps.attrs}
               skills={gurps.skills}
+              advantages={gurps.advantages}
               armorId={gurps.armorId}
               points={{
                 attributes: (gurps.attrs.st - 10) * 10 + (gurps.attrs.dx - 10) * 10 + (gurps.attrs.iq - 10) * 10 + (gurps.attrs.ht - 10) * 10,
+                advantages: gurps.advantages.reduce((a, s) => a + s.points, 0),
                 skills: gurps.skills.reduce((a, s) => a + s.points, 0),
                 budget: GURPS_BUDGET,
               }}

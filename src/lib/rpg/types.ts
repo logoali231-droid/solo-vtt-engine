@@ -289,6 +289,8 @@ export interface DnDCharacter {
   backgroundId: string;
   baseScores: AbilityScores;
   chosenSkills: string[];
+  expertiseSkills: string[];
+  feats: string[];
   weaponId: string;
   armorId: string;
   shield: boolean;
@@ -385,8 +387,9 @@ export interface GurpsCharacter {
   name: string;
   attributes: { st: number; dx: number; iq: number; ht: number };
   skills: { id: string; points: number }[];
+  advantages: { id: string; points: number }[];
   armorId: string;
-  points: { attributes: number; skills: number; budget: number };
+  points: { attributes: number; advantages: number; skills: number; budget: number };
   state: {
     hpDamage: number;
     fpDamage: number;

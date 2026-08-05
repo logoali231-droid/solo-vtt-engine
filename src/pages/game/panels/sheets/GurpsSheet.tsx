@@ -118,10 +118,32 @@ export default function GurpsSheet({ character: c, derived: d, onRoll, actions }
             </button>
           ))}
         </div>
+        {/* Advantages */}
+        {d.advantages.length > 0 && (
+          <div className="border-t border-amber-900/40 px-4 py-3">
+            <p className="mb-2 text-[9px] font-bold uppercase tracking-widest text-amber-600/60">
+              Advantages & Talents
+            </p>
+            <div className="flex flex-col gap-1">
+              {d.advantages.map((a) => (
+                <div key={a.id} className="rounded border border-amber-900/40 bg-[#1c1810] px-2.5 py-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-amber-100">
+                      {a.name.toUpperCase()}
+                    </span>
+                    <span className="text-[8px] font-bold text-amber-500">{a.points} pts</span>
+                  </div>
+                  <p className="mt-0.5 text-[9px] leading-relaxed text-amber-600/60">{a.summary}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         {/* Points ledger */}
-        <div className="mt-3 grid grid-cols-3 gap-1.5 text-center">
+        <div className="mt-3 grid grid-cols-4 gap-1.5 text-center">
           {[
             ["ATTRIBUTES", c.points.attributes],
+            ["ADVANTAGES", c.points.advantages],
             ["SKILLS", c.points.skills],
             ["TOTAL", d.pointTotal],
           ].map(([label, value]) => (

@@ -18,7 +18,8 @@ import {
   getPf2eDerived,
 } from "./character";
 import { CONDITIONS } from "./data/conditions";
-import { BACKGROUND_MAP, CLASS_MAP, RACE_MAP } from "./data/dnd";
+import { BACKGROUND_MAP, CLASS_MAP, FEAT_MAP, RACE_MAP } from "./data/dnd";
+import { GURPS_ADVANTAGE_MAP } from "./data/gurps";
 
 export interface SerializedCondition {
   id: string;
@@ -80,6 +81,17 @@ function serializeDnd5e(c: DnDCharacter): Record<string, unknown> {
       features: subclass?.features.map((f) => ({ name: f.name, level: f.level, summary: f.summary })) ?? [],
     },
     background: { id: background.id, name: background.name, feature: background.feature },
+    feats: c.feats.map((f) => {
+      const def = FEAT_MAP[f];
+      return {
+        id: f,
+        name: def?.name ?? f,
+        source: def?.source ?? "PHB",
+        summary: def?.summary ?? "",
+        effects: def?.effects ?? null,
+      };
+    }),
+    expertiseSkills: c.expertiseSkills.map((id) => ({ id, name: d.skills.find((s) => s.id === id)?.name ?? id })),
     abilityScores: d.scores,
     modifiers: d.mods,
     proficiencyBonus: d.profBonus,
@@ -98,6 +110,7 @@ function serializeDnd5e(c: DnDCharacter): Record<string, unknown> {
       name: s.name,
       ability: s.ability,
       proficient: s.proficient,
+      expert: s.expert,
       total: s.total,
     })),
     spellSlots: d.spellSlots,
@@ -153,6 +166,12 @@ function serializeGurps(c: GurpsCharacter): Record<string, unknown> {
     system: "gurps",
     name: c.name,
     attributes: c.attributes,
+    advantages: d.advantages.map((a) => ({
+      id: a.id,
+      name: a.name,
+      points: a.points,
+      summary: GURPS_ADVANTAGE_MAP[a.id]?.summary ?? a.summary,
+    })),
     skills: d.skills.map((s) => ({ id: s.id, name: s.name, level: s.level, points: s.points })),
     points: { ...c.points, total: d.pointTotal },
     hpMax: d.hpMax,

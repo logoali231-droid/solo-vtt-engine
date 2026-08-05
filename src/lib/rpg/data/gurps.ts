@@ -48,6 +48,95 @@ export const GURPS_ARMOR_MAP = Object.fromEntries(
   GURPS_ARMORS.map((a) => [a.id, a]),
 );
 
+// ---------------------------------------------------------------------------
+// Advantages / Talents (GURPS character points)
+// ---------------------------------------------------------------------------
+
+export interface GurpsAdvantageDef {
+  id: string;
+  name: string;
+  points: number;
+  summary: string;
+  perLevel?: boolean;
+  effects?: {
+    dr?: number;
+    dodge?: number;
+    will?: number;
+  };
+}
+
+export const GURPS_ADVANTAGES: GurpsAdvantageDef[] = [
+  { id: "combat-reflexes", name: "Combat Reflexes", points: 15, summary: "+1 to all Active Defenses, +2 to Fright Checks; never caught flat-footed.", effects: { dodge: 1 } },
+  { id: "high-pain-threshold", name: "High Pain Threshold", points: 10, summary: "Ignore pain penalties; +3 to resist knockdown and stunning." },
+  { id: "danger-sense", name: "Danger Sense", points: 15, summary: "The GM warns you of hidden danger with a premonition." },
+  { id: "intuition", name: "Intuition", points: 15, summary: "Sense whether a proposed course of action is good or bad." },
+  { id: "luck", name: "Luck", points: 15, summary: "Reroll one failed roll once per hour of play." },
+  { id: "extraordinary-luck", name: "Extraordinary Luck", points: 30, summary: "Reroll failed rolls as often as every ten minutes." },
+  { id: "daredevil", name: "Daredevil", points: 15, summary: "+1 to all rolls when you take a genuine risk." },
+  { id: "common-sense", name: "Common Sense", points: 10, summary: "The GM may warn you when you are about to act foolishly." },
+  { id: "serendipity", name: "Serendipity", points: 15, summary: "Unlikely coincidences and lucky breaks favor you." },
+  { id: "weapon-master", name: "Weapon Master", points: 45, summary: "+1 damage per die with your signature weapons." },
+  { id: "trained-by-master", name: "Trained by a Master", points: 30, summary: "Cinematic martial-arts feats and free rapid strikes." },
+  { id: "ambidexterity", name: "Ambidexterity", points: 5, summary: "No off-hand penalty for either hand." },
+  { id: "enhanced-dodge", name: "Enhanced Dodge", points: 15, summary: "+1 to Dodge.", effects: { dodge: 1 } },
+  { id: "enhanced-parry", name: "Enhanced Parry", points: 5, summary: "+1 to Parry with your chosen skill." },
+  { id: "perfect-balance", name: "Perfect Balance", points: 15, summary: "+6 to Balance, Climbing and tightrope rolls." },
+  { id: "catfall", name: "Catfall", points: 10, summary: "Ignore damage from falls up to 20 yards on a DX roll." },
+  { id: "acute-vision", name: "Acute Vision", points: 2, summary: "+1 to Vision rolls per level.", perLevel: true },
+  { id: "acute-hearing", name: "Acute Hearing", points: 2, summary: "+1 to Hearing rolls per level.", perLevel: true },
+  { id: "night-vision", name: "Night Vision", points: 1, summary: "Ignore one level of darkness penalties per level.", perLevel: true },
+  { id: "fearlessness", name: "Fearlessness", points: 2, summary: "+1 to Fright Checks per level.", perLevel: true },
+  { id: "strong-will", name: "Strong Will", points: 4, summary: "+1 to Will per level — resist mental coercion.", perLevel: true, effects: { will: 1 } },
+  { id: "high-manual-dexterity", name: "High Manual Dexterity", points: 5, summary: "+3 to fine-manipulation tasks in your hands." },
+  { id: "flexibility", name: "Flexibility", points: 5, summary: "+3 to Escape and Climbing rolls." },
+  { id: "double-jointed", name: "Double-Jointed", points: 15, summary: "+5 to Escape and Contortionist; limber beyond belief." },
+  { id: "fit", name: "Fit", points: 5, summary: "+1 to HT rolls; recover FP twice as fast." },
+  { id: "very-fit", name: "Very Fit", points: 15, summary: "+2 to HT rolls; recover FP three times as fast." },
+  { id: "hard-to-kill", name: "Hard to Kill", points: 5, summary: "+1 per level to survive death; die less easily.", perLevel: true },
+  { id: "rapid-healing", name: "Rapid Healing", points: 5, summary: "Recover from injury twice as fast." },
+  { id: "eidetic-memory", name: "Eidetic Memory", points: 5, summary: "Roll to recall anything you have ever experienced." },
+  { id: "photographic-memory", name: "Photographic Memory", points: 10, summary: "Near-perfect recall of everything you see or read." },
+  { id: "language-talent", name: "Language Talent", points: 10, summary: "Learn new languages in a fraction of the time." },
+  { id: "voice", name: "Voice", points: 10, summary: "+2 to all social skill rolls that use speech." },
+  { id: "charisma", name: "Charisma", points: 5, summary: "+1 to reaction rolls per level; leadership magnetism.", perLevel: true },
+  { id: "attractive", name: "Attractive", points: 4, summary: "+1 to reaction rolls from those who find you appealing." },
+  { id: "handsome", name: "Handsome / Beautiful", points: 12, summary: "+2 to reaction rolls; +4 from the attracted sex." },
+  { id: "business-acumen", name: "Business Acumen", points: 10, summary: "+1 per level to Finance, Market Analysis and Merchant.", perLevel: true },
+  { id: "artificer-talent", name: "Artificer Talent", points: 10, summary: "+1 per level to invention, engineering and smithing skills.", perLevel: true },
+  { id: "social-chameleon", name: "Social Chameleon", points: 5, summary: "No penalty when acting outside your class or role." },
+  { id: "single-minded", name: "Single-Minded", points: 5, summary: "+3 to complete one chosen task while focused." },
+  { id: "absolute-direction", name: "Absolute Direction", points: 5, summary: "Always know which way is north; never lost." },
+  { id: "absolute-timing", name: "Absolute Timing", points: 5, summary: "Know the time precisely at any moment." },
+  { id: "less-sleep", name: "Less Sleep", points: 2, summary: "Need one fewer hour of sleep per level (min 0).", perLevel: true },
+  { id: "longevity", name: "Longevity", points: 2, summary: "Age noticeably slower than your peers." },
+  { id: "alcohol-tolerance", name: "Alcohol Tolerance", points: 1, summary: "Ignore penalties from intoxication; no hangovers." },
+  { id: "deep-sleeper", name: "Deep Sleeper", points: 1, summary: "Sleep through almost any noise or disturbance." },
+  { id: "immovable-stance", name: "Immovable Stance", points: 15, summary: "Cannot be knocked down or shoved from your footing." },
+  { id: "unfazeable", name: "Unfazeable", points: 15, summary: "Immune to mental stun and intimidation." },
+  { id: "indomitable", name: "Indomitable", points: 15, summary: "+5 to resist mental coercion of any kind." },
+  { id: "resistant-disease", name: "Resistant to Disease", points: 5, summary: "+3 to resist all disease." },
+  { id: "resistant-poison", name: "Resistant to Poison", points: 5, summary: "+3 to resist all poison." },
+  { id: "temperature-tolerance", name: "Temperature Tolerance", points: 1, summary: "Comfortable in more extreme heat or cold per level.", perLevel: true },
+  { id: "gizmos", name: "Gizmos", points: 5, summary: "Retroactively have a small gadget you need per level.", perLevel: true },
+  { id: "independent-income", name: "Independent Income", points: 1, summary: "Income per level without working.", perLevel: true },
+  { id: "wealthy", name: "Wealthy", points: 20, summary: "Comfortable or better income tier and starting wealth." },
+  { id: "very-wealthy", name: "Very Wealthy", points: 30, summary: "Affluent income tier and lavish starting wealth." },
+  { id: "zeroed", name: "Zeroed", points: 10, summary: "No official records of your existence exist." },
+  { id: "blessed", name: "Blessed", points: 10, summary: "Divine favor — critical successes happen more often." },
+  { id: "oracle", name: "Oracle", points: 15, summary: "Vague prophetic visions guide your choices." },
+  { id: "mind-shield", name: "Mind Shield", points: 4, summary: "+1 per level to resist mental attacks and probes.", perLevel: true },
+  { id: "tough-skin", name: "Tough Skin", points: 3, summary: "DR 1 per level — cannot stack with worn armor.", perLevel: true, effects: { dr: 1 } },
+  { id: "damage-resistance", name: "Damage Resistance", points: 5, summary: "DR 1 per level — stacks with worn armor.", perLevel: true, effects: { dr: 1 } },
+];
+
+export const GURPS_ADVANTAGE_MAP = Object.fromEntries(
+  GURPS_ADVANTAGES.map((a) => [a.id, a]),
+);
+
+export function gurpsAdvantageCost(advantages: { id: string; points: number }[]): number {
+  return advantages.reduce((a, s) => a + s.points, 0);
+}
+
 /** Skill level given controlling attribute and invested points. */
 export function gurpsSkillLevel(
   stat: number,

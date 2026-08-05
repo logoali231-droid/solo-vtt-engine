@@ -22,12 +22,18 @@ import {
   BACKGROUND_MAP,
   CLASS_MAP,
   DND_SKILLS,
+  FEAT_MAP,
   profBonusForLevel,
   RACE_MAP,
   spellSlotsFor,
   WEAPON_MAP,
 } from "./data/dnd";
-import { GURPS_ARMOR_MAP, GURPS_SKILL_MAP, gurpsSkillLevel } from "./data/gurps";
+import {
+  GURPS_ADVANTAGE_MAP,
+  GURPS_ARMOR_MAP,
+  GURPS_SKILL_MAP,
+  gurpsSkillLevel,
+} from "./data/gurps";
 import {
   PF2E_ANCESTRY_MAP,
   PF2E_ARMOR_MAP,
@@ -67,10 +73,13 @@ export interface DndDerived {
     name: string;
     ability: AbilityId;
     proficient: boolean;
+    expert: boolean;
     total: number;
   }[];
   attacks: AttackDef[];
   features: FeatureDef[];
+  feats: { id: string; name: string; source: string; summary: string }[];
+  expertiseSkills: string[];
 }
 
 export function finalScores(c: DnDCharacter): Record<AbilityId, number> {
@@ -84,7 +93,27 @@ export function finalScores(c: DnDCharacter): Record<AbilityId, number> {
       scores[a] += race.asi[a] ?? 0;
     }
   }
+  // Feat / Talent ability score increases (ASI feats from PHB + TCoE)
+  for (const featId of c.feats) {
+    const asi = FEAT_MAP[featId]?.effects?.asi;
+    if (asi) {
+      for (const a of ABILITIES) scores[a] += asi[a] ?? 0;
+    }
+  }
   return scores;
+}
+
+/** Ability-score increases contributed by the chosen feats. */
+export function featAsiBonuses(c: DnDCharacter): Partial<Record<AbilityId, number>> {
+  const out: Partial<Record<AbilityId, number>> = {};
+  for (const featId of c.feats) {
+    const asi = FEAT_MAP[featId]?.effects?.asi;
+    if (!asi) continue;
+    for (const a of ABILITIES) {
+      if (asi[a]) out[a] = (out[a] ?? 0) + (asi[a] ?? 0);
+    }
+  }
+  return out;
 }
 
 export function getDndDerived(c: DnDCharacter): DndDerived {
@@ -98,9 +127,15 @@ export function getDndDerived(c: DnDCharacter): DndDerived {
   ) as Record<AbilityId, number>;
   const profBonus = profBonusForLevel(c.level);
 
-  // HP: max hit die at level 1, average growth after.
+  const featEffects = c.feats.map((f) => FEAT_MAP[f]).filter((f): f is NonNullable<typeof f> => !!f);
+
+  // HP: max hit die at level 1, average growth after + Tough etc.
   const avg = Math.floor(klass.hitDie / 2) + 1;
-  const hpMax = klass.hitDie + mods.con + Math.max(0, c.level - 1) * (avg + mods.con);
+  const hpMax =
+    klass.hitDie +
+    mods.con +
+    Math.max(0, c.level - 1) * (avg + mods.con) +
+    featEffects.reduce((a, f) => a + (f.effects?.hpPerLevel ?? 0) * c.level, 0);
 
   const armor = ARMOR_MAP[c.armorId];
   let ac: number;
@@ -126,28 +161,50 @@ export function getDndDerived(c: DnDCharacter): DndDerived {
   }
   if (c.shield) ac += 2;
 
+  const initiative =
+    mods.dex + featEffects.reduce((a, f) => a + (f.effects?.initiative ?? 0), 0);
+  const speed =
+    race.speed + featEffects.reduce((a, f) => a + (f.effects?.speed ?? 0), 0);
+
   const { slots, pact } = spellSlotsFor(klass, c.level);
   const infusions =
     klass.id === "artificer"
       ? c.level >= 20 ? 6 : c.level >= 18 ? 6 : c.level >= 14 ? 5 : c.level >= 10 ? 4 : c.level >= 6 ? 3 : 2
       : 0;
 
-  const savingThrows = klass.saves.map((ability) => ({
-    ability,
-    label: ABILITIES.find((a) => a === ability) ?? ability,
-    proficient: true,
-    total: mods[ability] + profBonus,
-  }));
+  const saveProfs = new Set<AbilityId>([
+    ...klass.saves,
+    ...featEffects.flatMap((f) => (f.effects?.saveProf ? [f.effects.saveProf] : [])),
+  ]);
+  const savingThrows = ABILITIES.map((ability) => {
+    const proficient = saveProfs.has(ability);
+    return {
+      ability,
+      label: ABILITIES.find((a) => a === ability) ?? ability,
+      proficient,
+      total: mods[ability] + (proficient ? profBonus : 0),
+    };
+  });
 
-  const profSkills = new Set([...c.chosenSkills, ...background.skills]);
+  const profSkills = new Set([
+    ...c.chosenSkills,
+    ...background.skills,
+    ...featEffects.flatMap((f) => f.effects?.skillProfs ?? []),
+  ]);
+  const expertiseSet = new Set([
+    ...c.expertiseSkills,
+    ...featEffects.flatMap((f) => f.effects?.expertise ?? []),
+  ]);
   const skills = DND_SKILLS.map((s) => {
     const proficient = profSkills.has(s.id);
+    const expert = proficient && expertiseSet.has(s.id);
     return {
       id: s.id,
       name: s.name,
       ability: s.ability,
       proficient,
-      total: mods[s.ability] + (proficient ? profBonus : 0),
+      expert,
+      total: mods[s.ability] + (proficient ? profBonus * (expert ? 2 : 1) : 0),
     };
   });
 
@@ -203,8 +260,8 @@ export function getDndDerived(c: DnDCharacter): DndDerived {
     profBonus,
     hpMax,
     ac,
-    initiative: mods.dex,
-    speed: race.speed,
+    initiative,
+    speed,
     darkvision: race.traits.some((t) => t.mechanic === "darkvision"),
     spellSlots: slots,
     pact,
@@ -214,6 +271,16 @@ export function getDndDerived(c: DnDCharacter): DndDerived {
     skills,
     attacks,
     features,
+    feats: c.feats.map((f) => {
+      const def = FEAT_MAP[f];
+      return {
+        id: f,
+        name: def?.name ?? f,
+        source: def?.source ?? "PHB",
+        summary: def?.summary ?? "",
+      };
+    }),
+    expertiseSkills: c.expertiseSkills,
   };
 }
 
@@ -284,7 +351,16 @@ export interface GurpsDerived {
   dodge: number;
   dr: number;
   skills: { id: string; name: string; stat: number; level: number; points: number }[];
+  advantages: GurpsAdvantageView[];
+  advPoints: number;
   pointTotal: number;
+}
+
+export interface GurpsAdvantageView {
+  id: string;
+  name: string;
+  points: number;
+  summary: string;
 }
 
 export function getGurpsDerived(c: GurpsCharacter): GurpsDerived {
@@ -292,8 +368,20 @@ export function getGurpsDerived(c: GurpsCharacter): GurpsDerived {
   const fpMax = c.attributes.ht;
   const basicSpeed = (c.attributes.dx + c.attributes.ht) / 4;
   const move = Math.max(1, Math.floor(basicSpeed));
-  const dodge = move + 3;
-  const dr = GURPS_ARMOR_MAP[c.armorId]?.dr ?? 0;
+  const advantages: GurpsAdvantageView[] = c.advantages.map((a) => {
+    const def = GURPS_ADVANTAGE_MAP[a.id];
+    return {
+      id: a.id,
+      name: def?.name ?? a.id,
+      points: a.points,
+      summary: def?.summary ?? "",
+    };
+  });
+  const dodge =
+    move + 3 + advantages.reduce((a, x) => a + (GURPS_ADVANTAGE_MAP[x.id]?.effects?.dodge ?? 0), 0);
+  const dr =
+    (GURPS_ARMOR_MAP[c.armorId]?.dr ?? 0) +
+    advantages.reduce((a, x) => a + (GURPS_ADVANTAGE_MAP[x.id]?.effects?.dr ?? 0), 0);
   const skills = c.skills.map((s) => {
     const def = GURPS_SKILL_MAP[s.id];
     const stat =
@@ -312,13 +400,15 @@ export function getGurpsDerived(c: GurpsCharacter): GurpsDerived {
       points: s.points,
     };
   });
+  const advPoints = c.advantages.reduce((a, s) => a + s.points, 0);
   const pointTotal =
     (c.attributes.st - 10) * 10 +
     (c.attributes.dx - 10) * 10 +
     (c.attributes.iq - 10) * 10 +
     (c.attributes.ht - 10) * 10 +
+    advPoints +
     c.skills.reduce((a, s) => a + s.points, 0);
-  return { hpMax, fpMax, basicSpeed, move, dodge, dr, skills, pointTotal };
+  return { hpMax, fpMax, basicSpeed, move, dodge, dr, skills, pointTotal, advantages, advPoints };
 }
 
 // ---------------------------------------------------------------------------

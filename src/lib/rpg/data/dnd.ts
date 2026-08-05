@@ -126,6 +126,62 @@ export const RACES: RaceDef[] = [
     ],
     blurb: "Bound to infernal bloodlines, walking the line between worlds.",
   },
+  {
+    id: "gnome",
+    name: "Gnome",
+    size: "Small",
+    speed: 25,
+    asi: { int: 2, dex: 1 },
+    languages: ["Common", "Gnomish"],
+    traits: [
+      { name: "Darkvision", summary: "See in dim light as bright, darkness as dim (60 ft).", mechanic: "darkvision" },
+      { name: "Gnome Cunning", summary: "Advantage on Int, Wis and Cha saves vs magic." },
+      { name: "Artificer's Lore", summary: "Double proficiency on History checks about magic items or technology." },
+    ],
+    blurb: "Curious inventors with a talent for tinkering and illusion.",
+  },
+  {
+    id: "half-elf",
+    name: "Half-Elf",
+    size: "Medium",
+    speed: 30,
+    asi: { cha: 2, dex: 1, con: 1 },
+    languages: ["Common", "Elvish"],
+    traits: [
+      { name: "Darkvision", summary: "See in dim light as bright, darkness as dim (60 ft).", mechanic: "darkvision" },
+      { name: "Fey Ancestry", summary: "Advantage vs charm; immunity to magical sleep." },
+      { name: "Skill Versatility", summary: "Proficiency in any two skills." },
+    ],
+    blurb: "Bridges between two worlds, charming and adaptable.",
+  },
+  {
+    id: "half-orc",
+    name: "Half-Orc",
+    size: "Medium",
+    speed: 30,
+    asi: { str: 2, con: 1 },
+    languages: ["Common", "Orc"],
+    traits: [
+      { name: "Darkvision", summary: "See in dim light as bright, darkness as dim (60 ft).", mechanic: "darkvision" },
+      { name: "Relentless Endurance", summary: "Drop to 1 HP instead of 0 once per long rest." },
+      { name: "Savage Attacks", summary: "Extra weapon die on critical hits." },
+    ],
+    blurb: "Fierce survivors carrying the strength of their orc kin.",
+  },
+  {
+    id: "custom-lineage",
+    name: "Custom Lineage (TCoE)",
+    size: "Medium",
+    speed: 30,
+    asi: {},
+    languages: ["Common"],
+    traits: [
+      { name: "Custom Origin", summary: "+2 to one ability of your choice (set below)." },
+      { name: "Feat", summary: "Gain a feat at 1st level (choose one in the Talents step)." },
+      { name: "Variable Trait", summary: "Darkvision 60 ft or a skill proficiency of your choice." },
+    ],
+    blurb: "A Tasha's Cauldron lineage of your own making.",
+  },
 ];
 
 export const RACE_MAP = Object.fromEntries(RACES.map((r) => [r.id, r]));
@@ -147,6 +203,17 @@ export const BACKGROUNDS: BackgroundDef[] = [
     blurb: "You have spent your life in service to a temple.",
   },
   {
+    id: "charlatan",
+    name: "Charlatan",
+    skills: ["deception", "sleight-of-hand"],
+    feature: {
+      name: "False Identity",
+      summary: "You have a forged identity and the paperwork to back it.",
+    },
+    equipment: ["Fine clothes", "Disguise kit", "Forged papers", "15 gp"],
+    blurb: "You are a master of cons, forgery and misdirection.",
+  },
+  {
     id: "criminal",
     name: "Criminal",
     skills: ["deception", "stealth"],
@@ -156,6 +223,72 @@ export const BACKGROUNDS: BackgroundDef[] = [
     },
     equipment: ["Crowbar", "Dark common clothes", "15 gp"],
     blurb: "You have a history of breaking the law, for better or worse.",
+  },
+  {
+    id: "entertainer",
+    name: "Entertainer",
+    skills: ["acrobatics", "performance"],
+    feature: {
+      name: "By Popular Demand",
+      summary: "You can always find a place to perform and be paid for it.",
+    },
+    equipment: ["Musical instrument", "Costume", "8 gp"],
+    blurb: "You make your living delighting audiences.",
+  },
+  {
+    id: "folk-hero",
+    name: "Folk Hero",
+    skills: ["animal-handling", "survival"],
+    feature: {
+      name: "Rustic Hospitality",
+      summary: "Common folk will shelter and feed you without question.",
+    },
+    equipment: ["Shovel", "Iron pot", "Common clothes", "10 gp"],
+    blurb: "A humble beginning made famous by a deed.",
+  },
+  {
+    id: "guild-artisan",
+    name: "Guild Artisan",
+    skills: ["insight", "persuasion"],
+    feature: {
+      name: "Guild Membership",
+      summary: "Your guild provides lodging, work and contacts.",
+    },
+    equipment: ["Guild signet", "Artisan's tools", "15 gp"],
+    blurb: "A craftsman sworn to the rules of your guild.",
+  },
+  {
+    id: "hermit",
+    name: "Hermit",
+    skills: ["medicine", "religion"],
+    feature: {
+      name: "Discovery",
+      summary: "Your secluded life led to a unique discovery.",
+    },
+    equipment: ["Scroll case of notes", "Winter blanket", "5 gp"],
+    blurb: "You withdrew from the world — and found something in the silence.",
+  },
+  {
+    id: "noble",
+    name: "Noble",
+    skills: ["history", "persuasion"],
+    feature: {
+      name: "Position of Privilege",
+      summary: "Nobles defer to you and common folk give you passage.",
+    },
+    equipment: ["Signet ring", "Fine clothes", "25 gp"],
+    blurb: "Born to wealth, title and influence.",
+  },
+  {
+    id: "outlander",
+    name: "Outlander",
+    skills: ["athletics", "survival"],
+    feature: {
+      name: "Wanderer",
+      summary: "You always remember geography and can find food and water.",
+    },
+    equipment: ["Staff", "Hunting trap", "Animal trophy", "10 gp"],
+    blurb: "Raised far from civilization, at home in the wild.",
   },
   {
     id: "sage",
@@ -169,6 +302,17 @@ export const BACKGROUNDS: BackgroundDef[] = [
     blurb: "You spent years learning the lore of the realms.",
   },
   {
+    id: "sailor",
+    name: "Sailor",
+    skills: ["athletics", "perception"],
+    feature: {
+      name: "Ship's Passage",
+      summary: "You can arrange free passage on sailing vessels.",
+    },
+    equipment: ["Belaying pin", "50 ft of silk rope", "10 gp"],
+    blurb: "You earned your keep on the open sea.",
+  },
+  {
     id: "soldier",
     name: "Soldier",
     skills: ["athletics", "intimidation"],
@@ -179,11 +323,80 @@ export const BACKGROUNDS: BackgroundDef[] = [
     equipment: ["Insignia of rank", "Trophy from a fallen enemy", "Deck of cards", "10 gp"],
     blurb: "You were trained for war and have seen battle.",
   },
+  {
+    id: "urchin",
+    name: "Urchin",
+    skills: ["sleight-of-hand", "stealth"],
+    feature: {
+      name: "City Secrets",
+      summary: "You know the shortcuts, safe houses and sewers of cities.",
+    },
+    equipment: ["Small knife", "Map of your city", "Pet mouse", "10 gp"],
+    blurb: "You grew up on the streets, quick and resourceful.",
+  },
 ];
 
 export const BACKGROUND_MAP = Object.fromEntries(
   BACKGROUNDS.map((b) => [b.id, b]),
 );
+
+// ---------------------------------------------------------------------------
+// Feats / Talents (core + Tasha's Cauldron of Everything)
+// ---------------------------------------------------------------------------
+
+export interface FeatDef {
+  id: string;
+  name: string;
+  source: "PHB" | "XGtE" | "TCoE";
+  summary: string;
+  effects?: {
+    asi?: Partial<Record<AbilityId, number>>;
+    skillProfs?: string[];
+    expertise?: string[];
+    toolProfs?: string[];
+    saveProf?: AbilityId;
+    hpPerLevel?: number;
+    initiative?: number;
+    speed?: number;
+  };
+}
+
+export const FEATS: FeatDef[] = [
+  { id: "actor", name: "Actor", source: "PHB", summary: "+1 Charisma. Master impersonation and mimic voices; advantage on Deception/Performance when passing yourself off.", effects: { asi: { cha: 1 } } },
+  { id: "alert", name: "Alert", source: "PHB", summary: "+5 initiative. You can't be surprised while conscious.", effects: { initiative: 5 } },
+  { id: "athlete", name: "Athlete", source: "PHB", summary: "+1 Str or Dex. Climb at full speed; standing from prone costs 5 ft; long jumps need no run-up.", effects: { asi: { str: 1 } } },
+  { id: "chef", name: "Chef (TCoE)", source: "TCoE", summary: "+1 Con or Wis. Cook up temp-HP treats; with an hour of cooking, allies gain 1d8 temp HP." },
+  { id: "crusher", name: "Crusher (TCoE)", source: "TCoE", summary: "+1 Str or Con. Bludgeoning hits push targets; critical hits grant advantage to your allies.", effects: { asi: { str: 1 } } },
+  { id: "defensive-duelist", name: "Defensive Duelist", source: "PHB", summary: "+1 Dex. When hit with a melee attack while wielding a finesse weapon, add proficiency to AC as a reaction.", effects: { asi: { dex: 1 } } },
+  { id: "dungeon-delver", name: "Dungeon Delver", source: "PHB", summary: "Advantage on Perception/Investigation to find traps and on saves vs traps; resistance to trap damage." },
+  { id: "durable", name: "Durable", source: "PHB", summary: "+1 Con. Hit dice regain a minimum of twice your Con modifier.", effects: { asi: { con: 1 } } },
+  { id: "eldritch-adept", name: "Eldritch Adept (TCoE)", source: "TCoE", summary: "Gain one warlock Eldritch Invocation you qualify for." },
+  { id: "fey-touched", name: "Fey Touched (TCoE)", source: "TCoE", summary: "+1 Int, Wis or Cha. Learn Misty Step and one 1st-level divination/enchantment spell — cast once per long rest.", effects: { asi: { int: 1 } } },
+  { id: "great-weapon-master", name: "Great Weapon Master", source: "PHB", summary: "−5 to hit for +10 damage with heavy weapons; bonus attack on a crit or kill." },
+  { id: "keen-mind", name: "Keen Mind", source: "PHB", summary: "+1 Int. Perfect recall of anything you've seen in the past month.", effects: { asi: { int: 1 } } },
+  { id: "lucky", name: "Lucky", source: "PHB", summary: "Three luck points per long rest to reroll attack rolls, checks or saves." },
+  { id: "mage-slayer", name: "Mage Slayer", source: "PHB", summary: "Attack casters as a reaction; disadvantage on their concentration saves; advantage on saves vs their spells." },
+  { id: "metamagic-adept", name: "Metamagic Adept (TCoE)", source: "TCoE", summary: "Learn two Metamagic options and gain 2 sorcery points." },
+  { id: "mobile", name: "Mobile", source: "PHB", summary: "+10 ft speed. Dashing ignores difficult terrain; no opportunity attacks from creatures you attack.", effects: { speed: 10 } },
+  { id: "observant", name: "Observant", source: "PHB", summary: "+1 Int or Wis. +5 to passive Perception and Investigation; read lips.", effects: { asi: { wis: 1 } } },
+  { id: "piercer", name: "Piercer (TCoE)", source: "TCoE", summary: "+1 Str or Dex. Piercing crits add an extra damage die; reroll a piercing damage die once per turn.", effects: { asi: { dex: 1 } } },
+  { id: "poisoner", name: "Poisoner (TCoE)", source: "TCoE", summary: "Ignore poison resistance; apply poison to a weapon as a bonus action; craft poisons." },
+  { id: "resilient", name: "Resilient", source: "PHB", summary: "+1 to one ability and proficiency in its saving throw.", effects: { asi: { con: 1 }, saveProf: "con" } },
+  { id: "sentinel", name: "Sentinel", source: "PHB", summary: "Opportunity attacks drop speed to 0; attack enemies that attack your allies as a reaction." },
+  { id: "shadow-touched", name: "Shadow Touched (TCoE)", source: "TCoE", summary: "+1 Int, Wis or Cha. Learn Invisibility and one 1st-level illusion/necromancy spell — cast once per long rest.", effects: { asi: { int: 1 } } },
+  { id: "sharpshooter", name: "Sharpshooter", source: "PHB", summary: "Ranged attacks ignore cover; −5 to hit for +10 damage; long range no penalty." },
+  { id: "skill-expert", name: "Skill Expert (TCoE)", source: "TCoE", summary: "+1 to any ability. Proficiency in one skill and expertise in one skill you're proficient in.", effects: { asi: { dex: 1 }, skillProfs: ["perception"], expertise: ["perception"] } },
+  { id: "skilled", name: "Skilled", source: "PHB", summary: "Proficiency in three skills of your choice.", effects: { skillProfs: ["insight", "investigation", "survival"] } },
+  { id: "slasher", name: "Slasher (TCoE)", source: "TCoE", summary: "+1 Str or Dex. Slashing crits give the target disadvantage; reduce a target's speed by 10 ft on hit.", effects: { asi: { str: 1 } } },
+  { id: "spell-sniper", name: "Spell Sniper", source: "PHB", summary: "Double spell-cantrip range; ranged spell attacks ignore half and three-quarters cover." },
+  { id: "tavern-brawler", name: "Tavern Brawler", source: "PHB", summary: "+1 Str or Con. Improvised weapons and unarmed strikes use d4s; grapple as a bonus action after a hit.", effects: { asi: { str: 1 } } },
+  { id: "telekinetic", name: "Telekinetic (TCoE)", source: "TCoE", summary: "+1 Int, Wis or Cha. Mage Hand you can cast invisibly; shove creatures with a bonus action.", effects: { asi: { int: 1 } } },
+  { id: "telepathic", name: "Telepathic (TCoE)", source: "TCoE", summary: "+1 Int, Wis or Cha. Detect Thoughts once per rest; speak telepathically.", effects: { asi: { int: 1 } } },
+  { id: "tough", name: "Tough", source: "PHB", summary: "Your HP maximum increases by 2 per level.", effects: { hpPerLevel: 2 } },
+  { id: "war-caster", name: "War Caster", source: "PHB", summary: "Advantage on concentration saves; cast with hands full; cast a spell as an opportunity attack." },
+];
+
+export const FEAT_MAP = Object.fromEntries(FEATS.map((f) => [f.id, f]));
 
 // ---------------------------------------------------------------------------
 // Spell slot progression tables
