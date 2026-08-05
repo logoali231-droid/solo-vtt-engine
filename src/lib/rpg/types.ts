@@ -301,6 +301,7 @@ export interface DnDCharacter {
     infusionsUsed: number;
     conditions: string[];
     pending: PendingBonus[];
+    damagePending: PendingBonus[];
     activeStatus: string[];
   };
 }

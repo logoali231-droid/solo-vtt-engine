@@ -410,7 +410,7 @@ export const CLASSES: ClassDef[] = [
     blurb: "Peerless master of weapons and armor.",
     resources: [
       { id: "second-wind", label: "Second Wind", rest: "short", max: () => 1 },
-      { id: "action-surge", label: "Action Surge", rest: "short", max: () => (c) => c.level >= 17 ? 2 : 1 },
+      { id: "action-surge", label: "Action Surge", rest: "short", max: (c) => (c.level >= 17 ? 2 : 1) },
     ],
     features: [
       { id: "fighting-style", name: "Fighting Style", level: 1, summary: "Choose a fighting style that sharpens your combat." },

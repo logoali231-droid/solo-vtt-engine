@@ -366,7 +366,6 @@ export function applyConditions(
         if (e.autoFailStrDexSaves && (ctx.ability === "str" || ctx.ability === "dex")) res.autoFail = true;
       }
       if (ctx.kind === "sight" && e.autoFailSightChecks) res.autoFail = true;
-      if (e.autoFailChecks && ctx.kind === "check") res.autoFail = true;
       // Reckless / rage advantage handled elsewhere
       if (e.attacksAgainstAdvantage) {
         // Note: this affects incoming attacks, surfaced in the sheet UI.
