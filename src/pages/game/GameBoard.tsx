@@ -25,7 +25,7 @@ import {
   loadAdventure,
   saveAdventure,
 } from "@/lib/rpg/storage";
-import { generateOpening, localRespond } from "@/lib/rpg/gm/local";
+import { generateOpening } from "@/lib/rpg/gm/local";
 import { useGmClient } from "@/lib/rpg/gm/live";
 import type {
   AdventureState,
@@ -116,10 +116,20 @@ function randomEnemy(system: AdventureState["system"]): EnemyState {
   return { ...e, id: `${e.id}-${uid().slice(0, 4)}` };
 }
 
+function fingerprint(c: Character): string {
+  if (c.system === "dnd5e") {
+    return `dnd5e:${c.name}:${c.raceId}:${c.classId}:${c.subclassId}:${c.level}`;
+  }
+  if (c.system === "pf2e") {
+    return `pf2e:${c.name}:${c.ancestryId}:${c.classId}`;
+  }
+  return `gurps:${c.name}:${JSON.stringify(c.attributes)}`;
+}
+
 export default function GameBoard({ character, onNewCharacter, onSignOut }: Props) {
   const [adventure, setAdventure] = useState<AdventureState>(() => {
     const saved = loadAdventure();
-    if (saved && saved.character.name === character.name && saved.system === character.system) {
+    if (saved && fingerprint(saved.character) === fingerprint(character)) {
       return saved;
     }
     return createAdventure(character);
