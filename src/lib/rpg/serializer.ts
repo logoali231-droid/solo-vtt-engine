@@ -1,0 +1,236 @@
+// ============================================================================
+// Oraculum — API architecture layer.
+// Serializes the complete character sheet (incl. Tasha's subclass data and
+// modifiers) plus computed dice logs into a strict JSON payload for the LLM
+// completion endpoint.
+// ============================================================================
+
+import type {
+  AdventureState,
+  DnDCharacter,
+  GameSystem,
+  GurpsCharacter,
+  Pf2eCharacter,
+} from "./types";
+import {
+  getDndDerived,
+  getGurpsDerived,
+  getPf2eDerived,
+} from "./character";
+import { CONDITIONS } from "./data/conditions";
+import { BACKGROUND_MAP, CLASS_MAP, RACE_MAP } from "./data/dnd";
+
+export interface SerializedCondition {
+  id: string;
+  name: string;
+  active: boolean;
+}
+
+export interface LLMPayload {
+  schemaVersion: 1;
+  meta: {
+    app: "oraculum";
+    system: GameSystem;
+    gmMode: "local" | "live";
+    generatedAt: number;
+  };
+  character: Record<string, unknown>;
+  adventure: {
+    sceneTitle: string;
+    location: string;
+    quest: string[];
+    enemies: { name: string; hp: number; maxHp: number; ac: number }[];
+    conditions: SerializedCondition[];
+    hp: { current: number; max: number };
+  };
+  diceLog: Record<string, unknown>[];
+}
+
+function serializeDnd5e(c: DnDCharacter): Record<string, unknown> {
+  const d = getDndDerived(c);
+  const race = RACE_MAP[c.raceId];
+  const klass = CLASS_MAP[c.classId];
+  const subclass = klass.subclasses.find((s) => s.id === c.subclassId);
+  const background = BACKGROUND_MAP[c.backgroundId];
+  return {
+    system: "dnd5e",
+    name: c.name,
+    level: c.level,
+    race: {
+      id: race.id,
+      name: race.name,
+      size: race.size,
+      speed: race.speed,
+      traits: race.traits,
+      tashasCustomOrigin: c.customOrigin,
+      assignedAbilityIncreases: c.customOrigin
+        ? { [c.originFirst]: +2, [c.originSecond]: +1 }
+        : race.asi,
+    },
+    class: {
+      id: klass.id,
+      name: klass.name,
+      hitDie: klass.hitDie,
+      primaryAbility: klass.primaryAbility,
+    },
+    subclass: {
+      id: subclass?.id,
+      name: subclass?.name,
+      source: subclass?.source,
+      features: subclass?.features.map((f) => ({ name: f.name, level: f.level, summary: f.summary })) ?? [],
+    },
+    background: { id: background.id, name: background.name, feature: background.feature },
+    abilityScores: d.scores,
+    modifiers: d.mods,
+    proficiencyBonus: d.profBonus,
+    hpMax: d.hpMax,
+    armorClass: d.ac,
+    initiative: d.initiative,
+    speed: d.speed,
+    darkvision: d.darkvision,
+    savingThrows: d.savingThrows.map((s) => ({
+      ability: s.ability,
+      proficient: s.proficient,
+      total: s.total,
+    })),
+    skills: d.skills.map((s) => ({
+      id: s.id,
+      name: s.name,
+      ability: s.ability,
+      proficient: s.proficient,
+      total: s.total,
+    })),
+    spellSlots: d.spellSlots,
+    pactSlots: d.pact ? { count: d.pact.count, slotLevel: d.pact.slotLevel } : null,
+    spellSlotsUsed: c.state.spellSlotsUsed,
+    pactSlotsUsed: c.state.pactUsed,
+    infusions: d.infusions,
+    infusionsUsed: c.state.infusionsUsed,
+    spellAbility: d.spellAbility,
+    attacks: d.attacks,
+    features: d.features.map((f) => ({ name: f.name, level: f.level, summary: f.summary, rest: f.rest ?? null })),
+    resources: Object.entries(c.state.resourceUses).map(([id, used]) => ({
+      id,
+      used,
+      remaining: (klass.resources.find((r) => r.id === id)?.max(c) ?? 0) - used,
+    })),
+    activeStatuses: c.state.activeStatus,
+    pendingBonuses: c.state.pending,
+    equipment: {
+      weapon: c.weaponId,
+      armor: c.armorId,
+      shield: c.shield,
+    },
+  };
+}
+
+function serializePf2e(c: Pf2eCharacter): Record<string, unknown> {
+  const d = getPf2eDerived(c);
+  return {
+    system: "pf2e",
+    name: c.name,
+    level: c.level,
+    ancestryId: c.ancestryId,
+    classId: c.classId,
+    backgroundId: c.backgroundId,
+    scores: c.scores,
+    mods: d.mods,
+    hpMax: d.hpMax,
+    armorClass: d.ac,
+    classDC: d.classDC,
+    perception: d.perception,
+    skillRanks: c.skillRanks,
+    saveRanks: c.saveRanks,
+    perceptionRank: c.perceptionRank,
+    armorId: c.armorId,
+    actionsRemaining: c.state.actions,
+  };
+}
+
+function serializeGurps(c: GurpsCharacter): Record<string, unknown> {
+  const d = getGurpsDerived(c);
+  return {
+    system: "gurps",
+    name: c.name,
+    attributes: c.attributes,
+    skills: d.skills.map((s) => ({ id: s.id, name: s.name, level: s.level, points: s.points })),
+    points: { ...c.points, total: d.pointTotal },
+    hpMax: d.hpMax,
+    fpMax: d.fpMax,
+    basicSpeed: d.basicSpeed,
+    move: d.move,
+    dodge: d.dodge,
+    damageResistance: d.dr,
+    armorId: c.armorId,
+  };
+}
+
+export function serializeCharacter(
+  system: GameSystem,
+  character: AdventureState["character"],
+): Record<string, unknown> {
+  switch (system) {
+    case "dnd5e":
+      return serializeDnd5e(character as DnDCharacter);
+    case "pf2e":
+      return serializePf2e(character as Pf2eCharacter);
+    case "gurps":
+      return serializeGurps(character as GurpsCharacter);
+  }
+}
+
+export function serializeAdventure(adventure: AdventureState): LLMPayload {
+  const c = adventure.character;
+  const hp =
+    c.system === "dnd5e"
+      ? { current: getDndDerived(c).hpMax - c.state.hpDamage, max: getDndDerived(c).hpMax }
+      : c.system === "pf2e"
+        ? { current: getPf2eDerived(c).hpMax - c.state.hpDamage, max: getPf2eDerived(c).hpMax }
+        : { current: getGurpsDerived(c).hpMax - c.state.hpDamage, max: getGurpsDerived(c).hpMax };
+
+  return {
+    schemaVersion: 1,
+    meta: {
+      app: "oraculum",
+      system: adventure.system,
+      gmMode: adventure.gmMode,
+      generatedAt: Date.now(),
+    },
+    character: serializeCharacter(adventure.system, c),
+    adventure: {
+      sceneTitle: adventure.sceneTitle,
+      location: adventure.location,
+      quest: adventure.quest,
+      enemies: adventure.enemies.map((e) => ({
+        name: e.name,
+        hp: Math.max(0, e.hp),
+        maxHp: e.maxHp,
+        ac: e.ac,
+      })),
+      conditions: CONDITIONS.map((cd) => ({
+        id: cd.id,
+        name: cd.name,
+        active: c.state.conditions.includes(cd.id),
+      })),
+      hp,
+    },
+    diceLog: adventure.diceLog.slice(-14).map((d) => ({
+      label: d.label,
+      kind: d.kind,
+      rolls: d.rolls,
+      diceNotation: d.diceNotation,
+      modifiers: d.modifiers,
+      total: d.total,
+      target: d.target ?? null,
+      outcome: d.outcome,
+      margin: d.margin ?? null,
+      advantage: d.advantage ?? false,
+      disadvantage: d.disadvantage ?? false,
+      breakdown: d.breakdown,
+    })),
+  };
+}
+
+export function payloadToJson(payload: LLMPayload): string {
+  return JSON.stringify(payload, null, 2);
+}
