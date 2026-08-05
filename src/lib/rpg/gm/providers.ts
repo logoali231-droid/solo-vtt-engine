@@ -56,6 +56,7 @@ export const GM_PROVIDERS: GmProviderDef[] = [
       "teknium/OpenHermes-2.5-Mistral-7B",
       "SanjiWatsuki/Kunoichi-DPO-v2-7B",
       "NeverSleep/Llama-3-Lumimaid-8B",
+      "Tarek07/Dungeonmaster-V2.4-Expanded-LLaMa-70B",
       "meta-llama/Llama-3.3-70B-Instruct",
     ],
     keyPlaceholder: "hf_…",
