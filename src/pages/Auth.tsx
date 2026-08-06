@@ -34,6 +34,23 @@ function resolveRedirectAfterAuth(
   return fallback;
 }
 
+const GOOGLE_FLOW_TIMEOUT_MS = 15000;
+
+/** Map common OAuth errors to actionable guidance (credentials live in the
+ *  project's API Keys tab — the client can't read them directly). */
+function googleSignInHint(error: unknown): string {
+  const raw = error instanceof Error ? error.message : String(error ?? "");
+  if (/client id|clientId|client secret|client_secret|missing credential|oauth_client/i.test(raw)) {
+    return "Google sign-in isn't configured yet. Add AUTH_GOOGLE_ID and AUTH_GOOGLE_SECRET in the project's API Keys tab, and register <CONVEX_SITE_URL>/api/auth/callback/google as an authorized redirect URI in your Google Cloud OAuth client.";
+  }
+  if (/redirect_uri|redirect uri|invalid_request|origin/i.test(raw)) {
+    return "Google rejected the sign-in request. Verify that <CONVEX_SITE_URL>/api/auth/callback/google is registered as an authorized redirect URI in your Google Cloud OAuth client.";
+  }
+  return raw
+    ? `Google sign-in failed: ${raw}`
+    : "Google sign-in failed. Please try again.";
+}
+
 function GoogleIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" aria-hidden="true">
@@ -133,19 +150,54 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
   };
 
   const handleGoogleLogin = async () => {
-    setIsLoading(true);
     setError(null);
-    try {
-      // OAuth flow: the browser is redirected to Google, then back through
-      // Convex Auth's /api/auth/callback/google route, landing on `redirect`.
-      await signIn("google", { redirectTo: redirect });
-    } catch (error) {
-      console.error("Google sign-in error:", error);
+    setIsLoading(true);
+
+    // Watchdog: OAuth sign-in is supposed to navigate the whole tab to the
+    // Convex auth URL. If that top-level navigation is blocked (sandboxed
+    // preview iframe) the promise still resolves, and without this guard the
+    // button would spin forever. Never allow that.
+    const watchdog = window.setTimeout(() => {
+      setIsLoading(false);
       setError(
-        error instanceof Error
-          ? error.message
-          : "Failed to sign in with Google. Please try again.",
+        "Google sign-in timed out. In the embedded preview, the sign-in redirect to an external domain can be blocked — use the email code or guest options here, or open the app in a full browser tab to sign in with Google.",
       );
+    }, GOOGLE_FLOW_TIMEOUT_MS);
+
+    try {
+      const result = await signIn("google", { redirectTo: redirect });
+      const oauthUrl = result?.redirect;
+      if (!oauthUrl) {
+        // Not an OAuth flow — the auth-state effect handles navigation.
+        window.clearTimeout(watchdog);
+        setIsLoading(false);
+        return;
+      }
+
+      // The auth client sets window.location.href = oauthUrl (top-level
+      // navigation). If we're still on this page a moment later, the browser
+      // blocked it — detect and recover instead of hanging on the spinner.
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      if (window.location.href !== oauthUrl.toString()) {
+        window.clearTimeout(watchdog);
+        setIsLoading(false);
+        let opened = false;
+        try {
+          opened = Boolean(window.open(oauthUrl.toString(), "_blank"));
+        } catch {
+          opened = false;
+        }
+        setError(
+          opened
+            ? "Google sign-in opened in a new tab. Finish it there, then refresh this page to complete sign-in. If it still doesn't work here, open the app in a full browser tab — embedded previews can block the sign-in redirect."
+            : "This preview blocked Google's sign-in redirect. Use the email code or guest options here, or open the app in a full browser tab to sign in with Google.",
+        );
+      }
+      // else: navigation succeeded — the component is being torn down.
+    } catch (error) {
+      window.clearTimeout(watchdog);
+      console.error("Google sign-in error:", error);
+      setError(googleSignInHint(error));
       setIsLoading(false);
     }
   };
