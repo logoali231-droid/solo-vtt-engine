@@ -77,6 +77,8 @@ export const GM_PROVIDERS: GmProviderDef[] = [
       "openai/gpt-oss-20b:free",
       "inclusionai/ling-3.0-flash:free",
       "poolside/laguna-s-2.1:free",
+      "gryphe/mythomax-l2-13b",
+      "sao10k/l3.3-euryale-70b",
       "openrouter/auto",
       "anthropic/claude-3.5-haiku",
       "meta-llama/llama-3.3-70b-instruct",

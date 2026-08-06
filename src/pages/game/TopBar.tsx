@@ -1,16 +1,19 @@
 import { cn } from "@/lib/utils";
-import type { AdventureState, GmLanguage, GmSettings } from "@/lib/rpg/types";
+import type { AdventureState, AdsSettings, GmLanguage, GmSettings } from "@/lib/rpg/types";
 import { GM_PROVIDERS, providerOf } from "@/lib/rpg/gm/providers";
+import { estimatedRevenue, readAdsStats, type AdsStats } from "./AdSlot";
 import {
+  BadgeDollarSign,
   BookmarkPlus,
   Dices,
   Download,
   LogOut,
+  Megaphone,
   Plus,
   Settings2,
   Upload,
 } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -22,7 +25,9 @@ interface Props {
   adventure: AdventureState;
   hpText: string;
   settings: GmSettings;
+  ads: AdsSettings;
   onSettings: (s: GmSettings) => void;
+  onAds: (a: AdsSettings) => void;
   onGmMode: (mode: "local" | "live") => void;
   onNewCharacter: () => void;
   onExport: () => void;
@@ -35,7 +40,9 @@ export default function TopBar({
   adventure,
   hpText,
   settings,
+  ads,
   onSettings,
+  onAds,
   onGmMode,
   onNewCharacter,
   onExport,
@@ -45,6 +52,17 @@ export default function TopBar({
 }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [adsOpen, setAdsOpen] = useState(false);
+  const [adsStats, setAdsStats] = useState<AdsStats>(() => readAdsStats());
+
+  // Live stats readout while the Ads dialog is open.
+  useEffect(() => {
+    if (!adsOpen) return;
+    const id = window.setInterval(() => setAdsStats(readAdsStats()), 1000);
+    return () => window.clearInterval(id);
+  }, [adsOpen]);
+
+  const patchAds = (p: Partial<AdsSettings>) => onAds({ ...ads, ...p });
 
   const patch = (p: Partial<GmSettings>) => onSettings({ ...settings, ...p });
   const provider = providerOf(settings.provider);
@@ -100,6 +118,19 @@ export default function TopBar({
             className="flex size-8 items-center justify-center rounded-lg border border-slate-800 text-slate-400 transition-colors hover:border-teal-500/50 hover:text-teal-300"
           >
             <Settings2 className="size-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setAdsOpen(true)}
+            title="Ads — screen-time sponsor slot & revenue"
+            className={cn(
+              "flex size-8 items-center justify-center rounded-lg border transition-colors",
+              ads.enabled
+                ? "border-amber-500/40 bg-amber-500/10 text-amber-300 hover:border-amber-400 hover:text-amber-200"
+                : "border-slate-800 text-slate-500 hover:border-slate-600 hover:text-slate-300",
+            )}
+          >
+            <Megaphone className="size-4" />
           </button>
           <button
             type="button"
@@ -290,6 +321,179 @@ export default function TopBar({
               directly from your browser using the key above — nothing is stored server-side. If a live call
               fails, the offline local narrator takes over automatically.
             </p>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Screen-time Ads Settings */}
+      <Dialog open={adsOpen} onOpenChange={setAdsOpen}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto border-slate-800 bg-slate-900 text-slate-100 sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base font-semibold">
+              <BadgeDollarSign className="size-4 text-amber-400" />
+              Screen-Time Ads
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-950 p-3">
+              <div>
+                <p className="text-xs font-bold text-slate-100">Sponsor slot</p>
+                <p className="text-[10px] leading-snug text-slate-500">
+                  A compact strip that refreshes while you play — one long session = many impressions,
+                  like Freebuff's model.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => patchAds({ enabled: !ads.enabled })}
+                className={cn(
+                  "relative h-6 w-11 shrink-0 rounded-full transition-colors",
+                  ads.enabled ? "bg-amber-500" : "bg-slate-700",
+                )}
+                aria-label="Toggle sponsor slot"
+              >
+                <span
+                  className={cn(
+                    "absolute top-0.5 size-5 rounded-full bg-white shadow transition-all",
+                    ads.enabled ? "left-[22px]" : "left-0.5",
+                  )}
+                />
+              </button>
+            </div>
+
+            <div>
+              <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                Ad provider
+              </p>
+              <div className="grid grid-cols-3 gap-2">
+                {(
+                  [
+                    { id: "demo" as const, name: "Demo cards", desc: "Works now, zero accounts" },
+                    { id: "adsense" as const, name: "AdSense", desc: "Google slot, static" },
+                    { id: "iframe" as const, name: "iframe tag", desc: "Venatus / Setupad / Playwire" },
+                  ]
+                ).map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => patchAds({ provider: p.id })}
+                    className={cn(
+                      "rounded-xl border p-2.5 text-left transition-colors",
+                      ads.provider === p.id
+                        ? "border-amber-400/70 bg-amber-400/10"
+                        : "border-slate-800 bg-slate-950 hover:border-slate-600",
+                    )}
+                  >
+                    <p className="text-xs font-bold text-slate-100">{p.name}</p>
+                    <p className="mt-0.5 text-[10px] leading-snug text-slate-500">{p.desc}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {ads.provider !== "adsense" && (
+              <div>
+                <p className="mb-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                  Screen-time refresh
+                </p>
+                <div className="flex rounded-lg border border-slate-800 bg-slate-950 p-0.5">
+                  {[30, 60, 90].map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => patchAds({ refreshSeconds: s })}
+                      className={cn(
+                        "flex-1 rounded-md py-1.5 text-xs font-bold transition-colors",
+                        ads.refreshSeconds === s
+                          ? "bg-amber-500 text-slate-950"
+                          : "text-slate-500 hover:text-slate-300",
+                      )}
+                    >
+                      {s}s
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-1.5 text-[10px] leading-relaxed text-slate-500">
+                  A 4-hour session at 30s ≈ 480 fresh impressions from one player. Refreshes only while
+                  the strip is visible, so impressions stay viewable.
+                </p>
+              </div>
+            )}
+
+            {ads.provider === "adsense" && (
+              <>
+                <div>
+                  <p className="mb-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                    AdSense client ID
+                  </p>
+                  <input
+                    value={ads.adsenseClient}
+                    onChange={(e) => patchAds({ adsenseClient: e.target.value })}
+                    placeholder="ca-pub-1234567890"
+                    className="h-9 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 font-mono text-xs text-slate-100 outline-none focus:border-amber-500/60"
+                  />
+                </div>
+                <div>
+                  <p className="mb-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                    AdSense slot ID
+                  </p>
+                  <input
+                    value={ads.adsenseSlot}
+                    onChange={(e) => patchAds({ adsenseSlot: e.target.value })}
+                    placeholder="1234567890"
+                    className="h-9 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 font-mono text-xs text-slate-100 outline-none focus:border-amber-500/60"
+                  />
+                </div>
+                <p className="rounded-lg border border-slate-800 bg-slate-950 p-2.5 text-[10px] leading-relaxed text-slate-500">
+                  Google policy forbids auto-refreshing standard AdSense units, so AdSense stays static
+                  here. For the auto-refresh screen-time model, use a gaming network's iframe tag or the
+                  built-in demo cards.
+                </p>
+              </>
+            )}
+
+            {ads.provider === "iframe" && (
+              <div>
+                <p className="mb-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                  Ad network display URL
+                </p>
+                <input
+                  value={ads.iframeUrl}
+                  onChange={(e) => patchAds({ iframeUrl: e.target.value })}
+                  placeholder="https://… (Venatus / Setupad / Playwire iframe tag)"
+                  className="h-9 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 font-mono text-xs text-slate-100 outline-none focus:border-amber-500/60"
+                />
+                <p className="mt-1.5 text-[10px] leading-relaxed text-slate-500">
+                  Paste any iframe-based ad tag. It auto-refreshes on the screen-time interval while
+                  visible. These networks are managed (no self-serve) — Setupad and Newor Media are the
+                  more accessible entry points.
+                </p>
+              </div>
+            )}
+
+            <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3">
+              <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-emerald-400">
+                This session
+              </p>
+              <div className="flex items-end justify-between">
+                <div>
+                  <p className="font-mono text-2xl font-bold text-slate-100">
+                    {adsStats.impressions.toLocaleString()}
+                  </p>
+                  <p className="text-[10px] text-slate-500">viewable impressions</p>
+                </div>
+                <div className="text-right">
+                  <p className="font-mono text-2xl font-bold text-amber-300">
+                    ${estimatedRevenue(adsStats).toFixed(2)}
+                  </p>
+                  <p className="text-[10px] text-slate-500">est. revenue @ $1.25 eCPM</p>
+                </div>
+              </div>
+              <p className="mt-2 text-[10px] leading-relaxed text-slate-500">
+                The screen-time model: a player who stays 4 hours generates ~240–480 impressions instead
+                of 1 — enough volume to fund the free AI providers in GM Settings.
+              </p>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

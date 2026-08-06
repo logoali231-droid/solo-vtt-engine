@@ -1,11 +1,12 @@
 import type {
   AdventureState,
+  AdsSettings,
   Character,
   GmSettings,
   LorebookEntry,
   SavedCharacterRecord,
 } from "./types";
-import { DEFAULT_GM_SETTINGS, uid } from "./types";
+import { DEFAULT_ADS_SETTINGS, DEFAULT_GM_SETTINGS, uid } from "./types";
 import { serializeAdventure } from "./serializer";
 
 const CHARACTER_KEY = "oraculum.character.v1";
@@ -14,6 +15,7 @@ const SETTINGS_KEY = "oraculum.gmSettings.v1";
 const LOREBOOK_KEY = "oraculum.lorebook.v1"; // legacy global array
 const LOREBOOK_V2_KEY = "oraculum.lorebook.v2"; // per-campaign map
 const LIBRARY_KEY = "oraculum.library.v1";
+const ADS_KEY = "oraculum.adsSettings.v1";
 
 export function saveCharacter(character: Character): void {
   try {
@@ -82,6 +84,29 @@ export function loadGmSettings(): GmSettings {
 export function saveGmSettings(settings: GmSettings): void {
   try {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  } catch {
+    // non-fatal
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Screen-time ads settings (localStorage only)
+// ---------------------------------------------------------------------------
+
+export function loadAdsSettings(): AdsSettings {
+  try {
+    const raw = localStorage.getItem(ADS_KEY);
+    if (!raw) return { ...DEFAULT_ADS_SETTINGS };
+    const parsed = JSON.parse(raw) as Partial<AdsSettings>;
+    return { ...DEFAULT_ADS_SETTINGS, ...parsed };
+  } catch {
+    return { ...DEFAULT_ADS_SETTINGS };
+  }
+}
+
+export function saveAdsSettings(settings: AdsSettings): void {
+  try {
+    localStorage.setItem(ADS_KEY, JSON.stringify(settings));
   } catch {
     // non-fatal
   }

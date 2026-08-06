@@ -23,9 +23,11 @@ import {
   exportAdventureJSON,
   importAdventureJSON,
   loadAdventure,
+  loadAdsSettings,
   loadGmSettings,
   loadLorebook,
   saveAdventure,
+  saveAdsSettings,
   saveGmSettings,
   saveLorebook,
   saveToLibrary,
@@ -39,6 +41,7 @@ import {
 import { compileLorebook } from "@/lib/rpg/lorebook";
 import type {
   AdventureState,
+  AdsSettings,
   Character,
   DnDCharacter,
   EnemyState,
@@ -56,6 +59,7 @@ import type {
 } from "@/lib/rpg/types";
 import { uid } from "@/lib/rpg/types";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import AdSlot from "./AdSlot";
 import CharacterPanel, { type PanelActions } from "./panels/CharacterPanel";
 import CommandCenter from "./center/CommandCenter";
 import NarrativeHub from "./center/NarrativeHub";
@@ -153,6 +157,7 @@ function fingerprint(c: Character): string {
 
 export default function GameBoard({ character, onNewCharacter, onSignOut }: Props) {
   const [settings, setSettings] = useState<GmSettings>(() => loadGmSettings());
+  const [ads, setAds] = useState<AdsSettings>(() => loadAdsSettings());
   const [lorebook, setLorebook] = useState<LorebookEntry[]>(() =>
     loadLorebook(fingerprint(character)),
   );
@@ -186,6 +191,10 @@ export default function GameBoard({ character, onNewCharacter, onSignOut }: Prop
   useEffect(() => {
     saveGmSettings(settings);
   }, [settings]);
+
+  useEffect(() => {
+    saveAdsSettings(ads);
+  }, [ads]);
 
   useEffect(() => {
     saveLorebook(fingerprint(c), lorebook);
@@ -1192,7 +1201,9 @@ export default function GameBoard({ character, onNewCharacter, onSignOut }: Prop
         adventure={adventure}
         hpText={hpText}
         settings={settings}
+        ads={ads}
         onSettings={setSettings}
+        onAds={setAds}
         onGmMode={(m) => setAdventure((prev) => ({ ...prev, gmMode: m, updatedAt: Date.now() }))}
         onNewCharacter={onNewCharacter}
         onExport={() => exportAdventureJSON(adventure)}
@@ -1289,6 +1300,7 @@ export default function GameBoard({ character, onNewCharacter, onSignOut }: Prop
               }
             />
           </div>
+          <AdSlot settings={ads} />
         </main>
       </div>
 
