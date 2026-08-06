@@ -58,6 +58,8 @@ export const GM_PROVIDERS: GmProviderDef[] = [
       "NeverSleep/Llama-3-Lumimaid-8B",
       "Tarek07/Dungeonmaster-V2.4-Expanded-LLaMa-70B",
       "mradermacher/Dungeonmaster-V2.4-Expanded-LLaMa-70B-GGUF",
+      "Neshi245/DnDmodel",
+      "chendren/dnd-unified-1.5b",
       "meta-llama/Llama-3.3-70B-Instruct",
     ],
     keyPlaceholder: "hf_…",
