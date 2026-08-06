@@ -15,8 +15,10 @@ import type { AdsSettings } from "@/lib/rpg/types";
  * Modes:
  *  - demo:    built-in themed sponsor cards — works with zero accounts.
  *  - adsense: Google AdSense slot (static; Google policy forbids forced refresh).
- *  - iframe:  any ad network display/iframe URL (Venatus, Setupad, Playwire…),
+ *  - iframe:  any ad network display/iframe URL (PropellerAds, Venatus, Setupad…),
  *             auto-refreshed on the screen-time interval.
+ *  - script:  paste any ad network's <script> tag (Adsterra, Monetag, PropellerAds…),
+ *             executed safely in a dedicated slot and auto-refreshed while visible.
  */
 
 const DEMO_ADS = [
@@ -64,6 +66,24 @@ const AD_SENSE_SRC = "https://pagead2.googlesyndication.com/pagead/js/adsbygoogl
 declare global {
   interface Window {
     adsbygoogle?: unknown[];
+  }
+}
+
+/**
+ * Inject a raw ad-network HTML snippet (Adsterra/Monetag/PropellerAds-style tags)
+ * into a container. Placeholder HTML is set first, then every <script> inside is
+ * cloned as a real element so the network code actually executes.
+ */
+function injectAdTag(container: HTMLElement, html: string): void {
+  container.innerHTML = html;
+  const scripts = Array.from(container.querySelectorAll("script"));
+  for (const old of scripts) {
+    const fresh = document.createElement("script");
+    for (const attr of Array.from(old.attributes)) {
+      fresh.setAttribute(attr.name, attr.value);
+    }
+    fresh.textContent = old.textContent ?? "";
+    old.replaceWith(fresh);
   }
 }
 
@@ -115,7 +135,10 @@ export default function AdSlot({ settings }: Props) {
   const [visible, setVisible] = useState(false);
   const [demoIdx, setDemoIdx] = useState(0);
   const [iframeKey, setIframeKey] = useState(0);
+  const [scriptKey, setScriptKey] = useState(0);
   const hostRef = useRef<HTMLDivElement>(null);
+  const scriptSlotRef = useRef<HTMLDivElement>(null);
+  const injectedRef = useRef<string | null>(null);
   const visibleRef = useRef(false);
   const countedRef = useRef(false);
   const settingsRef = useRef(settings);
@@ -152,11 +175,25 @@ export default function AdSlot({ settings }: Props) {
         setDemoIdx((i) => (i + 1) % DEMO_ADS.length);
       } else if (settingsRef.current.provider === "iframe") {
         setIframeKey((k) => k + 1);
+      } else if (settingsRef.current.provider === "script") {
+        setScriptKey((k) => k + 1);
       }
       bumpImpression();
     }, secs * 1000);
     return () => window.clearInterval(id);
   }, [settings.enabled, settings.provider, settings.refreshSeconds]);
+
+  // Script-tag mode: (re)inject the network tag whenever it changes or refreshes.
+  useEffect(() => {
+    if (settings.provider !== "script" || !settings.adScript) return;
+    const slot = scriptSlotRef.current;
+    if (!slot) return;
+    const key = `${settings.adScript}:${scriptKey}`;
+    if (injectedRef.current === key) return;
+    injectedRef.current = key;
+    slot.innerHTML = "";
+    injectAdTag(slot, settings.adScript);
+  }, [settings.provider, settings.adScript, scriptKey]);
 
   // AdSense: inject the loader script once and push each slot render.
   useEffect(() => {
@@ -181,6 +218,7 @@ export default function AdSlot({ settings }: Props) {
   const isDemo = settings.provider === "demo";
   const isAdSense = settings.provider === "adsense";
   const isIframe = settings.provider === "iframe";
+  const isScript = settings.provider === "script";
   const ad = DEMO_ADS[demoIdx];
 
   return (
@@ -262,6 +300,19 @@ export default function AdSlot({ settings }: Props) {
                 <p className="text-[11px] text-slate-500">
                   iframe mode — paste any ad network's display URL in Settings. It auto-refreshes on
                   the screen-time interval.
+                </p>
+              )}
+            </div>
+          )}
+
+          {isScript && (
+            <div className="flex h-full min-h-[56px] w-full items-center overflow-hidden">
+              {settings.adScript ? (
+                <div ref={scriptSlotRef} className="flex min-h-[56px] w-full items-center justify-center" />
+              ) : (
+                <p className="text-[11px] text-slate-500">
+                  Custom tag mode — paste an ad network's script snippet in Settings (Adsterra,
+                  Monetag, PropellerAds…). It auto-refreshes on the screen-time interval.
                 </p>
               )}
             </div>

@@ -180,21 +180,23 @@ export const DEFAULT_GM_SETTINGS: GmSettings = {
 // Screen-time ads (monetization — localStorage only, never the database)
 // ---------------------------------------------------------------------------
 
-export type AdsProviderId = "demo" | "adsense" | "iframe";
+export type AdsProviderId = "demo" | "adsense" | "iframe" | "script";
 
 export interface AdsSettings {
   /** Master switch — a premium tier could set this to false. */
   enabled: boolean;
-  /** demo = built-in sponsor cards (works with zero accounts); adsense = Google AdSense slot; iframe = any ad network display URL. */
+  /** demo = built-in sponsor cards (works with zero accounts); adsense = Google AdSense slot; iframe = any ad network display URL; script = paste any ad network script tag. */
   provider: AdsProviderId;
-  /** Screen-time refresh interval in seconds (demo + iframe only; AdSense must stay static per Google policy). */
+  /** Screen-time refresh interval in seconds (demo, iframe + script only; AdSense must stay static per Google policy). */
   refreshSeconds: number;
   /** AdSense publisher ID, e.g. ca-pub-1234567890. */
   adsenseClient: string;
   /** AdSense slot ID (numeric). */
   adsenseSlot: string;
-  /** Any ad network iframe/display URL (Venatus, Setupad, Playwire, …). */
+  /** Any ad network iframe/display URL (PropellerAds, Venatus, Setupad, Playwire, …). */
   iframeUrl: string;
+  /** Any ad network script tag (Adsterra banners, Monetag in-page push, PropellerAds on-page push, …). */
+  adScript: string;
 }
 
 export const DEFAULT_ADS_SETTINGS: AdsSettings = {
@@ -204,6 +206,7 @@ export const DEFAULT_ADS_SETTINGS: AdsSettings = {
   adsenseClient: "",
   adsenseSlot: "",
   iframeUrl: "",
+  adScript: "",
 };
 
 // ---------------------------------------------------------------------------

@@ -376,12 +376,13 @@ export default function TopBar({
               <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">
                 Ad provider
               </p>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 {(
                   [
                     { id: "demo" as const, name: "Demo cards", desc: "Works now, zero accounts" },
-                    { id: "adsense" as const, name: "AdSense", desc: "Google slot, static" },
-                    { id: "iframe" as const, name: "iframe tag", desc: "Venatus / Setupad / Playwire" },
+                    { id: "adsense" as const, name: "AdSense", desc: "Google, free, no traffic minimum" },
+                    { id: "script" as const, name: "Custom tag", desc: "Adsterra / Monetag / PropellerAds" },
+                    { id: "iframe" as const, name: "iframe URL", desc: "Display-URL networks" },
                   ]
                 ).map((p) => (
                   <button
@@ -426,7 +427,8 @@ export default function TopBar({
                 </div>
                 <p className="mt-1.5 text-[10px] leading-relaxed text-slate-500">
                   A 4-hour session at 30s ≈ 480 fresh impressions from one player. Refreshes only while
-                  the strip is visible, so impressions stay viewable.
+                  the strip is visible, so impressions stay viewable. Networks that pay per display
+                  (CPM) profit from this — you're paid per 1,000 viewable impressions, not per click.
                 </p>
               </div>
             )}
@@ -456,11 +458,35 @@ export default function TopBar({
                   />
                 </div>
                 <p className="rounded-lg border border-slate-800 bg-slate-950 p-2.5 text-[10px] leading-relaxed text-slate-500">
-                  Google policy forbids auto-refreshing standard AdSense units, so AdSense stays static
-                  here. For the auto-refresh screen-time model, use a gaming network's iframe tag or the
-                  built-in demo cards.
+                  AdSense is free to join and accepts new/small sites — you just need a real public
+                  domain with original content (approval takes a few days). It pays a mix of clicks and
+                  per-1,000-impressions (CPM). Google policy forbids auto-refreshing standard units, so
+                  AdSense stays static here; the screen-time refresh model uses the other modes.
                 </p>
               </>
+            )}
+
+            {ads.provider === "script" && (
+              <div>
+                <p className="mb-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                  Ad network script tag
+                </p>
+                <textarea
+                  value={ads.adScript}
+                  onChange={(e) => patchAds({ adScript: e.target.value })}
+                  placeholder={'<script async src="https://…"></script>'}
+                  rows={4}
+                  className="w-full resize-y rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 font-mono text-[11px] text-slate-100 outline-none placeholder:text-slate-600 focus:border-amber-500/60"
+                />
+                <p className="mt-1.5 text-[10px] leading-relaxed text-slate-500">
+                  Paste the exact snippet from any self-serve CPM network —{" "}
+                  <span className="text-slate-300">Adsterra</span> (banners / social bar),{" "}
+                  <span className="text-slate-300">Monetag</span> (in-page push),{" "}
+                  <span className="text-slate-300">PropellerAds</span> (on-page push). All are
+                  free to join, accept small/new sites, and pay per impression (CPM) with ~$5
+                  payouts via PayPal. It auto-refreshes on the screen-time interval while visible.
+                </p>
+              </div>
             )}
 
             {ads.provider === "iframe" && (
@@ -471,13 +497,12 @@ export default function TopBar({
                 <input
                   value={ads.iframeUrl}
                   onChange={(e) => patchAds({ iframeUrl: e.target.value })}
-                  placeholder="https://… (Venatus / Setupad / Playwire iframe tag)"
+                  placeholder="https://… (PropellerAds / Venatus / Setupad iframe tag)"
                   className="h-9 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 font-mono text-xs text-slate-100 outline-none focus:border-amber-500/60"
                 />
                 <p className="mt-1.5 text-[10px] leading-relaxed text-slate-500">
                   Paste any iframe-based ad tag. It auto-refreshes on the screen-time interval while
-                  visible. These networks are managed (no self-serve) — Setupad and Newor Media are the
-                  more accessible entry points.
+                  visible.
                 </p>
               </div>
             )}
