@@ -161,6 +161,14 @@ const JOURNEY_FIELDS: PrefsFieldDef[] = [
       { value: "true solo", label: "True solo — lone wolf" },
       { value: "one companion", label: "One companion — a trusted sidekick" },
       { value: "small band", label: "Small band — a few allies" },
+      {
+        value: "as the adventure evolves",
+        label: "Decided as the adventure evolves — the road introduces companions when the story needs them",
+      },
+      {
+        value: "dice decides",
+        label: "Decided by dice — roll when a companion might cross your path",
+      },
     ],
   },
   {

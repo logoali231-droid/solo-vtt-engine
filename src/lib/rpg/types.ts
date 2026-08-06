@@ -242,6 +242,10 @@ const COMPANION_LINES: Record<string, string> = {
   "true solo": "You walk this road alone.",
   "one companion": "A single trusted companion shares your road.",
   "small band": "A small band of allies shares your road.",
+  "as the adventure evolves":
+    "Your company is not fixed — companions will be introduced organically as the adventure unfolds, never decided up front.",
+  "dice decides":
+    "Your company is decided by dice — whenever fate offers a companion, the oracle rolls to see if they join and who they are.",
 };
 
 /** A full campaign directive — the exact briefing the Game Master follows when
