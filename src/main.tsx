@@ -9,11 +9,44 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter, Route, Routes, useLocation } from "react-router";
 import "./index.css";
 
+/**
+ * Lazy route loader that survives dev-server restarts.
+ *
+ * Vite restarts its dev server whenever project files change. A route `import()`
+ * fired during that window fails with "Failed to fetch dynamically imported
+ * module", and React.lazy caches the rejection forever — leaving a dead screen.
+ * This wrapper retries with backoff so the route loads the moment the server is
+ * back, and only surfaces the error if it is genuinely unrecoverable.
+ */
+function lazyRetry<T extends React.ComponentType<any>>(
+  factory: () => Promise<{ default: T }>,
+  retries = 4,
+) {
+  return lazy(async () => {
+    let lastError: unknown;
+    for (let attempt = 1; attempt <= retries; attempt += 1) {
+      try {
+        return await factory();
+      } catch (error) {
+        lastError = error;
+        console.warn(
+          `[route] dynamic import failed (attempt ${attempt}/${retries}):`,
+          error,
+        );
+        if (attempt < retries) {
+          await new Promise((resolve) => setTimeout(resolve, 600 * attempt));
+        }
+      }
+    }
+    throw lastError;
+  });
+}
+
 // Lazy load route components for better code splitting
-const Landing = lazy(() => import("./pages/Landing.tsx"));
-const AuthPage = lazy(() => import("./pages/Auth.tsx"));
-const Dashboard = lazy(() => import("./pages/Dashboard.tsx"));
-const NotFound = lazy(() => import("./pages/NotFound.tsx"));
+const Landing = lazyRetry(() => import("./pages/Landing.tsx"));
+const AuthPage = lazyRetry(() => import("./pages/Auth.tsx"));
+const Dashboard = lazyRetry(() => import("./pages/Dashboard.tsx"));
+const NotFound = lazyRetry(() => import("./pages/NotFound.tsx"));
 
 // Simple loading fallback for route transitions
 function RouteLoading() {
@@ -60,18 +93,32 @@ class RootErrorBoundary extends React.Component<
   }
   render() {
     if (this.state.hasError) {
+      const isDevRestart = /Failed to fetch dynamically imported module|Failed to fetch/.test(
+        this.state.message,
+      );
       return (
         <div className="min-h-screen flex items-center justify-center bg-background text-foreground p-6">
           <div className="max-w-lg text-center">
-            <p className="text-sm font-semibold">Preview runtime error</p>
-            <p className="mt-2 text-xs text-muted-foreground break-words">
-              {this.state.message}
+            <p className="text-sm font-semibold">
+              {isDevRestart ? "Preview reloading" : "Preview runtime error"}
             </p>
-            {this.state.stack && (
+            <p className="mt-2 text-xs text-muted-foreground break-words">
+              {isDevRestart
+                ? "The preview server restarted while this page was loading. Hit reload to pick up the latest code — the app reconnects automatically."
+                : this.state.message}
+            </p>
+            {!isDevRestart && this.state.stack && (
               <pre className="mt-3 text-left text-[10px] leading-4 text-muted-foreground/80 max-h-40 overflow-auto rounded border border-border/60 p-2">
                 {this.state.stack}
               </pre>
             )}
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="mt-4 inline-flex items-center gap-2 rounded-md bg-foreground px-4 py-2 text-xs font-medium text-background transition-opacity hover:opacity-90"
+            >
+              Reload preview
+            </button>
           </div>
         </div>
       );
