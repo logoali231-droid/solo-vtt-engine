@@ -66,6 +66,7 @@ import NarrativeHub from "./center/NarrativeHub";
 import TopBar from "./TopBar";
 import type { RollRequest } from "./types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 
 const COND_EFFECTS = Object.fromEntries(CONDITIONS.map((cd) => [cd.id, cd.effects]));
 
@@ -158,6 +159,7 @@ function fingerprint(c: Character): string {
 export default function GameBoard({ character, onNewCharacter, onSignOut }: Props) {
   const [settings, setSettings] = useState<GmSettings>(() => loadGmSettings());
   const [ads, setAds] = useState<AdsSettings>(() => loadAdsSettings());
+  const [sheetOpen, setSheetOpen] = useState(false);
   const [lorebook, setLorebook] = useState<LorebookEntry[]>(() =>
     loadLorebook(fingerprint(character)),
   );
@@ -1204,6 +1206,7 @@ export default function GameBoard({ character, onNewCharacter, onSignOut }: Prop
         ads={ads}
         onSettings={setSettings}
         onAds={setAds}
+        onOpenSheet={() => setSheetOpen(true)}
         onGmMode={(m) => setAdventure((prev) => ({ ...prev, gmMode: m, updatedAt: Date.now() }))}
         onNewCharacter={onNewCharacter}
         onExport={() => exportAdventureJSON(adventure)}
@@ -1215,7 +1218,7 @@ export default function GameBoard({ character, onNewCharacter, onSignOut }: Prop
         onSignOut={onSignOut}
       />
       <div className="flex min-h-0 flex-1">
-        <aside className="w-[360px] shrink-0 border-r border-slate-800">
+        <aside className="hidden w-[360px] shrink-0 border-r border-slate-800 lg:block">
           <CharacterPanel
             system={system}
             character={c}
@@ -1336,6 +1339,91 @@ export default function GameBoard({ character, onNewCharacter, onSignOut }: Prop
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Mobile character sheet drawer */}
+      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+        <SheetContent
+          side="left"
+          className="w-[92vw] max-w-[360px] border-slate-800 bg-slate-950 p-0 sm:w-[360px]"
+        >
+          <div className="flex h-full flex-col">
+            <div className="flex shrink-0 items-center justify-between border-b border-slate-800 px-4 py-3 pr-12">
+              <p className="text-xs font-bold uppercase tracking-widest text-slate-400">
+                Character · {c.name}
+              </p>
+            </div>
+            <div className="min-h-0 flex-1">
+              <CharacterPanel
+                system={system}
+                character={c}
+                derived={derived}
+                actions={panelActions}
+                lorebook={lorebook}
+                onLorebookChange={setLorebook}
+                inventory={adventure.inventory ?? []}
+                onInventoryChange={(items) =>
+                  setAdventure((prev) => ({
+                    ...prev,
+                    inventory: items,
+                    updatedAt: Date.now(),
+                  }))
+                }
+                gmLanguage={settings.language}
+                campaign={{
+                  sceneTitle: adventure.sceneTitle,
+                  location: adventure.location,
+                  quests: adventure.quest,
+                  xp: adventure.xp ?? 0,
+                  gold: adventure.gold ?? 0,
+                  memory: adventure.memory,
+                  level: charLevel(c),
+                  maxLevel: system === "gurps" ? charLevel(c) : 20,
+                  xpNeeded: system === "gurps" ? 0 : xpNeededFor(charLevel(c), system),
+                  gurpsSpare:
+                    system === "gurps"
+                      ? (c as GurpsCharacter).points.budget -
+                        (derived as ReturnType<typeof getGurpsDerived>).pointTotal
+                      : undefined,
+                  onScene: (title, location) =>
+                    setAdventure((prev) => ({
+                      ...prev,
+                      sceneTitle: title,
+                      location,
+                      updatedAt: Date.now(),
+                    })),
+                  onAddQuest: (q) =>
+                    setAdventure((prev) => ({
+                      ...prev,
+                      quest: [...prev.quest, q],
+                      updatedAt: Date.now(),
+                    })),
+                  onRemoveQuest: (i) =>
+                    setAdventure((prev) => ({
+                      ...prev,
+                      quest: prev.quest.filter((_, j) => j !== i),
+                      updatedAt: Date.now(),
+                    })),
+                  onAwardXp: (n) =>
+                    setAdventure((prev) => ({
+                      ...prev,
+                      xp: (prev.xp ?? 0) + n,
+                      updatedAt: Date.now(),
+                    })),
+                  onLevelUp: levelUp,
+                  onGold: (n) =>
+                    setAdventure((prev) => ({
+                      ...prev,
+                      gold: Math.max(0, (prev.gold ?? 0) + n),
+                      updatedAt: Date.now(),
+                    })),
+                  onRewardCp: rewardCp,
+                  onClearHistory: clearHistory,
+                }}
+              />
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
 
       {/* Save to library */}
       <Dialog open={saveDialog} onOpenChange={setSaveDialog}>

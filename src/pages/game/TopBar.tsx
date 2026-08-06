@@ -9,6 +9,7 @@ import {
   Download,
   LogOut,
   Megaphone,
+  Menu,
   Plus,
   Settings2,
   Upload,
@@ -28,6 +29,7 @@ interface Props {
   ads: AdsSettings;
   onSettings: (s: GmSettings) => void;
   onAds: (a: AdsSettings) => void;
+  onOpenSheet: () => void;
   onGmMode: (mode: "local" | "live") => void;
   onNewCharacter: () => void;
   onExport: () => void;
@@ -43,6 +45,7 @@ export default function TopBar({
   ads,
   onSettings,
   onAds,
+  onOpenSheet,
   onGmMode,
   onNewCharacter,
   onExport,
@@ -70,7 +73,15 @@ export default function TopBar({
 
   return (
     <>
-      <header className="flex shrink-0 items-center gap-3 border-b border-slate-800 bg-slate-950/95 px-4 py-2.5">
+      <header className="flex shrink-0 items-center gap-2 border-b border-slate-800 bg-slate-950/95 px-3 py-2.5 sm:gap-3 sm:px-4">
+        <button
+          type="button"
+          onClick={onOpenSheet}
+          title="Character sheet"
+          className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-slate-800 text-slate-300 transition-colors hover:border-amber-500/50 hover:text-amber-300 lg:hidden"
+        >
+          <Menu className="size-4" />
+        </button>
         <div className="flex items-center gap-2.5">
           <div className="flex size-8 items-center justify-center rounded-lg bg-amber-500 text-slate-950">
             <Dices className="size-4.5" />
@@ -99,7 +110,7 @@ export default function TopBar({
                 type="button"
                 onClick={() => onGmMode(m)}
                 className={cn(
-                  "rounded-md px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide transition-colors",
+                  "rounded-md px-2 py-1 text-[10px] font-bold uppercase tracking-wide transition-colors sm:px-2.5",
                   adventure.gmMode === m
                     ? m === "live"
                       ? "bg-teal-500 text-slate-950"
@@ -107,7 +118,7 @@ export default function TopBar({
                     : "text-slate-500 hover:text-slate-300",
                 )}
               >
-                {m === "live" ? "Live GM" : "Local GM"}
+                {m === "live" ? "Live" : "Local"}
               </button>
             ))}
           </div>
@@ -136,7 +147,7 @@ export default function TopBar({
             type="button"
             onClick={onSaveToLibrary}
             title="Save to character library"
-            className="flex size-8 items-center justify-center rounded-lg border border-slate-800 text-slate-400 transition-colors hover:border-amber-500/50 hover:text-amber-300"
+            className="hidden size-8 items-center justify-center rounded-lg border border-slate-800 text-slate-400 transition-colors hover:border-amber-500/50 hover:text-amber-300 sm:flex"
           >
             <BookmarkPlus className="size-4" />
           </button>
@@ -144,7 +155,7 @@ export default function TopBar({
             type="button"
             onClick={onExport}
             title="Export JSON"
-            className="flex size-8 items-center justify-center rounded-lg border border-slate-800 text-slate-400 transition-colors hover:text-slate-200"
+            className="hidden size-8 items-center justify-center rounded-lg border border-slate-800 text-slate-400 transition-colors hover:text-slate-200 sm:flex"
           >
             <Download className="size-4" />
           </button>
@@ -152,7 +163,7 @@ export default function TopBar({
             type="button"
             onClick={() => fileRef.current?.click()}
             title="Import JSON"
-            className="flex size-8 items-center justify-center rounded-lg border border-slate-800 text-slate-400 transition-colors hover:text-slate-200"
+            className="hidden size-8 items-center justify-center rounded-lg border border-slate-800 text-slate-400 transition-colors hover:text-slate-200 sm:flex"
           >
             <Upload className="size-4" />
           </button>
