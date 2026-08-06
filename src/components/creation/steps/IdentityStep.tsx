@@ -1,5 +1,6 @@
+import { useState } from "react";
 import { cn } from "@/lib/utils";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, X } from "lucide-react";
 import type { CharacterIdentity } from "@/lib/rpg/types";
 import { SectionLabel } from "../ui";
 
@@ -160,8 +161,18 @@ export default function IdentityStep({
   identity: Partial<CharacterIdentity>;
   setIdentity: (v: Partial<CharacterIdentity>) => void;
 }) {
+  // Explicit custom-mode flags: "Custom…" with an EMPTY value must still show
+  // the text input (deriving mode from the value alone can't tell "empty
+  // custom" apart from "nothing chosen yet").
+  const [customKeys, setCustomKeys] = useState<Record<string, boolean>>({});
+
   const isInList = (key: keyof CharacterIdentity, value: string) =>
     PICK_FIELDS.find((p) => p.key === key)?.options.some((o) => o.value === value) ?? false;
+
+  const exitCustom = (key: keyof CharacterIdentity) => {
+    setCustomKeys((prev) => ({ ...prev, [key]: false }));
+    setIdentity({ ...identity, [key]: "" });
+  };
 
   return (
     <div className="rounded-xl border border-stone-200 bg-white p-5">
@@ -174,7 +185,7 @@ export default function IdentityStep({
       <div className="grid gap-4 sm:grid-cols-2">
         {PICK_FIELDS.map((f) => {
           const value = identity[f.key] ?? "";
-          const customMode = value !== "" && !isInList(f.key, value);
+          const customMode = customKeys[f.key] === true || (value !== "" && !isInList(f.key, value));
           return (
             <div key={f.key}>
               <label className="mb-1 block text-[11px] font-bold uppercase tracking-widest text-stone-400">
@@ -187,11 +198,16 @@ export default function IdentityStep({
                     onChange={(e) => setIdentity({ ...identity, [f.key]: e.target.value })}
                     placeholder="Type your own…"
                     autoFocus
-                    className={cn(fieldCls, "border-amber-400 pr-24")}
+                    className={cn(fieldCls, "border-amber-400 pr-10")}
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-semibold uppercase tracking-wide text-amber-500">
-                    custom
-                  </span>
+                  <button
+                    type="button"
+                    title="Clear and pick from the list"
+                    onClick={() => exitCustom(f.key)}
+                    className="absolute right-2 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded-md text-stone-400 transition-colors hover:bg-stone-100 hover:text-stone-700"
+                  >
+                    <X className="size-3.5" />
+                  </button>
                 </div>
               ) : (
                 <div className="relative">
@@ -201,8 +217,10 @@ export default function IdentityStep({
                       const next = e.target.value;
                       if (next === CUSTOM) {
                         // Reveal the custom input; keep the field empty until typed.
+                        setCustomKeys((prev) => ({ ...prev, [f.key]: true }));
                         setIdentity({ ...identity, [f.key]: "" });
                       } else {
+                        setCustomKeys((prev) => ({ ...prev, [f.key]: false }));
                         setIdentity({ ...identity, [f.key]: next });
                       }
                     }}
