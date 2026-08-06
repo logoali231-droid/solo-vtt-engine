@@ -155,7 +155,8 @@ export type GmProviderId =
   | "openrouter"
   | "huggingface"
   | "ollama"
-  | "gradio";
+  | "gradio"
+  | "horde";
 
 export interface GmSettings {
   provider: GmProviderId;

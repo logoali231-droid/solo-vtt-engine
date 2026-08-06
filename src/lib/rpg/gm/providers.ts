@@ -67,10 +67,11 @@ export const GM_PROVIDERS: GmProviderDef[] = [
   {
     id: "openrouter",
     name: "OpenRouter",
-    tagline: "One key for hundreds of models. :free variants cost $0.",
+    tagline: "One key for hundreds of models. :free variants cost $0 — 50 req/day, or 1,000/day after a one-time $10 credit top-up.",
     tier: "key",
     needsKey: true,
     models: [
+      "nousresearch/hermes-3-llama-3.1-405b:free",
       "meta-llama/llama-3.3-70b-instruct:free",
       "deepseek/deepseek-chat-v3-0324:free",
       "meta-llama/llama-3.1-8b-instruct:free",
@@ -97,6 +98,18 @@ export const GM_PROVIDERS: GmProviderDef[] = [
     needsKey: false,
     needsBaseUrl: true,
     models: ["default"],
+  },
+  {
+    id: "horde",
+    name: "AI Horde",
+    tagline: "100% free & unlimited — community-hosted GPUs with roleplay-tuned models. No key, no caps; expect a queue of seconds to minutes. Pick any model name from aihorde.net.",
+    tier: "free",
+    needsKey: false,
+    models: [
+      "koboldcpp/L3-8B-Stheno-v3.2-IQ3_S-imat",
+      "koboldcpp/Llama-3.2-3B",
+      "aphrodite/TheDrummer/Skyfall-31B-v4.2",
+    ],
   },
 ];
 
@@ -258,6 +271,8 @@ export async function chatWithProvider(
       return huggingFaceChat(settings, trimmed);
     case "gemini":
       return geminiChat(settings.model, trimmed, settings.apiKey, settings.temperature);
+    case "horde":
+      return hordeRequest(settings, trimmed);
     case "builtin":
       throw new Error("builtin provider is handled by the Convex action");
   }
@@ -304,6 +319,93 @@ async function streamHuggingFace(
       messages,
       onDelta,
     );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// AI Horde — 100% free, unlimited, community-hosted GPUs (queued).
+// Async-job API: POST /api/v2/generate/text/async → poll status/{id}.
+// No key required (works anonymously); optional x-api-key raises priority.
+// ---------------------------------------------------------------------------
+
+const HORDE_API = "https://aihorde.net/api/v2";
+const HORDE_TIMEOUT_MS = 3 * 60 * 1000; // queues can be long — give up after 3 min
+const HORDE_POLL_MS = 2000;
+
+/** Serialize chat turns into a ChatML-style prompt the Horde models understand. */
+function hordePrompt(messages: ChatMessage[]): string {
+  const turns = messages.map((m) => {
+    const role =
+      m.role === "assistant" ? "assistant" : m.role === "system" ? "system" : "user";
+    return `<|im_start|>${role}\n${m.content}\n<|im_end|>`;
+  });
+  return [...turns, "<|im_start|>assistant\n"].join("\n");
+}
+
+async function hordeRequest(
+  settings: GmSettings,
+  messages: ChatMessage[],
+  onDelta?: (chunk: string) => void,
+): Promise<string> {
+  // The v2 API requires an `apikey` header; anonymous users use the special
+  // 0000000000 token. A free registered key at aihorde.net raises priority.
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    "Client-Agent": "Oraculum-SoloVTT/1.0",
+  };
+  headers.apikey = settings.apiKey || "0000000000";
+  const submit = await fetch(`${HORDE_API}/generate/text/async`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      prompt: hordePrompt(trimMessages(messages)),
+      params: {
+        max_length: 600,
+        temperature: settings.temperature,
+        n: 1,
+        top_p: 0.9,
+        rep_pen: 1.08,
+      },
+      models: settings.model ? [settings.model] : [],
+    }),
+  });
+  if (!submit.ok) {
+    const body = await submit.json().catch(() => null);
+    throw new Error(
+      body?.message ?? `${submit.status} — AI Horde rejected the request`,
+    );
+  }
+  const job = await submit.json();
+  if (!job?.id) throw new Error("AI Horde did not return a job id");
+
+  const deadline = Date.now() + HORDE_TIMEOUT_MS;
+  let lastText = "";
+  for (;;) {
+    const statusRes = await fetch(`${HORDE_API}/generate/text/status/${job.id}`);
+    if (!statusRes.ok) {
+      const body = await statusRes.json().catch(() => null);
+      throw new Error(
+        body?.message ?? `${statusRes.status} — AI Horde status check failed`,
+      );
+    }
+    const status = await statusRes.json();
+    if (status?.message) throw new Error(String(status.message));
+    const text: string = status?.generations?.[0]?.text ?? "";
+    if (text) {
+      const delta = text.slice(lastText.length);
+      if (delta) onDelta?.(delta);
+      lastText = text;
+    }
+    if (status?.finished) {
+      if (!lastText) throw new Error("AI Horde returned an empty generation");
+      return lastText;
+    }
+    if (Date.now() > deadline) {
+      throw new Error(
+        "AI Horde is still queued (the network is busy). Try a smaller model or try again later.",
+      );
+    }
+    await new Promise((r) => setTimeout(r, HORDE_POLL_MS));
   }
 }
 
@@ -443,6 +545,8 @@ export async function streamChatWithProvider(
       return streamHuggingFace(settings, trimmed, onDelta);
     case "gemini":
       return streamGemini(settings.model, trimmed, settings.apiKey, onDelta, settings.temperature);
+    case "horde":
+      return hordeRequest(settings, trimmed, onDelta);
     case "builtin":
       throw new Error("builtin provider is handled by the Convex action");
   }
