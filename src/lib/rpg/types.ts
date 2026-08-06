@@ -153,6 +153,13 @@ export interface AdventurePrefs {
   setting: string;
   difficulty: string;
   focus: string;
+  magicLevel: string;
+  worldEra: string;
+  companions: string;
+  villain: string;
+  stakes: string;
+  pace: string;
+  narrator: string;
   premise: string;
 }
 
@@ -163,6 +170,13 @@ export const DEFAULT_ADVENTURE_PREFS: AdventurePrefs = {
   setting: "wilderness",
   difficulty: "standard",
   focus: "balanced",
+  magicLevel: "standard fantasy",
+  worldEra: "medieval",
+  companions: "true solo",
+  villain: "ancient evil",
+  stakes: "a community",
+  pace: "steady",
+  narrator: "vivid literary",
   premise: "",
 };
 
@@ -204,11 +218,54 @@ export function adventureScene(prefs: AdventurePrefs): {
   title: string;
   location: string;
   quest: string;
+  hook: string;
 } {
   const location = SETTING_LOCATIONS[prefs.setting] ?? "The Old Watchtower Road";
   const quest = STYLE_QUESTS[prefs.style] ?? "Find the sealed door beneath the hills";
   const title = `A ${prefs.tone} ${prefs.genre} tale`;
-  return { title, location, quest };
+  const hook = VILLAIN_HOOKS[prefs.villain] ?? "trouble is brewing on the horizon";
+  return { title, location, quest, hook };
+}
+
+const VILLAIN_HOOKS: Record<string, string> = {
+  "personal rival": "a face from your past is pulling the strings",
+  "criminal syndicate": "a shadowy syndicate runs the roads and the courts",
+  "corrupt authority": "the powers that be are rotten to the core",
+  "ancient evil": "something ancient and patient stirs in the depths",
+  "monstrous threat": "a monster is devouring the land, one settlement at a time",
+  "rival adventurer": "a rival adventurer wants what you want — and wants it first",
+  "the wilds themselves": "the wilds themselves have turned against the people",
+  "a dark prophecy": "a dark prophecy is coming due, and it names you",
+};
+
+const COMPANION_LINES: Record<string, string> = {
+  "true solo": "You walk this road alone.",
+  "one companion": "A single trusted companion shares your road.",
+  "small band": "A small band of allies shares your road.",
+};
+
+/** A full campaign directive — the exact briefing the Game Master follows when
+ *  it opens your story. Built from every Adventure Setup choice so the player
+ *  sees (and can fine-tune) exactly what the GM will read. */
+export function campaignBriefing(prefs: AdventurePrefs): string {
+  const scene = adventureScene(prefs);
+  const companions = COMPANION_LINES[prefs.companions] ?? "You walk this road alone.";
+  const parts = [
+    `${scene.title.charAt(0).toUpperCase()}${scene.title.slice(1)}.`,
+    `You begin near ${scene.location.toLowerCase()}.`,
+    `Your first thread: ${scene.quest}.`,
+    `Behind it all, ${scene.hook}.`,
+  ];
+  if (prefs.magicLevel) parts.push(`Magic runs ${prefs.magicLevel}.`);
+  if (prefs.worldEra) parts.push(`The age is ${prefs.worldEra}.`);
+  parts.push(companions);
+  if (prefs.stakes) parts.push(`What hangs in the balance: ${prefs.stakes}.`);
+  if (prefs.focus) parts.push(`The story leans ${prefs.focus}.`);
+  if (prefs.difficulty) parts.push(`Difficulty: ${prefs.difficulty}.`);
+  if (prefs.pace) parts.push(`The narrative moves at a ${prefs.pace} pace.`);
+  if (prefs.narrator) parts.push(`The narrator's voice: ${prefs.narrator}.`);
+  if (prefs.premise) parts.push(`The hook you planted: ${prefs.premise}.`);
+  return parts.join(" ");
 }
 
 // ---------------------------------------------------------------------------

@@ -57,7 +57,7 @@ import type {
   PendingBonus,
   RollModifierLine,
 } from "@/lib/rpg/types";
-import { adventureScene, prefsOf, uid } from "@/lib/rpg/types";
+import { adventureScene, campaignBriefing, prefsOf, uid } from "@/lib/rpg/types";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import AdSlot from "./AdSlot";
 import CharacterPanel, { type PanelActions } from "./panels/CharacterPanel";
@@ -109,6 +109,14 @@ function createAdventure(character: Character, language: GmLanguage = "en"): Adv
     id: uid(),
     kind: "gm",
     text: opening,
+    timestamp: Date.now(),
+  });
+  // The player's Adventure Setup directives, echoed so the campaign brief is
+  // always visible at the top of the narrative hub.
+  adventure.logs.push({
+    id: uid(),
+    kind: "system",
+    text: `Campaign briefing — ${campaignBriefing(prefsOf(character.adventurePrefs))}`,
     timestamp: Date.now(),
   });
   adventure.logs.push({

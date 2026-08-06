@@ -27,7 +27,11 @@ export function PickField({
   options: PickOption[];
   placeholder?: string;
 }) {
-  const [custom, setCustom] = useState(false);
+  // Explicit custom-mode state: once "Custom…" is chosen (or a persisted value
+  // is off-list), the text input stays on screen even while the value is empty.
+  const [custom, setCustom] = useState<boolean>(
+    () => value !== "" && !options.some((o) => o.value === value),
+  );
   const inList = options.some((o) => o.value === value);
   const customMode = custom || (value !== "" && !inList);
 
@@ -36,9 +40,16 @@ export function PickField({
 
   return (
     <div>
-      <label className="mb-1 block text-[11px] font-bold uppercase tracking-widest text-stone-400">
-        {label}
-      </label>
+      <div className="mb-1 flex items-center justify-between">
+        <label className="block text-[11px] font-bold uppercase tracking-widest text-stone-400">
+          {label}
+        </label>
+        {customMode && (
+          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-700">
+            Custom
+          </span>
+        )}
+      </div>
       {customMode ? (
         <div className="relative">
           <input
