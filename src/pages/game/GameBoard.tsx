@@ -57,7 +57,7 @@ import type {
   PendingBonus,
   RollModifierLine,
 } from "@/lib/rpg/types";
-import { uid } from "@/lib/rpg/types";
+import { adventureScene, prefsOf, uid } from "@/lib/rpg/types";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import AdSlot from "./AdSlot";
 import CharacterPanel, { type PanelActions } from "./panels/CharacterPanel";
@@ -86,14 +86,16 @@ function charLevel(ch: Character): number {
 
 function createAdventure(character: Character, language: GmLanguage = "en"): AdventureState {
   const system = character.system;
+  // Open the campaign according to the player's Adventure Setup choices.
+  const scene = adventureScene(prefsOf(character.adventurePrefs));
   const adventure: AdventureState = {
     system,
     character,
     logs: [],
     diceLog: [],
-    sceneTitle: "The Road Begins",
-    location: "The Old Watchtower Road",
-    quest: ["Find the sealed door beneath the hills"],
+    sceneTitle: scene.title,
+    location: scene.location,
+    quest: [scene.quest],
     enemies: [],
     gmMode: "local",
     xp: 0,

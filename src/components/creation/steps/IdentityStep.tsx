@@ -1,21 +1,16 @@
-import { useState } from "react";
 import { cn } from "@/lib/utils";
-import { ChevronDown, X } from "lucide-react";
 import type { CharacterIdentity } from "@/lib/rpg/types";
-import { SectionLabel } from "../ui";
+import { PickField, SectionLabel, type PickOption } from "../ui";
 
-/** Sentinel value that switches a pick-list field into custom-entry mode. */
-const CUSTOM = "__custom__";
-
-interface PickField {
+interface PickFieldDef {
   key: keyof CharacterIdentity;
   label: string;
-  options: { value: string; label: string }[];
+  options: PickOption[];
 }
 
 /** Canonical pick-lists — the Game Master reads exactly these strings, so no
  *  free-text typos or paraphrasing ever reaches the AI or the sheet. */
-const PICK_FIELDS: PickField[] = [
+const PICK_FIELDS: PickFieldDef[] = [
   {
     key: "gender",
     label: "Gender / presentation",
@@ -161,19 +156,6 @@ export default function IdentityStep({
   identity: Partial<CharacterIdentity>;
   setIdentity: (v: Partial<CharacterIdentity>) => void;
 }) {
-  // Explicit custom-mode flags: "Custom…" with an EMPTY value must still show
-  // the text input (deriving mode from the value alone can't tell "empty
-  // custom" apart from "nothing chosen yet").
-  const [customKeys, setCustomKeys] = useState<Record<string, boolean>>({});
-
-  const isInList = (key: keyof CharacterIdentity, value: string) =>
-    PICK_FIELDS.find((p) => p.key === key)?.options.some((o) => o.value === value) ?? false;
-
-  const exitCustom = (key: keyof CharacterIdentity) => {
-    setCustomKeys((prev) => ({ ...prev, [key]: false }));
-    setIdentity({ ...identity, [key]: "" });
-  };
-
   return (
     <div className="rounded-xl border border-stone-200 bg-white p-5">
       <SectionLabel>Identity &amp; appearance</SectionLabel>
@@ -183,67 +165,15 @@ export default function IdentityStep({
         features are free-form, since those are yours to write. Leave anything blank and the GM will improvise it.
       </p>
       <div className="grid gap-4 sm:grid-cols-2">
-        {PICK_FIELDS.map((f) => {
-          const value = identity[f.key] ?? "";
-          const customMode = customKeys[f.key] === true || (value !== "" && !isInList(f.key, value));
-          return (
-            <div key={f.key}>
-              <label className="mb-1 block text-[11px] font-bold uppercase tracking-widest text-stone-400">
-                {f.label}
-              </label>
-              {customMode ? (
-                <div className="relative">
-                  <input
-                    value={value}
-                    onChange={(e) => setIdentity({ ...identity, [f.key]: e.target.value })}
-                    placeholder="Type your own…"
-                    autoFocus
-                    className={cn(fieldCls, "border-amber-400 pr-10")}
-                  />
-                  <button
-                    type="button"
-                    title="Clear and pick from the list"
-                    onClick={() => exitCustom(f.key)}
-                    className="absolute right-2 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded-md text-stone-400 transition-colors hover:bg-stone-100 hover:text-stone-700"
-                  >
-                    <X className="size-3.5" />
-                  </button>
-                </div>
-              ) : (
-                <div className="relative">
-                  <select
-                    value={value}
-                    onChange={(e) => {
-                      const next = e.target.value;
-                      if (next === CUSTOM) {
-                        // Reveal the custom input; keep the field empty until typed.
-                        setCustomKeys((prev) => ({ ...prev, [f.key]: true }));
-                        setIdentity({ ...identity, [f.key]: "" });
-                      } else {
-                        setCustomKeys((prev) => ({ ...prev, [f.key]: false }));
-                        setIdentity({ ...identity, [f.key]: next });
-                      }
-                    }}
-                    className={cn(fieldCls, "cursor-pointer appearance-none pr-8", value === "" && "text-stone-400")}
-                  >
-                    <option value="" disabled>
-                      Choose…
-                    </option>
-                    {f.options.map((o) => (
-                      <option key={o.value} value={o.value} className="text-stone-900">
-                        {o.label}
-                      </option>
-                    ))}
-                    <option value={CUSTOM} className="text-stone-900">
-                      Custom…
-                    </option>
-                  </select>
-                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-stone-400" />
-                </div>
-              )}
-            </div>
-          );
-        })}
+        {PICK_FIELDS.map((f) => (
+          <PickField
+            key={f.key}
+            label={f.label}
+            value={identity[f.key] ?? ""}
+            onChange={(v) => setIdentity({ ...identity, [f.key]: v })}
+            options={f.options}
+          />
+        ))}
         {PROSE_FIELDS.map((f) => (
           <div key={f.key} className="sm:col-span-2">
             <label className="mb-1 block text-[11px] font-bold uppercase tracking-widest text-stone-400">

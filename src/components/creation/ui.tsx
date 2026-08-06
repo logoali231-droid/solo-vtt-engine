@@ -1,6 +1,99 @@
+import { useState } from "react";
 import { cn } from "@/lib/utils";
-import { Check, ChevronLeft, ChevronRight } from "lucide-react";
+import { Check, ChevronDown, ChevronLeft, ChevronRight, X } from "lucide-react";
 import type { ReactNode } from "react";
+
+const CUSTOM = "__custom__";
+
+export interface PickOption {
+  value: string;
+  label: string;
+}
+
+/** Canonical pick-list select with a "Custom…" fallback that reveals a text
+ *  input. The GM reads exactly the chosen strings — no typos, no free-text
+ *  interpretation. Custom mode is explicit state so an empty custom value
+ *  still shows the input (not the dropdown). */
+export function PickField({
+  label,
+  value,
+  onChange,
+  options,
+  placeholder = "Choose…",
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  options: PickOption[];
+  placeholder?: string;
+}) {
+  const [custom, setCustom] = useState(false);
+  const inList = options.some((o) => o.value === value);
+  const customMode = custom || (value !== "" && !inList);
+
+  const fieldCls =
+    "w-full rounded-lg border border-stone-200 bg-white px-3 py-2.5 text-sm text-stone-900 outline-none transition-colors placeholder:text-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-200";
+
+  return (
+    <div>
+      <label className="mb-1 block text-[11px] font-bold uppercase tracking-widest text-stone-400">
+        {label}
+      </label>
+      {customMode ? (
+        <div className="relative">
+          <input
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder="Type your own…"
+            autoFocus
+            className={cn(fieldCls, "border-amber-400 pr-10")}
+          />
+          <button
+            type="button"
+            title="Clear and pick from the list"
+            onClick={() => {
+              setCustom(false);
+              onChange("");
+            }}
+            className="absolute right-2 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded-md text-stone-400 transition-colors hover:bg-stone-100 hover:text-stone-700"
+          >
+            <X className="size-3.5" />
+          </button>
+        </div>
+      ) : (
+        <div className="relative">
+          <select
+            value={value}
+            onChange={(e) => {
+              const next = e.target.value;
+              if (next === CUSTOM) {
+                setCustom(true);
+                onChange("");
+              } else {
+                setCustom(false);
+                onChange(next);
+              }
+            }}
+            className={cn(fieldCls, "cursor-pointer appearance-none pr-8", value === "" && "text-stone-400")}
+          >
+            <option value="" disabled>
+              {placeholder}
+            </option>
+            {options.map((o) => (
+              <option key={o.value} value={o.value} className="text-stone-900">
+                {o.label}
+              </option>
+            ))}
+            <option value={CUSTOM} className="text-stone-900">
+              Custom…
+            </option>
+          </select>
+          <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-stone-400" />
+        </div>
+      )}
+    </div>
+  );
+}
 
 export interface ChoiceItem {
   id: string;

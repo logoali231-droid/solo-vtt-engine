@@ -4,6 +4,7 @@ import {
   ABILITY_LABELS,
   SYSTEMS,
   type AbilityId,
+  type AdventurePrefs,
   type Character,
   type CharacterIdentity,
   type DnDClassId,
@@ -51,6 +52,7 @@ import {
   maxFeatSlots,
   SkillsExpertiseStep,
 } from "./steps/TalentsStep";
+import AdventureSetupStep, { PrefsSummaryChips } from "./steps/AdventureSetupStep";
 import IdentityStep from "./steps/IdentityStep";
 import { ChoiceGrid, SectionLabel, StepShell, WizardFooter } from "./ui";
 
@@ -76,13 +78,13 @@ interface DndDraft {
 }
 
 function dndSteps() {
-  return ["System", "Identity", "Race", "Class", "Subclass", "Background", "Abilities", "Talents & Feats", "Skills & Expertise", "Review & Lock"];
+  return ["System", "Identity", "Adventure", "Race", "Class", "Subclass", "Background", "Abilities", "Talents & Feats", "Skills & Expertise", "Review & Lock"];
 }
 function pf2eSteps() {
-  return ["System", "Identity", "Ancestry", "Heritage", "Class", "Background", "Ability Boosts", "Review & Lock"];
+  return ["System", "Identity", "Adventure", "Ancestry", "Heritage", "Class", "Background", "Ability Boosts", "Review & Lock"];
 }
 function gurpsSteps() {
-  return ["System", "Identity", "Attributes", "Advantages", "Disadvantages", "Skills", "Protection", "Review & Lock"];
+  return ["System", "Identity", "Adventure", "Attributes", "Advantages", "Disadvantages", "Skills", "Protection", "Review & Lock"];
 }
 
 export default function Wizard({ onLock, initial }: WizardProps) {
@@ -92,6 +94,9 @@ export default function Wizard({ onLock, initial }: WizardProps) {
   const [level, setLevel] = useState(initial && initial.system === "dnd5e" ? initial.level : 3);
   const [identity, setIdentity] = useState<Partial<CharacterIdentity>>(
     initial?.identity ?? {},
+  );
+  const [prefs, setPrefs] = useState<Partial<AdventurePrefs>>(
+    initial?.adventurePrefs ?? {},
   );
 
   // D&D draft
@@ -152,32 +157,33 @@ export default function Wizard({ onLock, initial }: WizardProps) {
   const canContinue = useMemo(() => {
     if (step === 0) return true;
     if (step === 1) return name.trim().length >= 2;
+    if (step === 2) return true;
     if (system === "dnd5e") {
-      if (step === 2) return !!dnd.raceId;
-      if (step === 3) return !!dnd.classId;
-      if (step === 4) return !!dnd.subclassId;
-      if (step === 5) return !!dnd.backgroundId;
-      if (step === 6) {
+      if (step === 3) return !!dnd.raceId;
+      if (step === 4) return !!dnd.classId;
+      if (step === 5) return !!dnd.subclassId;
+      if (step === 6) return !!dnd.backgroundId;
+      if (step === 7) {
         if (dnd.buyMode === "array") {
           return Object.values(dnd.arrayAssign).every((v) => v !== null);
         }
         return true;
       }
-      if (step === 7) return dnd.feats.length <= maxFeatSlots(level, dnd.raceId);
-      if (step === 8) {
+      if (step === 8) return dnd.feats.length <= maxFeatSlots(level, dnd.raceId);
+      if (step === 9) {
         const pool =
           (dnd.classId === "rogue" ? 2 : 0) + (dnd.feats.includes("skill-expert") ? 1 : 0);
         return dnd.expertiseSkills.length === pool;
       }
-      if (step === 9) return true;
+      if (step === 10) return true;
     }
     if (system === "pf2e") {
-      if (step === 2) return !!pf2e.ancestryId;
-      if (step === 3) return true;
-      if (step === 4) return !!pf2e.classId;
-      if (step === 5) return !!pf2e.backgroundId;
-      if (step === 6) return pf2e.boosts.length === 4;
-      if (step === 7) return true;
+      if (step === 3) return !!pf2e.ancestryId;
+      if (step === 4) return true;
+      if (step === 5) return !!pf2e.classId;
+      if (step === 6) return !!pf2e.backgroundId;
+      if (step === 7) return pf2e.boosts.length === 4;
+      if (step === 8) return true;
     }
     if (system === "gurps") {
       const attrsCost =
@@ -187,14 +193,14 @@ export default function Wizard({ onLock, initial }: WizardProps) {
         (gurps.attrs.ht - 10) * 10;
       const refund = gurps.disadvantages.reduce((a, s) => a + s.points, 0); // negative
       const available = GURPS_BUDGET - refund; // disadvantages refund into the budget
-      if (step === 2) return true;
-      if (step === 3) {
+      if (step === 3) return true;
+      if (step === 4) {
         return attrsCost + gurps.advantages.reduce((a, s) => a + s.points, 0) <= available;
       }
-      if (step === 4) return true;
       if (step === 5) return true;
-      if (step === 6) return !!gurps.armorId;
-      if (step === 7) return true;
+      if (step === 6) return true;
+      if (step === 7) return !!gurps.armorId;
+      if (step === 8) return true;
     }
     return true;
   }, [step, system, name, level, dnd, pf2e, gurps]);
@@ -213,6 +219,7 @@ export default function Wizard({ onLock, initial }: WizardProps) {
       name: name.trim(),
       level,
       identity: { ...identity },
+      adventurePrefs: { ...prefs },
       raceId: dnd.raceId!,
       customOrigin: dnd.customOrigin,
       originFirst: dnd.originFirst,
@@ -280,6 +287,7 @@ export default function Wizard({ onLock, initial }: WizardProps) {
       perceptionRank: "trained" as PfRank,
       armorId: "leather",
       identity: { ...identity },
+      adventurePrefs: { ...prefs },
       state: { hpDamage: 0, actions: 3, conditions: [] },
     };
   }
@@ -299,6 +307,7 @@ export default function Wizard({ onLock, initial }: WizardProps) {
       skills: gurps.skills,
       armorId: gurps.armorId,
       identity: { ...identity },
+      adventurePrefs: { ...prefs },
       points: { attributes: spentAttrs, advantages: spentAdv, skills: spentSkills, disadvantages: spentDisadv, budget: GURPS_BUDGET },
       state: { hpDamage: 0, fpDamage: 0, conditions: [] },
     };
@@ -400,8 +409,12 @@ export default function Wizard({ onLock, initial }: WizardProps) {
       );
     }
 
+    if (step === 2) {
+      return <AdventureSetupStep prefs={prefs} setPrefs={setPrefs} />;
+    }
+
     if (system === "dnd5e") {
-      if (step === 2) {
+      if (step === 3) {
         return (
           <StepShell
             title="Choose a Race"
@@ -421,7 +434,7 @@ export default function Wizard({ onLock, initial }: WizardProps) {
           </StepShell>
         );
       }
-      if (step === 3) {
+      if (step === 4) {
         return (
           <StepShell
             title="Choose a Class"
@@ -448,7 +461,7 @@ export default function Wizard({ onLock, initial }: WizardProps) {
           </StepShell>
         );
       }
-      if (step === 4 && dnd.classId) {
+      if (step === 5 && dnd.classId) {
         const klass = CLASS_MAP[dnd.classId];
         return (
           <StepShell
@@ -473,7 +486,7 @@ export default function Wizard({ onLock, initial }: WizardProps) {
           </StepShell>
         );
       }
-      if (step === 5) {
+      if (step === 6) {
         return (
           <StepShell
             title="Choose a Background"
@@ -493,7 +506,7 @@ export default function Wizard({ onLock, initial }: WizardProps) {
           </StepShell>
         );
       }
-      if (step === 6 && dnd.classId && dnd.backgroundId) {
+      if (step === 7 && dnd.classId && dnd.backgroundId) {
         return (
           <AbilityScoresStep
             raceId={dnd.raceId!}
@@ -516,7 +529,7 @@ export default function Wizard({ onLock, initial }: WizardProps) {
           />
         );
       }
-      if (step === 7 && dnd.classId) {
+      if (step === 8 && dnd.classId) {
         return (
           <FeatsStep
             feats={dnd.feats}
@@ -535,7 +548,7 @@ export default function Wizard({ onLock, initial }: WizardProps) {
           />
         );
       }
-      if (step === 8 && dnd.classId && dnd.backgroundId) {
+      if (step === 9 && dnd.classId && dnd.backgroundId) {
         return (
           <SkillsExpertiseStep
             classId={dnd.classId}
@@ -547,7 +560,7 @@ export default function Wizard({ onLock, initial }: WizardProps) {
           />
         );
       }
-      if (step === 9) {
+      if (step === 10) {
         const klass = CLASS_MAP[dnd.classId!];
         const race = RACE_MAP[dnd.raceId!];
         const subclass = klass.subclasses.find((s) => s.id === dnd.subclassId);
@@ -573,6 +586,7 @@ export default function Wizard({ onLock, initial }: WizardProps) {
             title="Review & Lock"
             subtitle="Everything checks out? Lock in your character and begin your solo adventure."
           >
+            <PrefsSummaryChips prefs={prefs} />
             <div className="grid gap-4 lg:grid-cols-2">
               <div className="rounded-xl border border-stone-200 bg-white p-5">
                 <div className="flex items-center gap-3">
@@ -643,7 +657,7 @@ export default function Wizard({ onLock, initial }: WizardProps) {
     }
 
     if (system === "pf2e") {
-      if (step === 2) {
+      if (step === 3) {
         return (
           <AncestryStep
             ancestryId={pf2e.ancestryId}
@@ -653,7 +667,7 @@ export default function Wizard({ onLock, initial }: WizardProps) {
           />
         );
       }
-      if (step === 3 && pf2e.ancestryId) {
+      if (step === 4 && pf2e.ancestryId) {
         return (
           <HeritageStep
             ancestryId={pf2e.ancestryId}
@@ -662,9 +676,9 @@ export default function Wizard({ onLock, initial }: WizardProps) {
           />
         );
       }
-      if (step === 4) return <PfClassStep classId={pf2e.classId} setClassId={(v) => setPf2e((p) => ({ ...p, classId: v }))} />;
-      if (step === 5) return <PfBackgroundStep backgroundId={pf2e.backgroundId} setBackgroundId={(v) => setPf2e((p) => ({ ...p, backgroundId: v }))} />;
-      if (step === 6 && pf2e.ancestryId && pf2e.classId && pf2e.backgroundId) {
+      if (step === 5) return <PfClassStep classId={pf2e.classId} setClassId={(v) => setPf2e((p) => ({ ...p, classId: v }))} />;
+      if (step === 6) return <PfBackgroundStep backgroundId={pf2e.backgroundId} setBackgroundId={(v) => setPf2e((p) => ({ ...p, backgroundId: v }))} />;
+      if (step === 7 && pf2e.ancestryId && pf2e.classId && pf2e.backgroundId) {
         return (
           <BoostsStep
             ancestryId={pf2e.ancestryId}
@@ -676,9 +690,10 @@ export default function Wizard({ onLock, initial }: WizardProps) {
           />
         );
       }
-      if (step === 7 && pf2e.ancestryId && pf2e.classId && pf2e.backgroundId) {
+      if (step === 8 && pf2e.ancestryId && pf2e.classId && pf2e.backgroundId) {
         return (
           <StepShell title="Review & Lock" subtitle="Lock in your Pathfinder hero and begin your adventure.">
+            <PrefsSummaryChips prefs={prefs} />
             <PfReviewCard
               system="pf2e"
               name={name}
@@ -694,14 +709,15 @@ export default function Wizard({ onLock, initial }: WizardProps) {
     }
 
     if (system === "gurps") {
-      if (step === 2) return <AttributesStep attrs={gurps.attrs} setAttrs={(v) => setGurps((g) => ({ ...g, attrs: v }))} disadvantages={gurps.disadvantages} />;
-      if (step === 3) return <AdvantagesStep attrs={gurps.attrs} advantages={gurps.advantages} setAdvantages={(v) => setGurps((g) => ({ ...g, advantages: v }))} disadvantages={gurps.disadvantages} />;
-      if (step === 4) return <DisadvantagesStep advantages={gurps.advantages} attrs={gurps.attrs} disadvantages={gurps.disadvantages} setDisadvantages={(v) => setGurps((g) => ({ ...g, disadvantages: v }))} />;
-      if (step === 5) return <SkillsStep attrs={gurps.attrs} skills={gurps.skills} setSkills={(v) => setGurps((g) => ({ ...g, skills: v }))} disadvantages={gurps.disadvantages} />;
-      if (step === 6) return <GurpsEquipmentStep armorId={gurps.armorId} setArmorId={(v) => setGurps((g) => ({ ...g, armorId: v }))} />;
-      if (step === 7) {
+      if (step === 3) return <AttributesStep attrs={gurps.attrs} setAttrs={(v) => setGurps((g) => ({ ...g, attrs: v }))} disadvantages={gurps.disadvantages} />;
+      if (step === 4) return <AdvantagesStep attrs={gurps.attrs} advantages={gurps.advantages} setAdvantages={(v) => setGurps((g) => ({ ...g, advantages: v }))} disadvantages={gurps.disadvantages} />;
+      if (step === 5) return <DisadvantagesStep advantages={gurps.advantages} attrs={gurps.attrs} disadvantages={gurps.disadvantages} setDisadvantages={(v) => setGurps((g) => ({ ...g, disadvantages: v }))} />;
+      if (step === 6) return <SkillsStep attrs={gurps.attrs} skills={gurps.skills} setSkills={(v) => setGurps((g) => ({ ...g, skills: v }))} disadvantages={gurps.disadvantages} />;
+      if (step === 7) return <GurpsEquipmentStep armorId={gurps.armorId} setArmorId={(v) => setGurps((g) => ({ ...g, armorId: v }))} />;
+      if (step === 8) {
         return (
           <StepShell title="Review & Lock" subtitle="Lock in your point-budget hero and begin your adventure.">
+            <PrefsSummaryChips prefs={prefs} />
             <GurpsReviewCard
               name={name}
               attrs={gurps.attrs}

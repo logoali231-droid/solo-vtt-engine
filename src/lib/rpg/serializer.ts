@@ -6,13 +6,14 @@
 // ============================================================================
 
 import type {
+  AdventurePrefs,
   AdventureState,
   DnDCharacter,
   GameSystem,
   GurpsCharacter,
   Pf2eCharacter,
 } from "./types";
-import { identityOf } from "./types";
+import { identityOf, prefsOf } from "./types";
 import {
   getDndDerived,
   getGurpsDerived,
@@ -48,6 +49,7 @@ export interface LLMPayload {
     gold: number;
     inventory: { name: string; qty: number }[];
     memory: string | null;
+    prefs: AdventurePrefs;
   };
   diceLog: Record<string, unknown>[];
 }
@@ -254,6 +256,7 @@ export function serializeAdventure(adventure: AdventureState): LLMPayload {
       gold: adventure.gold ?? 0,
       inventory: (adventure.inventory ?? []).map((i) => ({ name: i.name, qty: i.qty })),
       memory: adventure.memory ?? null,
+      prefs: prefsOf(c.adventurePrefs),
     },
     diceLog: adventure.diceLog.slice(-14).map((d) => ({
       label: d.label,

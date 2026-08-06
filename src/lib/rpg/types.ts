@@ -143,6 +143,75 @@ export function identityOf(
 }
 
 // ---------------------------------------------------------------------------
+// Adventure preferences (player-authored campaign directives for the GM)
+// ---------------------------------------------------------------------------
+
+export interface AdventurePrefs {
+  genre: string;
+  tone: string;
+  style: string;
+  setting: string;
+  difficulty: string;
+  focus: string;
+  premise: string;
+}
+
+export const DEFAULT_ADVENTURE_PREFS: AdventurePrefs = {
+  genre: "high fantasy",
+  tone: "heroic & epic",
+  style: "sandbox",
+  setting: "wilderness",
+  difficulty: "standard",
+  focus: "balanced",
+  premise: "",
+};
+
+export function prefsOf(
+  prefs: Partial<AdventurePrefs> | undefined,
+): AdventurePrefs {
+  return { ...DEFAULT_ADVENTURE_PREFS, ...(prefs ?? {}) };
+}
+
+const SETTING_LOCATIONS: Record<string, string> = {
+  village: "A quiet village on the frontier",
+  "town / city": "The crowded streets of the capital",
+  tavern: "A tavern at the edge of the map",
+  wilderness: "The untamed wilds",
+  "dungeon entrance": "The mouth of a forgotten dungeon",
+  "castle / court": "The seat of a wary lord",
+  "frontier outpost": "A frontier outpost",
+  ship: "The deck of a trading vessel",
+  academy: "The halls of an arcane academy",
+  undercity: "The lamplit tunnels beneath the city",
+};
+
+const STYLE_QUESTS: Record<string, string> = {
+  "dungeon crawl": "Descend into the depths and find what stirs below",
+  "mystery & investigation": "Uncover the truth behind the strange occurrences",
+  heist: "Steal the prize that everyone is watching",
+  "political intrigue": "Navigate a court where every smile hides a blade",
+  "war campaign": "Survive the storm of war that is coming",
+  exploration: "Chart what no map has ever recorded",
+  survival: "Endure the wilds and find safe ground",
+  sandbox: "Answer the call of the open road",
+  "monster hunt": "Hunt the creature plaguing the land",
+  "epic quest": "Walk the path the prophecy has laid at your feet",
+  "settlement building": "Build something that outlasts the chaos",
+};
+
+/** Turn the player's setup choices into the opening scene of the campaign. */
+export function adventureScene(prefs: AdventurePrefs): {
+  title: string;
+  location: string;
+  quest: string;
+} {
+  const location = SETTING_LOCATIONS[prefs.setting] ?? "The Old Watchtower Road";
+  const quest = STYLE_QUESTS[prefs.style] ?? "Find the sealed door beneath the hills";
+  const title = `A ${prefs.tone} ${prefs.genre} tale`;
+  return { title, location, quest };
+}
+
+// ---------------------------------------------------------------------------
 // Game Master settings (AI provider configuration — localStorage only)
 // ---------------------------------------------------------------------------
 
@@ -420,6 +489,7 @@ export interface DnDCharacter {
   armorId: string;
   shield: boolean;
   identity?: Partial<CharacterIdentity>;
+  adventurePrefs?: Partial<AdventurePrefs>;
   state: {
     hpDamage: number;
     tempHp: number;
@@ -492,6 +562,7 @@ export interface Pf2eCharacter {
   perceptionRank: PfRank;
   armorId: string;
   identity?: Partial<CharacterIdentity>;
+  adventurePrefs?: Partial<AdventurePrefs>;
   state: {
     hpDamage: number;
     actions: number;
@@ -519,6 +590,7 @@ export interface GurpsCharacter {
   disadvantages?: { id: string; points: number }[];
   armorId: string;
   identity?: Partial<CharacterIdentity>;
+  adventurePrefs?: Partial<AdventurePrefs>;
   points: { attributes: number; advantages: number; skills: number; disadvantages?: number; budget: number };
   state: {
     hpDamage: number;
