@@ -5,7 +5,13 @@ import {
   type AbilityId,
   type DnDClassId,
 } from "@/lib/rpg/types";
-import { BACKGROUND_MAP, CLASS_MAP, DND_SKILLS, RACE_MAP } from "@/lib/rpg/data/dnd";
+import {
+  BACKGROUND_MAP,
+  CLASS_MAP,
+  DND_SKILLS,
+  raceTotalAsi,
+  RACE_MAP,
+} from "@/lib/rpg/data/dnd";
 import { Minus, Plus } from "lucide-react";
 import { SectionLabel, StepShell } from "../ui";
 
@@ -18,6 +24,8 @@ export function dndMod(score: number): number {
 
 interface Props {
   raceId: string;
+  /** Chosen subrace (e.g. elf-wood, human-variant) — affects ASIs & scores. */
+  subraceId: string | null;
   customOrigin: boolean;
   setCustomOrigin: (v: boolean) => void;
   originFirst: AbilityId;
@@ -38,6 +46,7 @@ interface Props {
 
 export default function AbilityScoresStep({
   raceId,
+  subraceId,
   customOrigin,
   setCustomOrigin,
   originFirst,
@@ -99,7 +108,11 @@ export default function AbilityScoresStep({
       if (a === originSecond) return base + 1;
       return base;
     }
-    return base + (race.asi[a] ?? 0);
+    if (subraceId === "human-variant") {
+      if (a === originFirst || a === originSecond) return base + 1;
+      return base;
+    }
+    return base + (raceTotalAsi(raceId, subraceId)[a] ?? 0);
   };
 
   const toggleSkill = (id: string) => {
@@ -180,6 +193,43 @@ export default function AbilityScoresStep({
           </div>
         )}
       </div>
+
+      {/* Human Variant — two chosen +1s (replaces the +1-to-all) */}
+      {subraceId === "human-variant" && !customOrigin && (
+        <div className="flex flex-col gap-2 rounded-xl border border-emerald-200 bg-emerald-50/60 p-4">
+          <p className="text-sm font-semibold text-emerald-900">Human Variant — two +1s</p>
+          <p className="text-xs leading-relaxed text-emerald-700/80">
+            Instead of the standard +1 to every ability score, the Variant gains +1 to two different
+            abilities of your choice (plus a skill and a feat).
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <p className="mb-1 text-xs font-medium text-emerald-800">+1 to</p>
+              <select
+                value={originFirst}
+                onChange={(e) => setOriginFirst(e.target.value as AbilityId)}
+                className="w-full rounded-lg border border-emerald-200 bg-white px-3 py-2 text-sm text-stone-800"
+              >
+                {ABILITIES.map((a) => (
+                  <option key={a} value={a}>{ABILITY_LABELS[a]}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <p className="mb-1 text-xs font-medium text-emerald-800">+1 to</p>
+              <select
+                value={originSecond}
+                onChange={(e) => setOriginSecond(e.target.value as AbilityId)}
+                className="w-full rounded-lg border border-emerald-200 bg-white px-3 py-2 text-sm text-stone-800"
+              >
+                {ABILITIES.map((a) => (
+                  <option key={a} value={a}>{ABILITY_LABELS[a]}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Score rows */}
       <div className="rounded-xl border border-stone-200 bg-white p-4">

@@ -56,6 +56,7 @@ import type {
   GmSettings,
   GmTurn,
   GurpsCharacter,
+  InventoryItem,
   LogEntry,
   LorebookEntry,
   Pf2eCharacter,
@@ -114,8 +115,15 @@ function createAdventure(
     gmMode: liveByDefault ? "live" : "local",
     aiIntroPending: true,
     xp: 0,
-    gold: 0,
-    inventory: [],
+    // Seed class starting wealth + equipment chosen in the wizard.
+    gold:
+      "startingGold" in character
+        ? ((character as { startingGold?: number }).startingGold ?? 0)
+        : 0,
+    inventory:
+      "startingInventory" in character
+        ? ((character as { startingInventory?: InventoryItem[] }).startingInventory ?? [])
+        : [],
     createdAt: Date.now(),
     updatedAt: Date.now(),
   };

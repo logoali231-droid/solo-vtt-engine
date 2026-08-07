@@ -20,7 +20,14 @@ import {
   getPf2eDerived,
 } from "./character";
 import { CONDITIONS } from "./data/conditions";
-import { BACKGROUND_MAP, CLASS_MAP, FEAT_MAP, RACE_MAP } from "./data/dnd";
+import {
+  BACKGROUND_MAP,
+  CLASS_MAP,
+  FEAT_MAP,
+  raceTotalAsi,
+  RACE_MAP,
+  subraceOf,
+} from "./data/dnd";
 import { GURPS_ADVANTAGE_MAP } from "./data/gurps";
 
 export interface SerializedCondition {
@@ -80,12 +87,22 @@ function serializeDnd5e(c: DnDCharacter): Record<string, unknown> {
       id: race.id,
       name: race.name,
       size: race.size,
-      speed: race.speed,
+      speed: subraceOf(c.raceId, c.subraceId)?.speed ?? race.speed,
       traits: race.traits,
+      subrace: subraceOf(c.raceId, c.subraceId)
+        ? {
+            id: subraceOf(c.raceId, c.subraceId)!.id,
+            name: subraceOf(c.raceId, c.subraceId)!.name,
+            traits: subraceOf(c.raceId, c.subraceId)!.traits,
+            variantHuman: subraceOf(c.raceId, c.subraceId)!.variantHuman ?? false,
+          }
+        : null,
       tashasCustomOrigin: c.customOrigin,
       assignedAbilityIncreases: c.customOrigin
         ? { [c.originFirst]: +2, [c.originSecond]: +1 }
-        : race.asi,
+        : c.subraceId === "human-variant"
+          ? { [c.originFirst]: +1, [c.originSecond]: +1 }
+          : raceTotalAsi(c.raceId, c.subraceId),
     },
     class: {
       id: klass.id,

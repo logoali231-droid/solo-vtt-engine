@@ -7,7 +7,7 @@ import {
 } from "@/lib/rpg/types";
 import type { DndDerived } from "@/lib/rpg/character";
 import { formatMod } from "@/lib/rpg/dice";
-import { CLASS_MAP } from "@/lib/rpg/data/dnd";
+import { CLASS_MAP, subraceOf } from "@/lib/rpg/data/dnd";
 import { knownSpellsFor } from "@/lib/rpg/data/spells";
 import type { SpellDef } from "@/lib/rpg/types";
 import { BookOpen } from "lucide-react";
@@ -61,7 +61,7 @@ export default function DndSheet({ character: c, derived: d, onRoll, onUseFeatur
       <div className="border-b-2 border-double border-[#c9b88d] bg-[#efe2c4] px-4 py-3 text-center">
         <p className="font-display text-lg font-bold tracking-wide text-[#3b2f1b]">{c.name}</p>
         <p className="text-[11px] font-semibold tracking-widest text-[#7a6436]">
-          {d.raceName} {d.className} · {d.subclassName}
+          {subraceOf(c.raceId, c.subraceId)?.name ?? d.raceName} {d.className} · {d.subclassName}
         </p>
         <p className="mt-0.5 text-[10px] italic text-[#8a7444]">
           {d.backgroundName} · Level {c.level} {c.customOrigin && "· Tasha's Custom Origin"}

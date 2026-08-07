@@ -264,6 +264,20 @@ export function PfReviewCard({
           </span>
         ))}
       </div>
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
+          Starting wealth: 15 gp
+        </span>
+        <span className="rounded-full bg-stone-100 px-2.5 py-1 text-xs font-medium text-stone-600">
+          Level 1 · buys any common gear
+        </span>
+      </div>
+      {(klass.startingItems?.length ?? 0) > 0 && (
+        <div className="mt-2 rounded-lg bg-stone-50 p-3 text-xs text-stone-600">
+          <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">Starting kit</p>
+          <p className="mt-1 leading-relaxed">{klass.startingItems!.join(" · ")}</p>
+        </div>
+      )}
     </div>
   );
 }

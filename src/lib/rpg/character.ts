@@ -24,8 +24,10 @@ import {
   DND_SKILLS,
   FEAT_MAP,
   profBonusForLevel,
+  raceTotalAsi,
   RACE_MAP,
   spellSlotsFor,
+  subraceOf,
   WEAPON_MAP,
 } from "./data/dnd";
 import {
@@ -85,14 +87,18 @@ export interface DndDerived {
 }
 
 export function finalScores(c: DnDCharacter): Record<AbilityId, number> {
-  const race = RACE_MAP[c.raceId];
   const scores = { ...c.baseScores };
   if (c.customOrigin) {
     scores[c.originFirst] += 2;
     scores[c.originSecond] += 1;
+  } else if (c.subraceId === "human-variant") {
+    // Variant human replaces the +1-all with two chosen +1s.
+    scores[c.originFirst] += 1;
+    scores[c.originSecond] += 1;
   } else {
+    const asi = raceTotalAsi(c.raceId, c.subraceId);
     for (const a of ABILITIES) {
-      scores[a] += race.asi[a] ?? 0;
+      scores[a] += asi[a] ?? 0;
     }
   }
   // Feat / Talent ability score increases (ASI feats from PHB + TCoE)
@@ -166,7 +172,8 @@ export function getDndDerived(c: DnDCharacter): DndDerived {
   const initiative =
     mods.dex + featEffects.reduce((a, f) => a + (f.effects?.initiative ?? 0), 0);
   const speed =
-    race.speed + featEffects.reduce((a, f) => a + (f.effects?.speed ?? 0), 0);
+    (subraceOf(c.raceId, c.subraceId)?.speed ?? race.speed) +
+    featEffects.reduce((a, f) => a + (f.effects?.speed ?? 0), 0);
 
   const { slots, pact } = spellSlotsFor(klass, c.level);
   const infusions =
@@ -247,7 +254,14 @@ export function getDndDerived(c: DnDCharacter): DndDerived {
     }
   }
 
+  const sub = subraceOf(c.raceId, c.subraceId);
   const features = [
+    ...(sub?.traits ?? []).map((t) => ({
+      id: `subrace-${t.name}`,
+      name: t.name,
+      level: 1,
+      summary: t.summary,
+    })),
     ...klass.features.filter((f) => f.level <= c.level),
     ...(subclass?.features.filter((f) => f.level <= c.level) ?? []),
   ];
@@ -264,7 +278,9 @@ export function getDndDerived(c: DnDCharacter): DndDerived {
     ac,
     initiative,
     speed,
-    darkvision: race.traits.some((t) => t.mechanic === "darkvision"),
+    darkvision:
+      race.traits.some((t) => t.mechanic === "darkvision") ||
+      (sub?.traits.some((t) => t.mechanic === "darkvision") ?? false),
     spellSlots: slots,
     pact,
     infusions,

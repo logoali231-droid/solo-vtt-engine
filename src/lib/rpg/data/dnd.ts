@@ -11,6 +11,7 @@ import type {
   ClassDef,
   DnDCharacter,
   RaceDef,
+  SubraceDef,
   WeaponDef,
 } from "../types";
 
@@ -61,7 +62,7 @@ export const RACES: RaceDef[] = [
     name: "Elf",
     size: "Medium",
     speed: 30,
-    asi: { dex: 2, int: 1 },
+    asi: { dex: 2 },
     languages: ["Common", "Elvish"],
     traits: [
       { name: "Darkvision", summary: "See in dim light as bright, darkness as dim (60 ft).", mechanic: "darkvision" },
@@ -75,7 +76,7 @@ export const RACES: RaceDef[] = [
     name: "Dwarf",
     size: "Medium",
     speed: 25,
-    asi: { con: 2, wis: 1 },
+    asi: { con: 2 },
     languages: ["Common", "Dwarvish"],
     traits: [
       { name: "Darkvision", summary: "See in dim light as bright, darkness as dim (60 ft).", mechanic: "darkvision" },
@@ -89,7 +90,7 @@ export const RACES: RaceDef[] = [
     name: "Halfling",
     size: "Small",
     speed: 25,
-    asi: { dex: 2, cha: 1 },
+    asi: { dex: 2 },
     languages: ["Common", "Halfling"],
     traits: [
       { name: "Lucky", summary: "Reroll a natural 1 on an attack, check or save.", mechanic: "lucky" },
@@ -185,6 +186,103 @@ export const RACES: RaceDef[] = [
 ];
 
 export const RACE_MAP = Object.fromEntries(RACES.map((r) => [r.id, r]));
+
+// ---------------------------------------------------------------------------
+// Subraces (PHB) — elves, dwarves, halflings, human variant, dragonborn ancestry
+// ---------------------------------------------------------------------------
+
+export const SUBRACES: SubraceDef[] = [
+  // Human
+  { id: "human-standard", raceId: "human", name: "Standard Human", asi: {}, traits: [], blurb: "The versatile default — +1 to every ability score." },
+  { id: "human-variant", raceId: "human", name: "Human Variant", asi: {}, variantHuman: true, traits: [
+    { name: "Two +1s", summary: "+1 to two different ability scores of your choice." },
+    { name: "Bonus Skill", summary: "Proficiency in one skill of your choice." },
+    { name: "Bonus Feat", summary: "A feat of your choice at 1st level (pick one in the Talents step)." },
+  ], blurb: "Driven and adaptable — a free feat, a skill, and two +1s." },
+  // Elf
+  { id: "elf-high", raceId: "elf", name: "High Elf", asi: { int: 1 }, traits: [
+    { name: "Cantrip", summary: "Know one cantrip from the wizard spell list." },
+    { name: "Elf Weapon Training", summary: "Proficiency with longsword, shortsword, shortbow and longbow." },
+  ], blurb: "The spell-weaving elves of the great cities." },
+  { id: "elf-wood", raceId: "elf", name: "Wood Elf", asi: { wis: 1 }, speed: 35, traits: [
+    { name: "Mask of the Wild", summary: "Hide while lightly obscured by natural phenomena." },
+    { name: "Elf Weapon Training", summary: "Proficiency with longsword, shortsword, shortbow and longbow." },
+  ], blurb: "Fleet forest elves, at home among the trees." },
+  { id: "elf-drow", raceId: "elf", name: "Drow (Dark Elf)", asi: { cha: 1 }, traits: [
+    { name: "Superior Darkvision", summary: "Darkvision 120 ft.", mechanic: "darkvision" },
+    { name: "Sunlight Sensitivity", summary: "Disadvantage on attacks and Perception in sunlight." },
+    { name: "Drow Magic", summary: "Dancing Lights cantrip; Faerie Fire and Darkness at higher levels." },
+  ], blurb: "The dark elves of the Underdark." },
+  // Dwarf
+  { id: "dwarf-hill", raceId: "dwarf", name: "Hill Dwarf", asi: { wis: 1 }, traits: [
+    { name: "Dwarven Toughness", summary: "+1 maximum HP per level." },
+  ], blurb: "Hill clan dwarves, tough as the stone itself." },
+  { id: "dwarf-mountain", raceId: "dwarf", name: "Mountain Dwarf", asi: { str: 2 }, traits: [
+    { name: "Dwarven Armor Training", summary: "Proficiency with light and medium armor." },
+  ], blurb: "Dour warriors of the mountains, born with steel in hand." },
+  // Halfling
+  { id: "halfling-lightfoot", raceId: "halfling", name: "Lightfoot Halfling", asi: { cha: 1 }, traits: [
+    { name: "Naturally Stealthy", summary: "Hide even when only obscured by a larger creature." },
+  ], blurb: "Quiet, curious and nearly impossible to pin down." },
+  { id: "halfling-stout", raceId: "halfling", name: "Stout Halfling", asi: { con: 1 }, traits: [
+    { name: "Stout Resilience", summary: "Advantage on poison saves; resistance to poison damage." },
+  ], blurb: "Hardy folk with a taste for ale and a resistance to poison." },
+  // Dragonborn ancestries (breath weapon + resistance)
+  { id: "dragonborn-black", raceId: "dragonborn", name: "Black Dragon", asi: {}, traits: [{ name: "Acid Breath", summary: "5 × 30 ft line of acid (DC 8 + Con + prof)." }, { name: "Acid Resistance", summary: "Resistance to acid damage." }], blurb: "Corrosive acid in a line." },
+  { id: "dragonborn-blue", raceId: "dragonborn", name: "Blue Dragon", asi: {}, traits: [{ name: "Lightning Breath", summary: "5 × 30 ft line of lightning (DC 8 + Con + prof)." }, { name: "Lightning Resistance", summary: "Resistance to lightning damage." }], blurb: "Crackling lightning in a line." },
+  { id: "dragonborn-green", raceId: "dragonborn", name: "Green Dragon", asi: {}, traits: [{ name: "Poison Breath", summary: "15 ft cone of poison (DC 8 + Con + prof)." }, { name: "Poison Resistance", summary: "Resistance to poison damage." }], blurb: "Choking poison in a cone." },
+  { id: "dragonborn-red", raceId: "dragonborn", name: "Red Dragon", asi: {}, traits: [{ name: "Fire Breath", summary: "15 ft cone of fire (DC 8 + Con + prof)." }, { name: "Fire Resistance", summary: "Resistance to fire damage." }], blurb: "Scorching fire in a cone." },
+  { id: "dragonborn-white", raceId: "dragonborn", name: "White Dragon", asi: {}, traits: [{ name: "Cold Breath", summary: "15 ft cone of cold (DC 8 + Con + prof)." }, { name: "Cold Resistance", summary: "Resistance to cold damage." }], blurb: "Bitter cold in a cone." },
+  { id: "dragonborn-brass", raceId: "dragonborn", name: "Brass Dragon", asi: {}, traits: [{ name: "Fire Breath", summary: "5 × 30 ft line of fire (DC 8 + Con + prof)." }, { name: "Fire Resistance", summary: "Resistance to fire damage." }], blurb: "Line of searing flame." },
+  { id: "dragonborn-bronze", raceId: "dragonborn", name: "Bronze Dragon", asi: {}, traits: [{ name: "Lightning Breath", summary: "5 × 30 ft line of lightning (DC 8 + Con + prof)." }, { name: "Lightning Resistance", summary: "Resistance to lightning damage." }], blurb: "Line of forking lightning." },
+  { id: "dragonborn-copper", raceId: "dragonborn", name: "Copper Dragon", asi: {}, traits: [{ name: "Acid Breath", summary: "5 × 30 ft line of acid (DC 8 + Con + prof)." }, { name: "Acid Resistance", summary: "Resistance to acid damage." }], blurb: "Line of caustic acid." },
+  { id: "dragonborn-gold", raceId: "dragonborn", name: "Gold Dragon", asi: {}, traits: [{ name: "Fire Breath", summary: "15 ft cone of fire (DC 8 + Con + prof)." }, { name: "Fire Resistance", summary: "Resistance to fire damage." }], blurb: "Cone of brilliant flame." },
+  { id: "dragonborn-silver", raceId: "dragonborn", name: "Silver Dragon", asi: {}, traits: [{ name: "Cold Breath", summary: "15 ft cone of cold (DC 8 + Con + prof)." }, { name: "Cold Resistance", summary: "Resistance to cold damage." }], blurb: "Cone of biting cold." },
+];
+
+export const SUBRACE_MAP = Object.fromEntries(SUBRACES.map((s) => [s.id, s]));
+
+/** The canonical subrace for a race when none was chosen (keeps classic ASIs). */
+export function defaultSubraceId(raceId: string): string | null {
+  switch (raceId) {
+    case "human":
+      return "human-standard";
+    case "elf":
+      return "elf-high";
+    case "dwarf":
+      return "dwarf-hill";
+    case "halfling":
+      return "halfling-lightfoot";
+    case "dragonborn":
+      return "dragonborn-red";
+    default:
+      return null;
+  }
+}
+
+/** Resolve a race's total ASI — race + subrace (Human Variant replaces +1-all). */
+export function raceTotalAsi(
+  raceId: string,
+  subraceId?: string | null,
+): Partial<Record<AbilityId, number>> {
+  const race = RACE_MAP[raceId];
+  const effective = subraceOf(raceId, subraceId);
+  if (effective?.variantHuman) return {};
+  const out: Partial<Record<AbilityId, number>> = { ...race.asi };
+  for (const [k, v] of Object.entries(effective?.asi ?? {})) {
+    out[k as AbilityId] = (out[k as AbilityId] ?? 0) + (v as number);
+  }
+  return out;
+}
+
+/** Resolve the subrace for display — falls back to the race's canonical subrace. */
+export function subraceOf(
+  raceId: string,
+  subraceId?: string | null,
+): SubraceDef | null {
+  const id = subraceId ?? defaultSubraceId(raceId);
+  return id ? SUBRACE_MAP[id] ?? null : null;
+}
 
 // ---------------------------------------------------------------------------
 // Backgrounds
@@ -491,6 +589,7 @@ export const WEAPONS: WeaponDef[] = [
   { id: "quarterstaff", name: "Quarterstaff", count: 1, sides: 6, ability: "str", range: "—", properties: ["Versatile (1d8)"] },
   { id: "handaxe", name: "Handaxe", count: 1, sides: 6, ability: "str", range: "20/60", properties: ["Light", "Thrown"] },
   { id: "longbow", name: "Longbow", count: 1, sides: 8, ability: "dex", twoHanded: true, range: "150/600", properties: ["Heavy", "Two-Handed", "Ranged"] },
+  { id: "shortbow", name: "Shortbow", count: 1, sides: 6, ability: "dex", twoHanded: true, range: "80/320", properties: ["Two-Handed", "Ranged"] },
   { id: "light-crossbow", name: "Light Crossbow", count: 1, sides: 8, ability: "dex", twoHanded: true, range: "80/320", properties: ["Ranged", "Loading"] },
 ];
 
@@ -596,16 +695,32 @@ export const CLASSES: ClassDef[] = [
     casterType: "half",
     subclassLevel: 3,
     blurb: "A tinker-mage who infuses magic into objects (TCoE).",
+
+    startingWealth: { dice: "5d4", mult: 10 },
+    startingGear: {
+      weaponOptions: [
+        { id: "quarterstaff", label: "Simple weapon (quarterstaff)" },
+        { id: "light-crossbow", label: "Light crossbow & 20 bolts" },
+      ],
+      defaultWeapon: "quarterstaff",
+      armorOptions: [
+        { id: "leather", label: "Leather armor" },
+        { id: "scale", label: "Scale mail" },
+      ],
+      defaultArmor: "leather",
+      packOptions: ["Dungeoneer's pack"],
+      extras: ["Thieves' tools", "Tinker's tools"],
+    },
     resources: [
       { id: "infusions", label: "Infusions", rest: "long", max: (c) => (c.level >= 20 ? 6 : c.level >= 18 ? 6 : c.level >= 14 ? 5 : c.level >= 10 ? 4 : c.level >= 6 ? 3 : 2), note: "Known / active" },
-      { id: "flash-of-genius", label: "Flash of Genius", rest: "long", max: (c) => Math.max(1, Math.floor((c.baseScores.int + (RACE_MAP[c.raceId].asi.int ?? 0) - 10) / 2)) },
+      { id: "flash-of-genius", label: "Flash of Genius", rest: "long", max: (c) => Math.max(1, Math.floor((c.baseScores.int + (raceTotalAsi(c.raceId, c.subraceId).int ?? 0) - 10) / 2)) },
     ],
     features: [
       { id: "magical-tinkering", name: "Magical Tinkering", level: 1, summary: "Imbue tiny objects with minor magical effects." },
       { id: "spellcasting-art", name: "Spellcasting", level: 1, summary: "Half-caster prepared spells from the Artificer list (Int)." },
       { id: "infuse", name: "Infuse Item", level: 2, rest: "long", summary: "Create or replicate a magic item; replenished on a long rest.", uses: (c) => (c.level >= 20 ? 6 : c.level >= 18 ? 6 : c.level >= 14 ? 5 : c.level >= 10 ? 4 : c.level >= 6 ? 3 : 2) },
       { id: "tool-proficiency", name: "Tool Proficiency", level: 1, summary: "Proficiency with thieves' tools, tinker's tools, and one artisan tool." },
-      { id: "flash-of-genius", name: "Flash of Genius", level: 7, rest: "long", summary: "When you or a nearby ally fails a check or save, add your Int modifier instead.", hook: { kind: "addFlat", label: "Flash of Genius", flat: (c) => Math.max(1, Math.floor((c.baseScores.int + (RACE_MAP[c.raceId].asi.int ?? 0) - 10) / 2)) } },
+      { id: "flash-of-genius", name: "Flash of Genius", level: 7, rest: "long", summary: "When you or a nearby ally fails a check or save, add your Int modifier instead.", hook: { kind: "addFlat", label: "Flash of Genius", flat: (c) => Math.max(1, Math.floor((c.baseScores.int + (raceTotalAsi(c.raceId, c.subraceId).int ?? 0) - 10) / 2)) } },
       { id: "spell-storing-item", name: "Spell-Storing Item", level: 11, summary: "Store a 2nd-level spell in an object for repeated casting." },
       { id: "soul-of-artifice", name: "Soul of Artifice", level: 20, summary: "+1 to all saves per infused item; survive at 1 HP." },
     ],
@@ -621,6 +736,23 @@ export const CLASSES: ClassDef[] = [
     skillCount: 2,
     subclassLevel: 3,
     blurb: "Peerless master of weapons and armor.",
+
+    startingWealth: { dice: "5d4", mult: 10 },
+    startingGear: {
+      weaponOptions: [
+        { id: "longsword", label: "Martial weapon + shield" },
+        { id: "greataxe", label: "Two martial weapons (greataxe)" },
+      ],
+      defaultWeapon: "longsword",
+      armorOptions: [
+        { id: "chain", label: "Chain mail" },
+        { id: "leather", label: "Leather armor + longbow" },
+      ],
+      defaultArmor: "chain",
+      shieldInKit: true,
+      packOptions: ["Dungeoneer's pack", "Explorer's pack"],
+      extras: ["Light crossbow & 20 bolts"],
+    },
     resources: [
       { id: "second-wind", label: "Second Wind", rest: "short", max: () => 1 },
       { id: "action-surge", label: "Action Surge", rest: "short", max: (c) => (c.level >= 17 ? 2 : 1) },
@@ -674,6 +806,24 @@ export const CLASSES: ClassDef[] = [
     skillCount: 4,
     subclassLevel: 3,
     blurb: "Skirmisher, infiltrator and master of sneak attacks.",
+
+    startingWealth: { dice: "4d4", mult: 10 },
+    startingGear: {
+      weaponOptions: [
+        { id: "rapier", label: "Rapier" },
+        { id: "shortsword", label: "Shortsword" },
+      ],
+      defaultWeapon: "rapier",
+      secondWeaponOptions: [
+        { id: "shortbow", label: "Shortbow & 20 arrows" },
+        { id: "shortsword", label: "Second shortsword" },
+      ],
+      defaultSecondWeapon: "shortbow",
+      armorOptions: [{ id: "leather", label: "Leather armor" }],
+      defaultArmor: "leather",
+      packOptions: ["Burglar's pack", "Dungeoneer's pack", "Explorer's pack"],
+      extras: ["2 × Dagger", "Thieves' tools"],
+    },
     resources: [],
     features: [
       { id: "expertise", name: "Expertise", level: 1, summary: "Double proficiency on two chosen skills." },
@@ -720,6 +870,19 @@ export const CLASSES: ClassDef[] = [
     casterType: "full",
     subclassLevel: 2,
     blurb: "Scholars who command reality through study.",
+
+    startingWealth: { dice: "4d4", mult: 10 },
+    startingGear: {
+      weaponOptions: [
+        { id: "quarterstaff", label: "Quarterstaff" },
+        { id: "dagger", label: "Dagger" },
+      ],
+      defaultWeapon: "quarterstaff",
+      armorOptions: [{ id: "none", label: "Unarmored" }],
+      defaultArmor: "none",
+      packOptions: ["Scholar's pack", "Explorer's pack"],
+      extras: ["Spellbook", "Arcane focus"],
+    },
     resources: [
       { id: "arcane-recovery", label: "Arcane Recovery", rest: "long", max: () => 1 },
     ],
@@ -763,7 +926,7 @@ export const CLASSES: ClassDef[] = [
         { id: "transmuters-stone", name: "Transmuter's Stone", level: 6, summary: "Create a stone granting speed, resists or HP." },
       ]},
       { id: "bladesinging", name: "Bladesinging", source: "TCoE", blurb: "Elven sword-dance magic (Tasha's).", features: [
-        { id: "bladesong", name: "Bladesong", level: 2, rest: "short", summary: "Enter a trance of grace: +Int to AC, advantage on Dexterity checks, concentration saves.", uses: (c) => c.level >= 10 ? 3 : 2, hook: { kind: "acBonus", value: (c) => Math.max(1, Math.floor((c.baseScores.int + (RACE_MAP[c.raceId].asi.int ?? 0) - 10) / 2)) } },
+        { id: "bladesong", name: "Bladesong", level: 2, rest: "short", summary: "Enter a trance of grace: +Int to AC, advantage on Dexterity checks, concentration saves.", uses: (c) => c.level >= 10 ? 3 : 2, hook: { kind: "acBonus", value: (c) => Math.max(1, Math.floor((c.baseScores.int + (raceTotalAsi(c.raceId, c.subraceId).int ?? 0) - 10) / 2)) } },
         { id: "extra-attack-bs", name: "Extra Attack", level: 6, summary: "Attack twice; weave a cantrip between strikes." },
         { id: "song-of-defense", name: "Song of Defense", level: 10, summary: "Spend a slot to reduce damage taken." },
       ]},
@@ -786,6 +949,24 @@ export const CLASSES: ClassDef[] = [
     casterType: "full",
     subclassLevel: 1,
     blurb: "Channel divine power in the service of a god.",
+
+    startingWealth: { dice: "5d4", mult: 10 },
+    startingGear: {
+      weaponOptions: [
+        { id: "quarterstaff", label: "Mace" },
+        { id: "longsword", label: "Warhammer" },
+      ],
+      defaultWeapon: "quarterstaff",
+      armorOptions: [
+        { id: "scale", label: "Scale mail" },
+        { id: "chain", label: "Chain mail" },
+        { id: "leather", label: "Leather armor" },
+      ],
+      defaultArmor: "scale",
+      shieldInKit: true,
+      packOptions: ["Priest's pack", "Explorer's pack"],
+      extras: ["Holy symbol", "Light crossbow & 20 bolts"],
+    },
     resources: [
       { id: "channel-divinity", label: "Channel Divinity", rest: "short", max: (c) => (c.level >= 6 ? 2 : 1) },
     ],
@@ -842,6 +1023,20 @@ export const CLASSES: ClassDef[] = [
     casterType: "half",
     subclassLevel: 3,
     blurb: "A holy knight bound by oath.",
+
+    startingWealth: { dice: "5d4", mult: 10 },
+    startingGear: {
+      weaponOptions: [
+        { id: "longsword", label: "Martial weapon + shield" },
+        { id: "greataxe", label: "Two martial weapons (greataxe)" },
+      ],
+      defaultWeapon: "longsword",
+      armorOptions: [{ id: "chain", label: "Chain mail" }],
+      defaultArmor: "chain",
+      shieldInKit: true,
+      packOptions: ["Priest's pack", "Explorer's pack"],
+      extras: ["5 × Javelin", "Holy symbol"],
+    },
     resources: [
       { id: "lay-on-hands", label: "Lay on Hands pool", rest: "long", max: (c) => c.level * 5, note: "hp of healing" },
     ],
@@ -884,6 +1079,19 @@ export const CLASSES: ClassDef[] = [
     skillCount: 2,
     subclassLevel: 3,
     blurb: "Primal fury channeled into combat.",
+
+    startingWealth: { dice: "2d4", mult: 10 },
+    startingGear: {
+      weaponOptions: [
+        { id: "greataxe", label: "Greataxe" },
+        { id: "longsword", label: "Martial melee weapon" },
+      ],
+      defaultWeapon: "greataxe",
+      armorOptions: [{ id: "none", label: "Unarmored (Unarmored Defense)" }],
+      defaultArmor: "none",
+      packOptions: ["Explorer's pack"],
+      extras: ["2 × Handaxe", "4 × Javelin"],
+    },
     resources: [
       { id: "rage", label: "Rage", rest: "long", max: (c) => (c.level >= 20 ? 6 : c.level >= 17 ? 6 : c.level >= 12 ? 5 : c.level >= 6 ? 4 : c.level >= 3 ? 3 : 2) },
     ],
@@ -929,6 +1137,20 @@ export const CLASSES: ClassDef[] = [
     casterType: "full",
     subclassLevel: 3,
     blurb: "Charismatic performers weaving magic through art.",
+
+    startingWealth: { dice: "5d4", mult: 10 },
+    startingGear: {
+      weaponOptions: [
+        { id: "rapier", label: "Rapier" },
+        { id: "longsword", label: "Longsword" },
+        { id: "quarterstaff", label: "Simple weapon (quarterstaff)" },
+      ],
+      defaultWeapon: "rapier",
+      armorOptions: [{ id: "leather", label: "Leather armor" }],
+      defaultArmor: "leather",
+      packOptions: ["Diplomat's pack", "Entertainer's pack"],
+      extras: ["Dagger"],
+    },
     resources: [
       { id: "bardic-inspiration", label: "Bardic Inspiration", rest: "long", max: (c) => Math.max(1, Math.floor((c.baseScores.cha + (RACE_MAP[c.raceId].asi.cha ?? 0) - 10) / 2)) },
     ],
@@ -973,6 +1195,20 @@ export const CLASSES: ClassDef[] = [
     casterType: "full",
     subclassLevel: 2,
     blurb: "Guardians of nature with wild-shape magic.",
+
+    startingWealth: { dice: "2d4", mult: 10 },
+    startingGear: {
+      weaponOptions: [
+        { id: "shortsword", label: "Scimitar" },
+        { id: "quarterstaff", label: "Simple weapon (quarterstaff)" },
+      ],
+      defaultWeapon: "shortsword",
+      armorOptions: [{ id: "leather", label: "Leather armor" }],
+      defaultArmor: "leather",
+      shieldInKit: true,
+      packOptions: ["Explorer's pack"],
+      extras: ["Druidic focus"],
+    },
     resources: [
       { id: "wild-shape", label: "Wild Shape", rest: "short", max: () => 2 },
     ],
@@ -1014,6 +1250,22 @@ export const CLASSES: ClassDef[] = [
     casterType: "half",
     subclassLevel: 3,
     blurb: "Trackers and hunters of the wilds.",
+
+    startingWealth: { dice: "5d4", mult: 10 },
+    startingGear: {
+      weaponOptions: [
+        { id: "shortsword", label: "Two shortswords" },
+        { id: "longbow", label: "Longbow & 20 arrows" },
+      ],
+      defaultWeapon: "longbow",
+      armorOptions: [
+        { id: "scale", label: "Scale mail" },
+        { id: "leather", label: "Leather armor" },
+      ],
+      defaultArmor: "scale",
+      packOptions: ["Dungeoneer's pack", "Explorer's pack"],
+      extras: ["20 × Arrows"],
+    },
     resources: [],
     features: [
       { id: "favored-enemy", name: "Favored Enemy", level: 1, summary: "Bonus damage and tracking vs a chosen enemy type." },
@@ -1057,6 +1309,19 @@ export const CLASSES: ClassDef[] = [
     casterType: "full",
     subclassLevel: 1,
     blurb: "Innate magic flowing through blood and soul.",
+
+    startingWealth: { dice: "3d4", mult: 10 },
+    startingGear: {
+      weaponOptions: [
+        { id: "light-crossbow", label: "Light crossbow & 20 bolts" },
+        { id: "quarterstaff", label: "Simple weapon (quarterstaff)" },
+      ],
+      defaultWeapon: "light-crossbow",
+      armorOptions: [{ id: "none", label: "Unarmored" }],
+      defaultArmor: "none",
+      packOptions: ["Dungeoneer's pack", "Explorer's pack"],
+      extras: ["2 × Dagger", "Arcane focus"],
+    },
     resources: [
       { id: "sorcery-points", label: "Sorcery Points", rest: "long", max: (c) => c.level },
     ],
@@ -1110,6 +1375,19 @@ export const CLASSES: ClassDef[] = [
     casterType: "pact",
     subclassLevel: 1,
     blurb: "Pact-bound wielders of eldritch power.",
+
+    startingWealth: { dice: "4d4", mult: 10 },
+    startingGear: {
+      weaponOptions: [
+        { id: "light-crossbow", label: "Light crossbow & 20 bolts" },
+        { id: "quarterstaff", label: "Simple weapon (quarterstaff)" },
+      ],
+      defaultWeapon: "light-crossbow",
+      armorOptions: [{ id: "leather", label: "Leather armor" }],
+      defaultArmor: "leather",
+      packOptions: ["Scholar's pack", "Dungeoneer's pack"],
+      extras: ["2 × Dagger", "Arcane focus"],
+    },
     resources: [],
     features: [
       { id: "pact-magic", name: "Pact Magic", level: 1, summary: "Short-rest spell slots from your patron." },
@@ -1158,6 +1436,19 @@ export const CLASSES: ClassDef[] = [
     skillCount: 2,
     subclassLevel: 3,
     blurb: "Masters of unarmed combat and ki.",
+
+    startingWealth: { dice: "5d4", mult: 1 },
+    startingGear: {
+      weaponOptions: [
+        { id: "shortsword", label: "Shortsword" },
+        { id: "quarterstaff", label: "Simple weapon (quarterstaff)" },
+      ],
+      defaultWeapon: "shortsword",
+      armorOptions: [{ id: "none", label: "Unarmored (Unarmored Defense)" }],
+      defaultArmor: "none",
+      packOptions: ["Dungeoneer's pack", "Explorer's pack"],
+      extras: ["10 × Dart"],
+    },
     resources: [
       { id: "ki", label: "Ki Points", rest: "short", max: (c) => c.level },
     ],

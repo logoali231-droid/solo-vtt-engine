@@ -96,18 +96,18 @@ export const PF2E_BACKGROUND_MAP = Object.fromEntries(
 );
 
 export const PF2E_CLASSES: Pf2eClassDef[] = [
-  { id: "fighter", name: "Fighter", keyAbility: "str", hp: 10, perLevel: 6, trainedSkills: ["athletics", "intimidation"], blurb: "Weapon experts unmatched in martial skill." },
-  { id: "rogue", name: "Rogue", keyAbility: "dex", hp: 8, perLevel: 4, trainedSkills: ["acrobatics", "stealth", "thievery", "society"], blurb: "Skirmishers who strike where it hurts." },
-  { id: "wizard", name: "Wizard", keyAbility: "int", hp: 6, perLevel: 4, trainedSkills: ["arcana", "occultism", "society"], blurb: "Scholars of the arcane arts." },
-  { id: "cleric", name: "Cleric", keyAbility: "wis", hp: 8, perLevel: 4, trainedSkills: ["religion", "medicine", "society"], blurb: "Divine spellcasters of faith." },
-  { id: "ranger", name: "Ranger", keyAbility: "dex", hp: 10, perLevel: 6, trainedSkills: ["athletics", "nature", "survival", "stealth"], blurb: "Hunters who master terrain and prey." },
-  { id: "bard", name: "Bard", keyAbility: "cha", hp: 8, perLevel: 4, trainedSkills: ["performance", "diplomacy", "occultism", "society"], blurb: "Performers who weave magic into song." },
-  { id: "monk", name: "Monk", keyAbility: "dex", hp: 10, perLevel: 6, trainedSkills: ["acrobatics", "athletics", "stealth"], blurb: "Masters of unarmed combat and ki." },
-  { id: "alchemist", name: "Alchemist", keyAbility: "int", hp: 8, perLevel: 4, trainedSkills: ["crafting", "medicine", "nature", "occultism"], blurb: "Scientists of explosives and elixirs." },
-  { id: "barbarian", name: "Barbarian", keyAbility: "str", hp: 12, perLevel: 6, trainedSkills: ["athletics", "intimidation", "nature", "survival"], blurb: "Rage-driven warriors." },
-  { id: "sorcerer", name: "Sorcerer", keyAbility: "cha", hp: 6, perLevel: 4, trainedSkills: ["arcana", "diplomacy", "society"], blurb: "Magic in the blood." },
-  { id: "champion", name: "Champion", keyAbility: "str", hp: 10, perLevel: 6, trainedSkills: ["religion", "athletics", "diplomacy"], blurb: "Holy warriors of a cause." },
-  { id: "druid", name: "Druid", keyAbility: "wis", hp: 8, perLevel: 4, trainedSkills: ["nature", "medicine", "survival", "religion"], blurb: "Guardians of the natural world." },
+  { id: "fighter", name: "Fighter", keyAbility: "str", hp: 10, perLevel: 6, trainedSkills: ["athletics", "intimidation"], blurb: "Weapon experts unmatched in martial skill.", startingItems: ["Longsword", "Chain shirt", "Steel shield", "Adventurer's pack"] },
+  { id: "rogue", name: "Rogue", keyAbility: "dex", hp: 8, perLevel: 4, trainedSkills: ["acrobatics", "stealth", "thievery", "society"], blurb: "Skirmishers who strike where it hurts.", startingItems: ["Shortsword", "Dagger", "Leather armor", "Thieves' tools", "Adventurer's pack"] },
+  { id: "wizard", name: "Wizard", keyAbility: "int", hp: 6, perLevel: 4, trainedSkills: ["arcana", "occultism", "society"], blurb: "Scholars of the arcane arts.", startingItems: ["Quarterstaff", "Spellbook", "Arcane focus", "Adventurer's pack"] },
+  { id: "cleric", name: "Cleric", keyAbility: "wis", hp: 8, perLevel: 4, trainedSkills: ["religion", "medicine", "society"], blurb: "Divine spellcasters of faith.", startingItems: ["Mace", "Chain shirt", "Steel shield", "Religious symbol", "Healer's tools", "Adventurer's pack"] },
+  { id: "ranger", name: "Ranger", keyAbility: "dex", hp: 10, perLevel: 6, trainedSkills: ["athletics", "nature", "survival", "stealth"], blurb: "Hunters who master terrain and prey.", startingItems: ["Longbow", "Arrows (20)", "Hatchet", "Leather armor", "Adventurer's pack"] },
+  { id: "bard", name: "Bard", keyAbility: "cha", hp: 8, perLevel: 4, trainedSkills: ["performance", "diplomacy", "occultism", "society"], blurb: "Performers who weave magic into song.", startingItems: ["Shortsword", "Leather armor", "Musical instrument (lute)", "Adventurer's pack"] },
+  { id: "monk", name: "Monk", keyAbility: "dex", hp: 10, perLevel: 6, trainedSkills: ["acrobatics", "athletics", "stealth"], blurb: "Masters of unarmed combat and ki.", startingItems: ["Bo staff", "Adventurer's pack"] },
+  { id: "alchemist", name: "Alchemist", keyAbility: "int", hp: 8, perLevel: 4, trainedSkills: ["crafting", "medicine", "nature", "occultism"], blurb: "Scientists of explosives and elixirs.", startingItems: ["Alchemist's kit", "Leather armor", "Lesser alchemist's fire (2)", "Adventurer's pack"] },
+  { id: "barbarian", name: "Barbarian", keyAbility: "str", hp: 12, perLevel: 6, trainedSkills: ["athletics", "intimidation", "nature", "survival"], blurb: "Rage-driven warriors.", startingItems: ["Greataxe", "Hide armor", "Adventurer's pack"] },
+  { id: "sorcerer", name: "Sorcerer", keyAbility: "cha", hp: 6, perLevel: 4, trainedSkills: ["arcana", "diplomacy", "society"], blurb: "Magic in the blood.", startingItems: ["Quarterstaff", "Arcane focus", "Adventurer's pack"] },
+  { id: "champion", name: "Champion", keyAbility: "str", hp: 10, perLevel: 6, trainedSkills: ["religion", "athletics", "diplomacy"], blurb: "Holy warriors of a cause.", startingItems: ["Longsword", "Chain mail", "Steel shield", "Religious symbol", "Adventurer's pack"] },
+  { id: "druid", name: "Druid", keyAbility: "wis", hp: 8, perLevel: 4, trainedSkills: ["nature", "medicine", "survival", "religion"], blurb: "Guardians of the natural world.", startingItems: ["Sickle", "Leather armor", "Wooden shield", "Druidic focus", "Adventurer's pack"] },
 ];
 
 export const PF2E_CLASS_MAP = Object.fromEntries(

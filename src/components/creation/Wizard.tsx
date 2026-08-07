@@ -9,17 +9,25 @@ import {
   type CharacterIdentity,
   type DnDClassId,
   type GameSystem,
+  type InventoryItem,
   type PfRank,
+  uid,
 } from "@/lib/rpg/types";
 import {
+  ARMOR_MAP,
   BACKGROUNDS,
   CLASSES,
   CLASS_MAP,
+  defaultSubraceId,
   FEAT_MAP,
   RACES,
+  raceTotalAsi,
   RACE_MAP,
-  WEAPONS,
+  SUBRACES,
+  subraceOf,
+  WEAPON_MAP,
 } from "@/lib/rpg/data/dnd";
+import { rollDice } from "@/lib/rpg/dice";
 import { GURPS_ARMORS } from "@/lib/rpg/data/gurps";
 import {
   PF2E_ANCESTRIES,
@@ -62,6 +70,7 @@ interface WizardProps {
 
 interface DndDraft {
   raceId: string | null;
+  subraceId: string | null;
   customOrigin: boolean;
   originFirst: AbilityId;
   originSecond: AbilityId;
@@ -74,10 +83,37 @@ interface DndDraft {
   chosenSkills: string[];
   feats: string[];
   expertiseSkills: string[];
+  /** Rolled class starting wealth in gp (0 = use the class average). */
+  gold: number;
+  gear: {
+    weapon: string;
+    secondWeapon: string | null;
+    armor: string;
+    shield: boolean;
+    packIndex: number;
+  };
+}
+
+function initialGearFor(classId: DnDClassId | null): DndDraft["gear"] {
+  const g = classId ? CLASS_MAP[classId].startingGear : undefined;
+  return {
+    weapon: g?.defaultWeapon ?? "longsword",
+    secondWeapon: g?.defaultSecondWeapon ?? null,
+    armor: g?.defaultArmor ?? "none",
+    shield: g?.shieldInKit ?? false,
+    packIndex: 0,
+  };
+}
+
+/** PHB average of a starting-wealth roll, e.g. 5d4 × 10 → 120 gp. */
+function averageWealth(dice: string, mult: number): number {
+  const [count, sides] = dice.split("d").map((n) => parseInt(n, 10));
+  const perDie = Math.floor((sides + 1) / 2);
+  return (perDie * (count || 1)) * mult;
 }
 
 function dndSteps() {
-  return ["System", "Identity", "Adventure", "Race", "Class", "Subclass", "Background", "Abilities", "Talents & Feats", "Skills & Expertise", "Review & Lock"];
+  return ["System", "Identity", "Adventure", "Race", "Subrace", "Class", "Subclass", "Background", "Abilities", "Talents & Feats", "Skills & Expertise", "Starting Gear & Gold", "Review & Lock"];
 }
 function pf2eSteps() {
   return ["System", "Identity", "Adventure", "Ancestry", "Heritage", "Class", "Background", "Ability Boosts", "Review & Lock"];
@@ -101,6 +137,7 @@ export default function Wizard({ onLock, initial }: WizardProps) {
   // D&D draft
   const [dnd, setDnd] = useState<DndDraft>({
     raceId: null,
+    subraceId: null,
     customOrigin: false,
     originFirst: "str",
     originSecond: "dex",
@@ -113,6 +150,8 @@ export default function Wizard({ onLock, initial }: WizardProps) {
     chosenSkills: [],
     feats: [],
     expertiseSkills: [],
+    gold: 0,
+    gear: initialGearFor(null),
   });
 
   // PF2e draft
@@ -159,22 +198,28 @@ export default function Wizard({ onLock, initial }: WizardProps) {
     if (step === 2) return true;
     if (system === "dnd5e") {
       if (step === 3) return !!dnd.raceId;
-      if (step === 4) return !!dnd.classId;
-      if (step === 5) return !!dnd.subclassId;
-      if (step === 6) return !!dnd.backgroundId;
-      if (step === 7) {
+      if (step === 4) return true; // subrace — auto-defaulted; races without one just continue
+      if (step === 5) return !!dnd.classId;
+      if (step === 6) return !!dnd.subclassId;
+      if (step === 7) return !!dnd.backgroundId;
+      if (step === 8) {
         if (dnd.buyMode === "array") {
           return Object.values(dnd.arrayAssign).every((v) => v !== null);
         }
         return true;
       }
-      if (step === 8) return dnd.feats.length <= maxFeatSlots(level, dnd.raceId);
       if (step === 9) {
+        const slots =
+          maxFeatSlots(level, dnd.raceId) + (dnd.subraceId === "human-variant" ? 1 : 0);
+        return dnd.feats.length <= slots;
+      }
+      if (step === 10) {
         const pool =
           (dnd.classId === "rogue" ? 2 : 0) + (dnd.feats.includes("skill-expert") ? 1 : 0);
         return dnd.expertiseSkills.length === pool;
       }
-      if (step === 10) return true;
+      if (step === 11) return true; // gear picks always have valid defaults
+      if (step === 12) return true;
     }
     if (system === "pf2e") {
       if (step === 3) return !!pf2e.ancestryId;
@@ -213,6 +258,23 @@ export default function Wizard({ onLock, initial }: WizardProps) {
       : (Object.fromEntries(
           ABILITIES.map((a) => [a, dnd.arrayAssign[a] ?? 8]),
         ) as Record<AbilityId, number>);
+    const klass = CLASS_MAP[dnd.classId!];
+    const gearDef = klass.startingGear;
+    const wealth = klass.startingWealth;
+    const gold = dnd.gold || (wealth ? averageWealth(wealth.dice, wealth.mult) : 0);
+    // Build the starting inventory: class extras, pack, and any second weapon.
+    const startingInventory: InventoryItem[] = [];
+    const push = (label: string, qty = 1) =>
+      startingInventory.push({ id: uid(), name: label, qty });
+    for (const extra of gearDef?.extras ?? []) {
+      const m = extra.match(/^(\d+)\s*×\s*(.+)$/);
+      push(m ? m[2].trim() : extra, m ? parseInt(m[1], 10) : 1);
+    }
+    const packLabel = gearDef?.packOptions[dnd.gear.packIndex];
+    if (packLabel) push(packLabel);
+    if (dnd.gear.secondWeapon) {
+      push(WEAPON_MAP[dnd.gear.secondWeapon]?.name ?? dnd.gear.secondWeapon);
+    }
     return {
       system: "dnd5e",
       name: name.trim(),
@@ -220,6 +282,7 @@ export default function Wizard({ onLock, initial }: WizardProps) {
       identity: { ...identity },
       adventurePrefs: { ...prefs },
       raceId: dnd.raceId!,
+      subraceId: dnd.subraceId,
       customOrigin: dnd.customOrigin,
       originFirst: dnd.originFirst,
       originSecond: dnd.originSecond,
@@ -230,9 +293,11 @@ export default function Wizard({ onLock, initial }: WizardProps) {
       chosenSkills: dnd.chosenSkills,
       expertiseSkills: dnd.expertiseSkills,
       feats: dnd.feats,
-      weaponId: "longsword",
-      armorId: "leather",
-      shield: false,
+      weaponId: dnd.gear.weapon,
+      armorId: dnd.gear.armor,
+      shield: dnd.gear.shield,
+      startingGold: gold,
+      startingInventory,
       state: {
         hpDamage: 0,
         tempHp: 0,
@@ -285,6 +350,13 @@ export default function Wizard({ onLock, initial }: WizardProps) {
       saveRanks,
       perceptionRank: "trained" as PfRank,
       armorId: "leather",
+      // Player Core: every 1st-level hero starts with 15 gp and the class kit.
+      startingGold: 15,
+      startingInventory: (klass.startingItems ?? []).map((itemName) => ({
+        id: uid(),
+        name: itemName,
+        qty: 1,
+      })),
       identity: { ...identity },
       adventurePrefs: { ...prefs },
       state: { hpDamage: 0, actions: 3, conditions: [] },
@@ -428,12 +500,62 @@ export default function Wizard({ onLock, initial }: WizardProps) {
                 badge: `${r.size} · ${r.speed} ft · ${Object.entries(r.asi).filter(([, v]) => v).map(([a, v]) => `${ABILITY_LABELS[a as AbilityId]} +${v}`).join(", ")}`,
               }))}
               selected={dnd.raceId}
-              onSelect={(id) => patchDnd({ raceId: id })}
+              onSelect={(id) =>
+                patchDnd({ raceId: id, subraceId: defaultSubraceId(id), customOrigin: false })
+              }
             />
           </StepShell>
         );
       }
-      if (step === 4) {
+      if (step === 4 && dnd.raceId) {
+        const options = SUBRACES.filter((s) => s.raceId === dnd.raceId);
+        const current = dnd.subraceId ?? defaultSubraceId(dnd.raceId);
+        return (
+          <StepShell
+            title="Choose a Subrace"
+            subtitle="Subraces refine your ancestry — they adjust your ability increases and grant extra traits (e.g. Wood Elf, Hill Dwarf, Human Variant, dragon ancestry)."
+          >
+            {options.length === 0 ? (
+              <div className="rounded-xl border border-stone-200 bg-white p-6 text-center">
+                <p className="text-sm font-semibold text-stone-700">
+                  {RACE_MAP[dnd.raceId].name} has no subraces
+                </p>
+                <p className="mt-1 text-xs text-stone-500">
+                  Continue — the base racial traits already apply.
+                </p>
+              </div>
+            ) : (
+              <ChoiceGrid
+                columns={options.length > 5 ? 4 : 3}
+                items={options.map((s) => ({
+                  id: s.id,
+                  title: s.name,
+                  subtitle: s.blurb,
+                  badge: [
+                    s.speed ? `${s.speed} ft` : null,
+                    Object.entries(s.asi)
+                      .filter(([, v]) => v)
+                      .map(([a, v]) => `${ABILITY_LABELS[a as AbilityId]} +${v}`)
+                      .join(", "),
+                    s.variantHuman ? "Feat + skill + two +1s" : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ") || "—",
+                }))}
+                selected={current}
+                onSelect={(id) =>
+                  patchDnd({
+                    subraceId: id,
+                    // Variant Human and Tasha's Custom Origin are mutually exclusive.
+                    customOrigin: id === "human-variant" ? false : dnd.customOrigin,
+                  })
+                }
+              />
+            )}
+          </StepShell>
+        );
+      }
+      if (step === 5) {
         return (
           <StepShell
             title="Choose a Class"
@@ -454,13 +576,18 @@ export default function Wizard({ onLock, initial }: WizardProps) {
               }))}
               selected={dnd.classId}
               onSelect={(id) =>
-                patchDnd({ classId: id as DnDClassId, subclassId: null, expertiseSkills: [] })
+                patchDnd({
+                  classId: id as DnDClassId,
+                  subclassId: null,
+                  expertiseSkills: [],
+                  gear: initialGearFor(id as DnDClassId),
+                })
               }
             />
           </StepShell>
         );
       }
-      if (step === 5 && dnd.classId) {
+      if (step === 6 && dnd.classId) {
         const klass = CLASS_MAP[dnd.classId];
         return (
           <StepShell
@@ -485,7 +612,7 @@ export default function Wizard({ onLock, initial }: WizardProps) {
           </StepShell>
         );
       }
-      if (step === 6) {
+      if (step === 7) {
         return (
           <StepShell
             title="Choose a Background"
@@ -505,10 +632,11 @@ export default function Wizard({ onLock, initial }: WizardProps) {
           </StepShell>
         );
       }
-      if (step === 7 && dnd.classId && dnd.backgroundId) {
+      if (step === 8 && dnd.classId && dnd.backgroundId) {
         return (
           <AbilityScoresStep
             raceId={dnd.raceId!}
+            subraceId={dnd.subraceId}
             customOrigin={dnd.customOrigin}
             setCustomOrigin={(v) => patchDnd({ customOrigin: v })}
             originFirst={dnd.originFirst}
@@ -528,7 +656,7 @@ export default function Wizard({ onLock, initial }: WizardProps) {
           />
         );
       }
-      if (step === 8 && dnd.classId) {
+      if (step === 9 && dnd.classId) {
         return (
           <FeatsStep
             feats={dnd.feats}
@@ -544,10 +672,11 @@ export default function Wizard({ onLock, initial }: WizardProps) {
             level={level}
             raceId={dnd.raceId!}
             classId={dnd.classId}
+            bonusSlots={dnd.subraceId === "human-variant" ? 1 : 0}
           />
         );
       }
-      if (step === 9 && dnd.classId && dnd.backgroundId) {
+      if (step === 10 && dnd.classId && dnd.backgroundId) {
         return (
           <SkillsExpertiseStep
             classId={dnd.classId}
@@ -559,7 +688,171 @@ export default function Wizard({ onLock, initial }: WizardProps) {
           />
         );
       }
-      if (step === 10) {
+      if (step === 11 && dnd.classId) {
+        const klass = CLASS_MAP[dnd.classId];
+        const gearDef = klass.startingGear;
+        const wealth = klass.startingWealth;
+        const avg = wealth ? averageWealth(wealth.dice, wealth.mult) : 0;
+        const gold = dnd.gold || avg;
+        const set = (p: Partial<DndDraft["gear"]>) =>
+          patchDnd({ gear: { ...dnd.gear, ...p } });
+        return (
+          <StepShell
+            title="Starting Gear & Gold"
+            subtitle={`The ${klass.name} kit from the Player's Handbook — roll your starting wealth, then pick your weapons, armor and pack. Everything here is equipped automatically.`}
+          >
+            {/* Wealth */}
+            <div className="rounded-xl border border-stone-200 bg-white p-4">
+              <SectionLabel hint={wealth ? `${wealth.dice} × ${wealth.mult} gp` : "Fixed wealth"}>
+                Starting wealth
+              </SectionLabel>
+              <div className="flex flex-wrap items-center gap-3">
+                <p className="font-mono text-3xl font-bold text-amber-700">{gold} gp</p>
+                {wealth && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const [count, sides] = wealth.dice.split("d").map((n) => parseInt(n, 10));
+                        const rolled =
+                          rollDice(count || 1, sides || 4).reduce((a, b) => a + b, 0) * wealth.mult;
+                        patchDnd({ gold: rolled });
+                      }}
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-amber-700"
+                    >
+                      <Dices className="size-4" /> Roll {wealth.dice} × {wealth.mult}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => patchDnd({ gold: avg })}
+                      className="rounded-lg border border-stone-200 px-4 py-2 text-sm font-semibold text-stone-600 transition-colors hover:border-stone-300"
+                    >
+                      Take average ({avg} gp)
+                    </button>
+                  </>
+                )}
+              </div>
+              <p className="mt-2 text-xs text-stone-400">
+                The roll uses the same internal dice engine as the game — reroll as often as you
+                like before locking in.
+              </p>
+            </div>
+
+            {gearDef ? (
+              <>
+                {/* Weapons */}
+                <div className="rounded-xl border border-stone-200 bg-white p-4">
+                  <SectionLabel>Weapon</SectionLabel>
+                  <div className="flex flex-wrap gap-2">
+                    {gearDef.weaponOptions.map((o) => (
+                      <button
+                        key={o.id}
+                        type="button"
+                        onClick={() => set({ weapon: o.id })}
+                        className={cn(
+                          "rounded-lg border px-3 py-2 text-sm font-medium transition-colors",
+                          dnd.gear.weapon === o.id
+                            ? "border-amber-600 bg-amber-50 text-amber-900"
+                            : "border-stone-200 text-stone-600 hover:border-stone-300",
+                        )}
+                      >
+                        {o.label}
+                      </button>
+                    ))}
+                  </div>
+                  {gearDef.secondWeaponOptions && (
+                    <>
+                      <p className="mb-1.5 mt-3 text-xs font-semibold uppercase tracking-widest text-stone-400">
+                        Second weapon
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {gearDef.secondWeaponOptions.map((o) => (
+                          <button
+                            key={o.id}
+                            type="button"
+                            onClick={() => set({ secondWeapon: o.id })}
+                            className={cn(
+                              "rounded-lg border px-3 py-2 text-sm font-medium transition-colors",
+                              dnd.gear.secondWeapon === o.id
+                                ? "border-amber-600 bg-amber-50 text-amber-900"
+                                : "border-stone-200 text-stone-600 hover:border-stone-300",
+                            )}
+                          >
+                            {o.label}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Armor */}
+                <div className="rounded-xl border border-stone-200 bg-white p-4">
+                  <SectionLabel>Armor</SectionLabel>
+                  <div className="flex flex-wrap gap-2">
+                    {gearDef.armorOptions.map((o) => (
+                      <button
+                        key={o.id}
+                        type="button"
+                        onClick={() => set({ armor: o.id })}
+                        className={cn(
+                          "rounded-lg border px-3 py-2 text-sm font-medium transition-colors",
+                          dnd.gear.armor === o.id
+                            ? "border-amber-600 bg-amber-50 text-amber-900"
+                            : "border-stone-200 text-stone-600 hover:border-stone-300",
+                        )}
+                      >
+                        {o.label}
+                      </button>
+                    ))}
+                  </div>
+                  {gearDef.shieldInKit && (
+                    <label className="mt-3 flex cursor-pointer items-center gap-2 text-sm font-medium text-stone-700">
+                      <input
+                        type="checkbox"
+                        checked={dnd.gear.shield}
+                        onChange={(e) => set({ shield: e.target.checked })}
+                        className="size-4 accent-amber-600"
+                      />
+                      Equip a shield (+2 AC)
+                    </label>
+                  )}
+                </div>
+
+                {/* Pack */}
+                <div className="rounded-xl border border-stone-200 bg-white p-4">
+                  <SectionLabel hint="Placed in your inventory">Pack</SectionLabel>
+                  <div className="flex flex-wrap gap-2">
+                    {gearDef.packOptions.map((label, i) => (
+                      <button
+                        key={label}
+                        type="button"
+                        onClick={() => set({ packIndex: i })}
+                        className={cn(
+                          "rounded-lg border px-3 py-2 text-sm font-medium transition-colors",
+                          dnd.gear.packIndex === i
+                            ? "border-amber-600 bg-amber-50 text-amber-900"
+                            : "border-stone-200 text-stone-600 hover:border-stone-300",
+                        )}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="mt-2 text-xs text-stone-400">
+                    Also packed: {gearDef.extras.join(" · ") || "—"}
+                  </p>
+                </div>
+              </>
+            ) : (
+              <p className="rounded-xl border border-dashed border-stone-300 p-4 text-sm text-stone-500">
+                No class kit defined — you'll start with the default equipment.
+              </p>
+            )}
+          </StepShell>
+        );
+      }
+      if (step === 12) {
         const klass = CLASS_MAP[dnd.classId!];
         const race = RACE_MAP[dnd.raceId!];
         const subclass = klass.subclasses.find((s) => s.id === dnd.subclassId);
@@ -573,7 +866,9 @@ export default function Wizard({ onLock, initial }: WizardProps) {
             scores[a] +
               (dnd.customOrigin
                 ? a === dnd.originFirst ? 2 : a === dnd.originSecond ? 1 : 0
-                : (race.asi[a] ?? 0)) +
+                : dnd.subraceId === "human-variant"
+                  ? a === dnd.originFirst || a === dnd.originSecond ? 1 : 0
+                  : (raceTotalAsi(dnd.raceId!, dnd.subraceId)[a] ?? 0)) +
               dnd.feats.reduce(
                 (sum, f) => sum + (FEAT_MAP[f]?.effects?.asi?.[a] ?? 0),
                 0,
@@ -595,7 +890,8 @@ export default function Wizard({ onLock, initial }: WizardProps) {
                   <div>
                     <p className="font-display text-xl font-semibold text-stone-900">{name}</p>
                     <p className="text-sm text-stone-500">
-                      {race.name} {klass.name} · {subclass?.name} · {background.name}
+                      {subraceOf(dnd.raceId!, dnd.subraceId)?.name ?? race.name} {klass.name} ·{" "}
+                      {subclass?.name} · {background.name}
                     </p>
                   </div>
                 </div>
@@ -614,6 +910,11 @@ export default function Wizard({ onLock, initial }: WizardProps) {
                   {dnd.customOrigin && (
                     <span className="rounded-full bg-violet-100 px-2.5 py-1 text-xs font-semibold text-violet-700">
                       Tasha's Custom Origin (+2 {ABILITY_LABELS[dnd.originFirst]}, +1 {ABILITY_LABELS[dnd.originSecond]})
+                    </span>
+                  )}
+                  {dnd.subraceId === "human-variant" && (
+                    <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                      Human Variant (+1 {ABILITY_LABELS[dnd.originFirst]}, +1 {ABILITY_LABELS[dnd.originSecond]} · free feat)
                     </span>
                   )}
                   {dnd.feats.map((f) => (
@@ -645,7 +946,8 @@ export default function Wizard({ onLock, initial }: WizardProps) {
                   <li className="flex gap-2"><Shield className="mt-0.5 size-4 shrink-0 text-amber-600" /> Saves: {klass.saves.map((s) => ABILITY_LABELS[s]).join(", ")}</li>
                   <li className="flex gap-2"><Coins className="mt-0.5 size-4 shrink-0 text-amber-600" /> {subclass?.features.filter((f) => f.level <= level).length ?? 0} subclass feature(s) available</li>
                   <li className="flex gap-2"><Sparkles className="mt-0.5 size-4 shrink-0 text-amber-600" /> {dnd.feats.length} feat(s): {dnd.feats.map((f) => FEAT_MAP[f]?.name ?? f).join(", ") || "none"}</li>
-                  <li className="flex gap-2"><Flame className="mt-0.5 size-4 shrink-0 text-amber-600" /> Starting weapon: {WEAPONS.find((w) => w.id === "longsword")?.name}</li>
+                  <li className="flex gap-2"><Coins className="mt-0.5 size-4 shrink-0 text-amber-600" /> Starting gold: {dnd.gold || (klass.startingWealth ? averageWealth(klass.startingWealth.dice, klass.startingWealth.mult) : 0)} gp</li>
+                  <li className="flex gap-2"><Flame className="mt-0.5 size-4 shrink-0 text-amber-600" /> Starting gear: {WEAPON_MAP[dnd.gear.weapon]?.name ?? dnd.gear.weapon}{dnd.gear.secondWeapon ? ` + ${WEAPON_MAP[dnd.gear.secondWeapon]?.name ?? dnd.gear.secondWeapon}` : ""} · {ARMOR_MAP[dnd.gear.armor]?.name ?? dnd.gear.armor}{dnd.gear.shield ? " + shield" : ""}</li>
                   <li className="text-xs text-stone-400">Conditions, spell slots and class resources become fully interactive in the game dashboard.</li>
                 </ul>
               </div>

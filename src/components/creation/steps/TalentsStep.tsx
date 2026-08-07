@@ -22,14 +22,17 @@ export function FeatsStep({
   level,
   raceId,
   classId,
+  bonusSlots = 0,
 }: {
   feats: string[];
   setFeats: (v: string[]) => void;
   level: number;
   raceId: string;
   classId: DnDClassId;
+  /** Extra feat slots (e.g. the Human Variant's 1st-level feat). */
+  bonusSlots?: number;
 }) {
-  const slots = maxFeatSlots(level, raceId);
+  const slots = maxFeatSlots(level, raceId) + bonusSlots;
   const toggle = (id: string) => {
     if (feats.includes(id)) {
       setFeats(feats.filter((f) => f !== id));
@@ -48,6 +51,7 @@ export function FeatsStep({
           <Sparkles className="mr-1 inline size-3" />
           You have {slots} feat slot{slots === 1 ? "" : "s"} — {feats.length} used
           {raceId === "custom-lineage" ? " · includes your free Custom Lineage feat" : ""}
+          {bonusSlots > 0 ? ` · includes ${bonusSlots} Variant Human feat${bonusSlots > 1 ? "s" : ""}` : ""}
         </p>
         <p className="mt-1 text-violet-700/80">
           Feats that grant +1 to an ability score (e.g. Actor, Resilient, Fey Touched) are applied to

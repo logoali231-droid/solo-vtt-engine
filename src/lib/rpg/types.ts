@@ -431,6 +431,38 @@ export interface RaceDef {
   blurb: string;
 }
 
+export interface SubraceDef {
+  id: string;
+  raceId: string;
+  name: string;
+  /** Ability increases on top of the race's base ASI. */
+  asi: Partial<Record<AbilityId, number>>;
+  traits: TraitDef[];
+  blurb: string;
+  /** Overrides the race's walking speed (e.g. Wood Elf 35 ft). */
+  speed?: number;
+  /** Human Variant: replaces the +1-all ASI with two chosen +1s + a feat. */
+  variantHuman?: boolean;
+}
+
+export interface ClassStartingGear {
+  /** Primary weapon choice (ids from WEAPONS). */
+  weaponOptions: { id: string; label: string }[];
+  defaultWeapon: string;
+  /** Optional second weapon slot (e.g. Rogue's shortbow vs shortsword). */
+  secondWeaponOptions?: { id: string; label: string }[];
+  defaultSecondWeapon?: string | null;
+  /** Armor choice (ids from ARMORS). */
+  armorOptions: { id: string; label: string }[];
+  defaultArmor: string;
+  /** Whether the class kit includes a shield the player can toggle. */
+  shieldInKit?: boolean;
+  /** Pack choices — one is placed in the inventory. */
+  packOptions: string[];
+  /** Fixed items placed in the inventory ("2 × Dagger" = qty 2). */
+  extras: string[];
+}
+
 export type FeatureHook =
   | { kind: "addDie"; die: number; label: string }
   | {
@@ -502,6 +534,10 @@ export interface ClassDef {
   resources: ResourceDef[];
   subclasses: SubclassDef[];
   blurb: string;
+  /** PHB starting wealth roll, e.g. { dice: "5d4", mult: 10 } = 5d4 × 10 gp. */
+  startingWealth?: { dice: string; mult: number };
+  /** PHB starting equipment — weapon/armor/pack choices the wizard presents. */
+  startingGear?: ClassStartingGear;
 }
 
 export interface BackgroundDef {
@@ -560,6 +596,8 @@ export interface DnDCharacter {
   name: string;
   level: number;
   raceId: string;
+  /** PHB subrace (e.g. Wood Elf, Human Variant) — falls back to the race default. */
+  subraceId?: string | null;
   customOrigin: boolean;
   originFirst: AbilityId;
   originSecond: AbilityId;
@@ -573,6 +611,9 @@ export interface DnDCharacter {
   weaponId: string;
   armorId: string;
   shield: boolean;
+  /** Class starting wealth (gold) and equipment, seeded into the adventure. */
+  startingGold?: number;
+  startingInventory?: InventoryItem[];
   identity?: Partial<CharacterIdentity>;
   adventurePrefs?: Partial<AdventurePrefs>;
   state: {
@@ -622,6 +663,8 @@ export interface Pf2eClassDef {
   perLevel: number;
   trainedSkills: string[];
   blurb: string;
+  /** Player Core quick equipment package — placed in the starting inventory. */
+  startingItems?: string[];
 }
 
 export interface Pf2eBackgroundDef {
@@ -646,6 +689,9 @@ export interface Pf2eCharacter {
   saveRanks: Record<AbilityId, PfRank>;
   perceptionRank: PfRank;
   armorId: string;
+  /** Player Core: every 1st-level hero starts with 15 gp + the class kit. */
+  startingGold?: number;
+  startingInventory?: InventoryItem[];
   identity?: Partial<CharacterIdentity>;
   adventurePrefs?: Partial<AdventurePrefs>;
   state: {
