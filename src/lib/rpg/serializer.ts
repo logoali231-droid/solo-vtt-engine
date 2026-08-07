@@ -43,6 +43,17 @@ export interface LLMPayload {
     location: string;
     quest: string[];
     enemies: { name: string; hp: number; maxHp: number; ac: number }[];
+    companions: {
+      id: string;
+      name: string;
+      role: string;
+      level: number;
+      hp: number;
+      maxHp: number;
+      ac: number;
+      attackBonus: number;
+      damage: string;
+    }[];
     conditions: SerializedCondition[];
     hp: { current: number; max: number };
     xp: number;
@@ -245,6 +256,17 @@ export function serializeAdventure(adventure: AdventureState): LLMPayload {
         hp: Math.max(0, e.hp),
         maxHp: e.maxHp,
         ac: e.ac,
+      })),
+      companions: (adventure.companions ?? []).map((cp) => ({
+        id: cp.id,
+        name: cp.name,
+        role: cp.role,
+        level: cp.level,
+        hp: Math.max(0, cp.hp),
+        maxHp: cp.maxHp,
+        ac: cp.ac,
+        attackBonus: cp.attackBonus,
+        damage: cp.damage,
       })),
       conditions: CONDITIONS.map((cd) => ({
         id: cd.id,

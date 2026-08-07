@@ -1,15 +1,18 @@
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import type { AdventureState, AdsSettings, GmLanguage, GmSettings } from "@/lib/rpg/types";
-import { GM_PROVIDERS, providerOf } from "@/lib/rpg/gm/providers";
+import { chatWithProvider, GM_PROVIDERS, providerOf } from "@/lib/rpg/gm/providers";
 import { estimatedRevenue, readAdsStats, type AdsStats } from "./AdSlot";
 import {
   BadgeDollarSign,
   BookmarkPlus,
   Dices,
   Download,
+  Loader2,
   LogOut,
   Megaphone,
   Menu,
+  PlugZap,
   Plus,
   Settings2,
   Upload,
@@ -57,6 +60,30 @@ export default function TopBar({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [adsOpen, setAdsOpen] = useState(false);
   const [adsStats, setAdsStats] = useState<AdsStats>(() => readAdsStats());
+  const [testing, setTesting] = useState(false);
+
+  const testConnection = async () => {
+    if (settings.provider === "builtin") {
+      toast.info(
+        "The built-in provider uses the platform OPENAI_API_KEY (set in Keys). Switch to Live and send a message to verify.",
+      );
+      return;
+    }
+    setTesting(true);
+    try {
+      await chatWithProvider(settings, [
+        { role: "system", content: "Reply with exactly: OK" },
+        { role: "user", content: "ping" },
+      ]);
+      toast.success("Connected — the model responded.");
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message.slice(0, 160) : "Connection failed.",
+      );
+    } finally {
+      setTesting(false);
+    }
+  };
 
   // Live stats readout while the Ads dialog is open.
   useEffect(() => {
@@ -125,10 +152,11 @@ export default function TopBar({
           <button
             type="button"
             onClick={() => setSettingsOpen(true)}
-            title="GM settings — provider, model, language"
-            className="flex size-8 items-center justify-center rounded-lg border border-slate-800 text-slate-400 transition-colors hover:border-teal-500/50 hover:text-teal-300"
+            title="AI model, provider & API key"
+            className="flex items-center gap-1.5 rounded-lg border border-slate-800 px-2.5 py-1.5 text-[11px] font-semibold text-slate-400 transition-colors hover:border-teal-500/50 hover:text-teal-300"
           >
             <Settings2 className="size-4" />
+            <span className="hidden sm:inline">AI</span>
           </button>
           <button
             type="button"
@@ -201,7 +229,7 @@ export default function TopBar({
       <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
         <DialogContent className="max-h-[85vh] overflow-y-auto border-slate-800 bg-slate-900 text-slate-100 sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle className="text-base font-semibold">GM Settings</DialogTitle>
+            <DialogTitle className="text-base font-semibold">AI Model & GM Settings</DialogTitle>
           </DialogHeader>
           <div className="flex flex-col gap-4">
             <div>
@@ -251,12 +279,29 @@ export default function TopBar({
               <p className="mb-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-500">
                 Model
               </p>
+              <div className="flex flex-wrap gap-1.5">
+                {provider.models.map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => patch({ model: m })}
+                    className={cn(
+                      "max-w-full truncate rounded-full border px-2.5 py-1 font-mono text-[10px] transition-colors",
+                      settings.model === m
+                        ? "border-teal-400/70 bg-teal-400/10 text-teal-200"
+                        : "border-slate-800 bg-slate-950 text-slate-400 hover:border-slate-600 hover:text-slate-200",
+                    )}
+                  >
+                    {m}
+                  </button>
+                ))}
+              </div>
               <input
                 list="gm-model-options"
                 value={settings.model}
                 onChange={(e) => patch({ model: e.target.value })}
                 placeholder={provider.models[0] ?? "model id…"}
-                className="h-9 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 font-mono text-xs text-slate-100 outline-none transition-colors focus:border-teal-500/60"
+                className="mt-2 h-9 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 font-mono text-xs text-slate-100 outline-none transition-colors focus:border-teal-500/60"
               />
               <datalist id="gm-model-options">
                 {provider.models.map((m) => (
@@ -264,9 +309,22 @@ export default function TopBar({
                 ))}
               </datalist>
               <p className="mt-1.5 text-[10px] leading-relaxed text-slate-500">
-                Pick a suggestion or type any model ID — e.g. a HuggingFace repo like{" "}
+                Tap a chip or type any model ID — e.g. a HuggingFace repo like{" "}
                 <span className="font-mono text-teal-300/70">SanjiWatsuki/Kunoichi-DPO-v2-7B</span>.
               </p>
+              <button
+                type="button"
+                onClick={testConnection}
+                disabled={testing}
+                className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-lg border border-teal-500/40 bg-teal-500/10 px-3 py-2 text-xs font-bold text-teal-300 transition-colors hover:bg-teal-500/20 disabled:opacity-50"
+              >
+                {testing ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <PlugZap className="size-3.5" />
+                )}
+                Test connection
+              </button>
             </div>
 
             {provider.needsBaseUrl && (

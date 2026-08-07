@@ -13,6 +13,7 @@ import {
   buildDiceResult,
   d as rollDie,
   formatMod,
+  parseDice,
   pfTierBonus,
   resolve3d6,
   resolveD20Check,
@@ -43,6 +44,8 @@ import type {
   AdventureState,
   AdsSettings,
   Character,
+  Companion,
+  DiceResult,
   DnDCharacter,
   EnemyState,
   FeatureDef,
@@ -97,7 +100,9 @@ function createAdventure(character: Character, language: GmLanguage = "en"): Adv
     location: scene.location,
     quest: [scene.quest],
     enemies: [],
+    companions: [],
     gmMode: "local",
+    aiIntroPending: true,
     xp: 0,
     gold: 0,
     inventory: [],
@@ -217,6 +222,71 @@ export default function GameBoard({ character, onNewCharacter, onSignOut }: Prop
     if (c.system === "pf2e") return getPf2eDerived(c as Pf2eCharacter);
     return getGurpsDerived(c as GurpsCharacter);
   }, [c]);
+
+  // -------------------------------------------------------------------------
+  // AI opening scene — replaces the template intro with one written by the
+  // live GM, grounded in the Adventure Setup choices (streamed token by
+  // token). Falls back silently to the local template on any failure.
+  // -------------------------------------------------------------------------
+  const aiIntroBusy = useRef(false);
+
+  const regenerateOpening = useCallback(
+    async (snap: AdventureState): Promise<boolean> => {
+      const firstGm = snap.logs.find((l) => l.kind === "gm");
+      if (!firstGm) return false;
+      try {
+        const reply = await gm.streamAiOpening(snap, (acc) => {
+          setAdventure((prev) => ({
+            ...prev,
+            logs: prev.logs.map((l) =>
+              l.id === firstGm.id ? { ...l, text: acc } : l,
+            ),
+            updatedAt: Date.now(),
+          }));
+        });
+        if (!reply.usedFallback && reply.text) {
+          setAdventure((prev) => ({
+            ...prev,
+            logs: prev.logs.map((l) =>
+              l.id === firstGm.id ? { ...l, text: reply.text } : l,
+            ),
+            updatedAt: Date.now(),
+          }));
+          return true;
+        }
+      } catch {
+        // keep the local template opening
+      }
+      return false;
+    },
+    [gm],
+  );
+
+  useEffect(() => {
+    if (adventure.gmMode !== "live" || !adventure.aiIntroPending || aiIntroBusy.current) {
+      return;
+    }
+    // Only rewrite the intro while the story is still at the very beginning.
+    if (adventure.logs.length > 4) {
+      setAdventure((prev) =>
+        prev.aiIntroPending ? { ...prev, aiIntroPending: false, updatedAt: Date.now() } : prev,
+      );
+      return;
+    }
+    aiIntroBusy.current = true;
+    void (async () => {
+      const ok = await regenerateOpening(adventureRef.current);
+      if (ok) {
+        setAdventure((prev) => ({
+          ...prev,
+          aiIntroPending: false,
+          updatedAt: Date.now(),
+        }));
+      }
+      aiIntroBusy.current = false;
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [adventure.aiIntroPending, adventure.gmMode, adventure.logs.length, regenerateOpening]);
 
   // -------------------------------------------------------------------------
   // Log helpers
@@ -589,6 +659,127 @@ export default function GameBoard({ character, onNewCharacter, onSignOut }: Prop
   };
 
   // -------------------------------------------------------------------------
+  // Companion combat — party members roll through the same rules engine
+  // -------------------------------------------------------------------------
+  const companionAttack = useCallback(
+    (companionId: string) => {
+      const snap = adventureRef.current;
+      const comp = (snap.companions ?? []).find((cp) => cp.id === companionId);
+      if (!comp) return;
+      const enemy = snap.enemies.find((e) => e.hp > 0);
+      const targetAC = enemy?.ac ?? rollPrefs.dc;
+
+      let dice: DiceResult;
+      if (snap.system === "gurps") {
+        // GURPS: 3d6 under the companion's combat skill target.
+        const target = comp.skillTarget ?? comp.attributes?.dx ?? 10;
+        const res = resolve3d6(target);
+        dice = buildDiceResult({
+          system: "gurps",
+          label: `${comp.name} — attack (target ${target})`,
+          kind: "attack",
+          rolls: res.rolls,
+          diceNotation: "3d6",
+          modifiers: [],
+          total: res.total,
+          target,
+          outcome: res.outcome,
+          margin: res.margin,
+          critical:
+            res.outcome === "critical-success" || res.outcome === "critical-failure",
+          breakdown: res.breakdown,
+        });
+      } else {
+        // D&D 5e / PF2e: 1d20 + attack bonus vs AC (PF2e uses degrees of success).
+        const res = resolveD20Check({
+          dc: targetAC,
+          abilityMod: 0,
+          bonus: comp.attackBonus,
+          system: snap.system,
+        });
+        dice = buildDiceResult({
+          system: snap.system,
+          label: `${comp.name} — attack vs AC ${targetAC}`,
+          kind: "attack",
+          rolls: res.rolls,
+          diceNotation: `1d20 + ${comp.attackBonus}`,
+          modifiers: [
+            { label: "Attack bonus", value: comp.attackBonus, source: "proficiency" },
+          ],
+          total: res.total,
+          target: targetAC,
+          outcome: res.outcome,
+          critical: res.nat20 || res.nat1,
+          breakdown: res.breakdown,
+        });
+      }
+
+      setAdventure((prev) => ({
+        ...prev,
+        logs: [
+          ...prev.logs,
+          { id: uid(), kind: "dice", text: "", dice, timestamp: Date.now() },
+        ],
+        diceLog: [...prev.diceLog.slice(-19), dice],
+        updatedAt: Date.now(),
+      }));
+
+      const hit = dice.outcome === "success" || dice.outcome === "critical-success";
+      if (!enemy) {
+        pushLog(
+          "combat",
+          `${comp.name} is ready to strike, but there is no enemy in the scene. Use “New Encounter” to set one up.`,
+        );
+        return;
+      }
+      if (!hit) {
+        pushLog(
+          "combat",
+          `${comp.name}'s attack misses ${enemy.name} (AC ${enemy.ac}).`,
+        );
+        void gmRespond({ dice });
+        return;
+      }
+
+      // Damage: D&D 5e / PF2e critical hits double the dice; GURPS keeps its table.
+      const parsed = parseDice(comp.damage);
+      const critDouble = snap.system !== "gurps" && dice.outcome === "critical-success";
+      const count = critDouble ? parsed.count * 2 : parsed.count;
+      const rolls = rollDice(count, parsed.sides);
+      const total = Math.max(1, sum(rolls) + parsed.flat);
+      const notation = `${count}d${parsed.sides}${parsed.flat !== 0 ? (parsed.flat > 0 ? `+${parsed.flat}` : parsed.flat) : ""}`;
+      const dmgDice = buildDiceResult({
+        system: snap.system,
+        label: `${comp.name} — damage`,
+        kind: "damage",
+        rolls,
+        diceNotation: notation,
+        modifiers: [],
+        total,
+        outcome: "success",
+        breakdown: `${notation} = ${total} damage`,
+      });
+
+      setAdventure((prev) => ({
+        ...prev,
+        enemies: prev.enemies.map((e) =>
+          e.id === enemy.id ? { ...e, hp: Math.max(0, e.hp - total) } : e,
+        ),
+        updatedAt: Date.now(),
+      }));
+      pushLog("dice", "", dmgDice);
+      pushLog(
+        "combat",
+        enemy.hp - total <= 0
+          ? `${comp.name} slays ${enemy.name}.`
+          : `${comp.name} hits ${enemy.name} for ${total} damage (${Math.max(0, enemy.hp - total)} HP left).`,
+      );
+      void gmRespond({ dice });
+    },
+    [rollPrefs.dc, pushLog, gmRespond],
+  );
+
+  // -------------------------------------------------------------------------
   // Player command + quick actions
   // -------------------------------------------------------------------------
   const sendCommand = useCallback(
@@ -759,6 +950,7 @@ export default function GameBoard({ character, onNewCharacter, onSignOut }: Prop
         logs: [],
         diceLog: [],
         enemies: [],
+        aiIntroPending: true,
         updatedAt: Date.now(),
       };
       const opening = generateOpening(fresh, settingsRef.current.language);
@@ -1244,8 +1436,17 @@ export default function GameBoard({ character, onNewCharacter, onSignOut }: Prop
                 updatedAt: Date.now(),
               }))
             }
+            companions={adventure.companions ?? []}
+            onCompanionChange={(items) =>
+              setAdventure((prev) => ({
+                ...prev,
+                companions: items,
+                updatedAt: Date.now(),
+              }))
+            }
+            onCompanionAttack={companionAttack}
             gmLanguage={settings.language}
-            campaign={{
+                campaign={{
               sceneTitle: adventure.sceneTitle,
               location: adventure.location,
               quests: adventure.quest,

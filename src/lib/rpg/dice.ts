@@ -34,6 +34,36 @@ export function formatMod(value: number): string {
   return value >= 0 ? `+${value}` : `${value}`;
 }
 
+/** Parse "1d6+2" style notation into dice count, sides and flat modifier. */
+export function parseDice(notation: string): { count: number; sides: number; flat: number } {
+  const m = notation.trim().match(/^(\d*)d(\d+)([+-]\d+)?$/i);
+  if (!m) return { count: 1, sides: 6, flat: 0 };
+  return {
+    count: m[1] ? parseInt(m[1], 10) : 1,
+    sides: parseInt(m[2], 10),
+    flat: m[3] ? parseInt(m[3], 10) : 0,
+  };
+}
+
+/** GURPS thrust-damage table by Strength. */
+export function gurpsThrust(st: number): { notation: string; flat: number } {
+  const notation =
+    st <= 9 ? "1d6-2" : st <= 11 ? "1d6-1" : st <= 13 ? "1d6" : st <= 15 ? "1d6+1" : st <= 17 ? "1d6+2" : "2d6-1";
+  const flat =
+    notation === "1d6-2"
+      ? -2
+      : notation === "1d6-1"
+        ? -1
+        : notation === "1d6+1"
+          ? 1
+          : notation === "1d6+2"
+            ? 2
+            : notation === "2d6-1"
+              ? -1
+              : 0;
+  return { notation, flat };
+}
+
 // ---------------------------------------------------------------------------
 // D&D 5e / PF2e d20 resolution
 // ---------------------------------------------------------------------------

@@ -360,6 +360,27 @@ export interface SavedCharacterRecord {
 }
 
 // ---------------------------------------------------------------------------
+// Companions (party members — statted and rolled with the same engine)
+// ---------------------------------------------------------------------------
+
+export interface Companion {
+  id: string;
+  name: string;
+  role: string;
+  level: number;
+  hp: number;
+  maxHp: number;
+  ac: number;
+  attackBonus: number;
+  damage: string; // "1d6+2"
+  // GURPS: attribute block (HP = ST, attack = 3d6 under skill target)
+  attributes?: { st: number; dx: number; iq: number; ht: number };
+  skillTarget?: number;
+  notes?: string;
+  createdAt: number;
+}
+
+// ---------------------------------------------------------------------------
 // Conditions (shared across systems, system-aware effects)
 // ---------------------------------------------------------------------------
 
@@ -699,7 +720,9 @@ export interface AdventureState {
   location: string;
   quest: string[];
   enemies: EnemyState[];
+  companions?: Companion[]; // party members, rolled with the same dice engine
   gmMode: "local" | "live";
+  aiIntroPending?: boolean; // true while the AI opening scene has not been generated yet
   xp?: number;
   gold?: number;
   inventory?: InventoryItem[];

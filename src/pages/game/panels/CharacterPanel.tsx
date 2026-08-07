@@ -2,6 +2,7 @@ import { cn } from "@/lib/utils";
 import { useState } from "react";
 import type {
   Character,
+  Companion,
   DnDCharacter,
   GameSystem,
   GmLanguage,
@@ -13,6 +14,7 @@ import type {
 } from "@/lib/rpg/types";
 import type { DndDerived, GurpsDerived, Pf2eDerived } from "@/lib/rpg/character";
 import CampaignPanel from "./CampaignPanel";
+import CompanionPanel from "./CompanionPanel";
 import ConditionsPanel from "./ConditionsPanel";
 import GearPanel, { InventoryEditor } from "./GearPanel";
 import LorebookPanel from "./LorebookPanel";
@@ -81,6 +83,9 @@ interface Props {
   onLorebookChange?: (entries: LorebookEntry[]) => void;
   inventory?: InventoryItem[];
   onInventoryChange?: (items: InventoryItem[]) => void;
+  companions?: Companion[];
+  onCompanionChange?: (companions: Companion[]) => void;
+  onCompanionAttack?: (id: string) => void;
   campaign?: CampaignPanelData;
   gmLanguage?: GmLanguage;
 }
@@ -94,10 +99,13 @@ export default function CharacterPanel({
   onLorebookChange,
   inventory = [],
   onInventoryChange,
+  companions = [],
+  onCompanionChange,
+  onCompanionAttack,
   campaign,
   gmLanguage = "en",
 }: Props) {
-  const [tab, setTab] = useState<"sheet" | "gear" | "conditions" | "lorebook" | "campaign">("sheet");
+  const [tab, setTab] = useState<"sheet" | "party" | "gear" | "conditions" | "lorebook" | "campaign">("sheet");
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -105,6 +113,7 @@ export default function CharacterPanel({
         {(
           [
             ["sheet", "Sheet"],
+            ["party", "Party"],
             ["gear", "Gear"],
             ["conditions", "Conditions"],
             ["lorebook", "Lorebook"],
@@ -116,7 +125,7 @@ export default function CharacterPanel({
             type="button"
             onClick={() => setTab(id)}
             className={cn(
-              "rounded-t-lg px-4 py-2 text-xs font-semibold transition-colors",
+              "rounded-t-lg px-3 py-2 text-[11px] font-semibold transition-colors sm:px-4 sm:text-xs",
               tab === id
                 ? "border border-b-0 border-slate-800 bg-slate-900 text-amber-300"
                 : "text-slate-500 hover:text-slate-300",
@@ -206,6 +215,23 @@ export default function CharacterPanel({
         {tab === "lorebook" && onLorebookChange && (
           <LorebookPanel entries={lorebook} onChange={onLorebookChange} />
         )}
+        {tab === "party" &&
+          (onCompanionChange && onCompanionAttack ? (
+            <CompanionPanel
+              system={system}
+              companions={companions}
+              onChange={onCompanionChange}
+              onAttack={onCompanionAttack}
+            />
+          ) : (
+            <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+              <p className="text-xs font-semibold text-slate-200">Your Company</p>
+              <p className="mt-1 text-[10px] leading-relaxed text-slate-500">
+                Recruit companions, give them stat blocks and roll their attacks with the same
+                rules engine — available from the desktop layout.
+              </p>
+            </div>
+          ))}
         {tab === "campaign" && campaign && (
           <CampaignPanel system={system} language={gmLanguage} {...campaign} />
         )}
