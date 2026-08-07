@@ -1446,7 +1446,7 @@ export default function GameBoard({ character, onNewCharacter, onSignOut }: Prop
             }
             onCompanionAttack={companionAttack}
             gmLanguage={settings.language}
-                campaign={{
+            campaign={{
               sceneTitle: adventure.sceneTitle,
               location: adventure.location,
               quests: adventure.quest,
@@ -1579,6 +1579,15 @@ export default function GameBoard({ character, onNewCharacter, onSignOut }: Prop
                     updatedAt: Date.now(),
                   }))
                 }
+                companions={adventure.companions ?? []}
+                onCompanionChange={(items) =>
+                  setAdventure((prev) => ({
+                    ...prev,
+                    companions: items,
+                    updatedAt: Date.now(),
+                  }))
+                }
+                onCompanionAttack={companionAttack}
                 gmLanguage={settings.language}
                 campaign={{
                   sceneTitle: adventure.sceneTitle,
