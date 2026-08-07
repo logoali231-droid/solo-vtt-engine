@@ -25,7 +25,6 @@ import {
   PF2E_ANCESTRIES,
   PF2E_BACKGROUNDS,
   PF2E_CLASSES,
-  PF2E_HERITAGES,
 } from "@/lib/rpg/data/pf2e";
 import { Coins, Dices, Flame, ScrollText, Shield, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";

@@ -64,7 +64,6 @@ export default function AbilityScoresStep({
 
   const usedValues = Object.values(arrayAssign).filter((v): v is number => v !== null);
   const remainingValues = ARRAY_VALUES.filter((v) => !usedValues.includes(v));
-  const arrayComplete = usedValues.length === 6;
 
   const change = (a: AbilityId, delta: number) => {
     const next = pointBuys[a] + delta;

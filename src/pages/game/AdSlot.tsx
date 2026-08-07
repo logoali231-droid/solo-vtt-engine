@@ -142,8 +142,11 @@ export default function AdSlot({ settings }: Props) {
   const visibleRef = useRef(false);
   const countedRef = useRef(false);
   const settingsRef = useRef(settings);
-  visibleRef.current = visible;
-  settingsRef.current = settings;
+  // Refs are read by observers/intervals — sync them after render, never during.
+  useEffect(() => {
+    visibleRef.current = visible;
+    settingsRef.current = settings;
+  });
 
   // Track real viewability — impressions only count while the strip is on screen.
   useEffect(() => {

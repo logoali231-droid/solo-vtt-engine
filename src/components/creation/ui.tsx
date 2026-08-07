@@ -210,14 +210,12 @@ export function WizardFooter({
   onBack,
   onContinue,
   isLast,
-  continueLabel,
   lockLabel,
 }: {
   canContinue: boolean;
   onBack: () => void;
   onContinue: () => void;
   isLast: boolean;
-  continueLabel?: string;
   lockLabel?: string;
 }) {
   return (

@@ -45,7 +45,6 @@ import type {
   AdventureState,
   AdsSettings,
   Character,
-  Companion,
   DiceResult,
   DnDCharacter,
   EnemyState,
@@ -244,11 +243,15 @@ export default function GameBoard({ character, onNewCharacter, onSignOut }: Prop
   const [saveLabel, setSaveLabel] = useState("");
   const gm = useGmClient(settings);
   const adventureRef = useRef(adventure);
-  adventureRef.current = adventure;
   const settingsRef = useRef(settings);
-  settingsRef.current = settings;
   const loreRef = useRef(lorebook);
-  loreRef.current = lorebook;
+  // Keep refs in sync after every render — event handlers read them, so refs
+  // must never be touched during render (React Compiler rule).
+  useEffect(() => {
+    adventureRef.current = adventure;
+    settingsRef.current = settings;
+    loreRef.current = lorebook;
+  });
 
   const system = adventure.system;
   const c = adventure.character as Character;
@@ -318,24 +321,27 @@ export default function GameBoard({ character, onNewCharacter, onSignOut }: Prop
     if (adventure.gmMode !== "live" || !adventure.aiIntroPending || aiIntroBusy.current) {
       return;
     }
-    // Only rewrite the intro while the story is still at the very beginning.
-    if (adventure.logs.length > 4) {
-      setAdventure((prev) =>
-        prev.aiIntroPending ? { ...prev, aiIntroPending: false, updatedAt: Date.now() } : prev,
-      );
-      return;
-    }
     aiIntroBusy.current = true;
     void (async () => {
-      const ok = await regenerateOpening(adventureRef.current);
-      if (ok) {
-        setAdventure((prev) => ({
-          ...prev,
-          aiIntroPending: false,
-          updatedAt: Date.now(),
-        }));
+      try {
+        // Only rewrite the intro while the story is still at the very beginning.
+        if (adventureRef.current.logs.length > 4) {
+          setAdventure((prev) =>
+            prev.aiIntroPending ? { ...prev, aiIntroPending: false, updatedAt: Date.now() } : prev,
+          );
+          return;
+        }
+        const ok = await regenerateOpening(adventureRef.current);
+        if (ok) {
+          setAdventure((prev) => ({
+            ...prev,
+            aiIntroPending: false,
+            updatedAt: Date.now(),
+          }));
+        }
+      } finally {
+        aiIntroBusy.current = false;
       }
-      aiIntroBusy.current = false;
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [adventure.aiIntroPending, adventure.gmMode, adventure.logs.length, regenerateOpening]);
@@ -429,8 +435,7 @@ export default function GameBoard({ character, onNewCharacter, onSignOut }: Prop
   // -------------------------------------------------------------------------
   // Core dice engine entry point
   // -------------------------------------------------------------------------
-  const roll = useCallback(
-    (request: RollRequest) => {
+  function roll(request: RollRequest) {
       const snap = adventureRef.current;
       const system = snap.system;
 
@@ -450,7 +455,7 @@ export default function GameBoard({ character, onNewCharacter, onSignOut }: Prop
         }, COND_EFFECTS);
 
         let advantage = rollPrefs.adv || cond.advantage;
-        let disadvantage = rollPrefs.dis || cond.disadvantage;
+        const disadvantage = rollPrefs.dis || cond.disadvantage;
         if (char.state.activeStatus.includes("raging") && request.ability === "str") advantage = true;
         if (
           char.state.activeStatus.includes("reckless") ||
@@ -606,9 +611,7 @@ export default function GameBoard({ character, onNewCharacter, onSignOut }: Prop
       }));
       if (request.kind === "attack") void attackDamageFlow(dice, char);
       else if (res.outcome === "critical-success" || res.outcome === "critical-failure") void gmRespond({ dice });
-    },
-    [rollPrefs, pushLog, gmRespond],
-  );
+  }
 
   // -------------------------------------------------------------------------
   // Combat: attack → damage → enemy state
@@ -696,8 +699,7 @@ export default function GameBoard({ character, onNewCharacter, onSignOut }: Prop
   // resolves the spell through the dice engine: attack rolls vs AC, save
   // spells as the target's roll vs your spell save DC, auto-hits and heals.
   // -------------------------------------------------------------------------
-  const castSpell = useCallback(
-    (spellId: string) => {
+  function castSpell(spellId: string) {
       const snap = adventureRef.current;
       if (snap.system !== "dnd5e") return;
       const char = snap.character as DnDCharacter;
@@ -940,11 +942,9 @@ export default function GameBoard({ character, onNewCharacter, onSignOut }: Prop
         if (slain) awardKill(enemy);
       }
       void gmRespond({ playerText: `I cast ${spell.name}.` });
-    },
-    [updateChar, pushLog, gmRespond, awardKill, rollPrefs.dc],
-  );
+  }
 
-  const attackDamageFlow = async (attackDice: AdventureState["diceLog"][number], char: Character) => {
+  async function attackDamageFlow(attackDice: AdventureState["diceLog"][number], char: Character) {
     const enemy = firstAliveEnemy();
     const hit = attackDice.outcome === "success" || attackDice.outcome === "critical-success";
     if (!enemy) {
@@ -1043,7 +1043,7 @@ export default function GameBoard({ character, onNewCharacter, onSignOut }: Prop
       pushLog("combat", `${enemy.name} takes ${damageTotal} damage (${Math.max(0, enemy.hp - damageTotal)} HP left).`);
     }
     void gmRespond({ dice: attackDice });
-  };
+  }
 
   // -------------------------------------------------------------------------
   // Companion combat — party members roll through the same rules engine
@@ -1229,7 +1229,6 @@ export default function GameBoard({ character, onNewCharacter, onSignOut }: Prop
       }));
       void gmRespond({ playerText: "I take a short rest." });
     } else if (snap.system === "pf2e") {
-      const char = snap.character as Pf2eCharacter;
       const heal = rollDice(2, 8);
       const total = sum(heal);
       const healDice = buildDiceResult({
@@ -1364,7 +1363,7 @@ export default function GameBoard({ character, onNewCharacter, onSignOut }: Prop
     );
   }, []);
 
-  const useFeature = useCallback(
+  const triggerFeature = useCallback(
     (featureId: string) => {
       const snap = adventureRef.current;
       if (snap.system !== "dnd5e") return;
@@ -1620,7 +1619,7 @@ export default function GameBoard({ character, onNewCharacter, onSignOut }: Prop
   // -------------------------------------------------------------------------
   const panelActions: PanelActions = {
     onRoll: roll,
-    onUseFeature: useFeature,
+    onUseFeature: triggerFeature,
     onToggleCondition: toggleCondition,
     onDndDamage: (n) =>
       updateChar((ch) =>
@@ -1922,7 +1921,7 @@ export default function GameBoard({ character, onNewCharacter, onSignOut }: Prop
                 key={f.id}
                 type="button"
                 onClick={() => {
-                  useFeature(f.id);
+                  triggerFeature(f.id);
                   setFeaturePicker(false);
                 }}
                 className="rounded-xl border border-slate-800 bg-slate-950 p-3 text-left transition-colors hover:border-amber-500/50"

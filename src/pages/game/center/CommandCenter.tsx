@@ -25,7 +25,6 @@ export default function CommandCenter({
   system,
   onSend,
   onQuickAction,
-  onRoll,
   busy,
   rollPrefs,
   setRollPrefs,

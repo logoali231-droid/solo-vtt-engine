@@ -10,7 +10,7 @@ import {
   gurpsSkillLevel,
 } from "@/lib/rpg/data/gurps";
 import { Check, Minus, Plus } from "lucide-react";
-import { ChoiceGrid, SectionLabel, StepShell } from "../ui";
+import { ChoiceGrid, StepShell } from "../ui";
 
 export const GURPS_BUDGET = 100;
 

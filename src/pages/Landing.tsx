@@ -13,6 +13,7 @@ import {
   Wand2,
 } from "lucide-react";
 import { Link } from "react-router";
+import { InstallApp } from "@/components/InstallApp";
 
 const SYSTEMS = [
   {
@@ -95,12 +96,15 @@ export default function Landing() {
             <a href="#how" className="transition-colors hover:text-stone-900">How it works</a>
             <a href="#engine" className="transition-colors hover:text-stone-900">The engine</a>
           </nav>
-          <Link
-            to="/auth?returnTo=/dashboard"
-            className="inline-flex items-center gap-1.5 rounded-lg bg-stone-900 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-stone-700"
-          >
-            Enter the table <ArrowRight className="size-4" />
-          </Link>
+          <div className="flex items-center gap-2.5">
+            <InstallApp variant="button" />
+            <Link
+              to="/auth?returnTo=/dashboard"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-stone-900 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-stone-700"
+            >
+              Enter the table <ArrowRight className="size-4" />
+            </Link>
+          </div>
         </div>
       </header>
 

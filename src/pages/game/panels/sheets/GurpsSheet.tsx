@@ -3,7 +3,7 @@ import type { GurpsCharacter } from "@/lib/rpg/types";
 import type { GurpsDerived } from "@/lib/rpg/character";
 import { GURPS_ARMOR_MAP } from "@/lib/rpg/data/gurps";
 import IdentityChips from "./IdentityChips";
-import type { RollRequest, SheetProps } from "../../types";
+import type { SheetProps } from "../../types";
 
 interface Props extends SheetProps<GurpsCharacter> {
   derived: GurpsDerived;

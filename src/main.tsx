@@ -2,6 +2,7 @@ import '@vly-ai/integrations';
 import { Toaster } from "@/components/ui/sonner";
 import { RequireAuth } from "@/components/RequireAuth";
 import { VlyToolbar } from "../vly-toolbar-readonly.tsx";
+import { registerServiceWorker } from "./pwa";
 import { ConvexAuthProvider } from "@convex-dev/auth/react";
 import { ConvexReactClient } from "convex/react";
 import React, { StrictMode, useEffect, lazy, Suspense } from "react";
@@ -18,7 +19,7 @@ import "./index.css";
  * This wrapper retries with backoff so the route loads the moment the server is
  * back, and only surfaces the error if it is genuinely unrecoverable.
  */
-function lazyRetry<T extends React.ComponentType<any>>(
+function lazyRetry<T extends React.ComponentType>(
   factory: () => Promise<{ default: T }>,
   retries = 4,
 ) {
@@ -188,3 +189,6 @@ createRoot(document.getElementById("root")!).render(
     </RootErrorBoundary>
   </StrictMode>,
 );
+
+// PWA: register the service worker (production builds only).
+registerServiceWorker();

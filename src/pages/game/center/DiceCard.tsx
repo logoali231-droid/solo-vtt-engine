@@ -70,12 +70,12 @@ export default function DiceCard({ result, onReroll }: Props) {
         >
           {(result.advantage || result.disadvantage) && result.rolls.length > 1 ? (
             <>
-              <DieFace value={result.rolls[0]} dimmed={result.rolls[0] !== result.total} rollKey={result.id} />
+              <DieFace key={result.id} value={result.rolls[0]} dimmed={result.rolls[0] !== result.total} />
               <span className="text-[10px] font-bold text-slate-500">{result.disadvantage ? "⇣" : "⇡"}</span>
-              <DieFace value={result.rolls[1]} dimmed={result.rolls[1] !== result.total} rollKey={`${result.id}-b`} />
+              <DieFace key={`${result.id}-b`} value={result.rolls[1]} dimmed={result.rolls[1] !== result.total} />
             </>
           ) : (
-            result.rolls.map((r, i) => <DieFace key={i} value={r} rollKey={`${result.id}-${i}`} />)
+            result.rolls.map((r, i) => <DieFace key={`${result.id}-${i}`} value={r} />)
           )}
         </div>
 
@@ -143,18 +143,17 @@ export default function DiceCard({ result, onReroll }: Props) {
 function DieFace({
   value,
   dimmed,
-  rollKey,
 }: {
   value: number;
   dimmed?: boolean;
-  rollKey: string;
 }) {
-  const [rolling, setRolling] = useState(false);
+  // The parent keys each face by rollKey, so a new roll remounts this face:
+  // start rolling on mount and settle after the tumble animation duration.
+  const [rolling, setRolling] = useState(true);
   useEffect(() => {
-    setRolling(true);
     const t = setTimeout(() => setRolling(false), 920);
     return () => clearTimeout(t);
-  }, [rollKey]);
+  }, []);
 
   return (
     <span

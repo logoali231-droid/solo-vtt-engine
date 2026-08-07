@@ -13,7 +13,7 @@ import type { SpellDef } from "@/lib/rpg/types";
 import { BookOpen } from "lucide-react";
 import { Wand2, Zap } from "lucide-react";
 import IdentityChips from "./IdentityChips";
-import type { RollRequest, SheetProps } from "../../types";
+import type { SheetProps } from "../../types";
 
 interface Props extends SheetProps<DnDCharacter> {
   derived: DndDerived;

@@ -135,7 +135,6 @@ export function BoostsStep({
   backgroundId,
   boosts,
   setBoosts,
-  system,
 }: {
   ancestryId: string;
   classId: string;
@@ -222,7 +221,6 @@ export function BoostsStep({
 }
 
 export function PfReviewCard({
-  system,
   name,
   ancestryId,
   heritageId,

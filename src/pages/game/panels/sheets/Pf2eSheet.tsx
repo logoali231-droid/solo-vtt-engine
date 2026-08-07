@@ -9,7 +9,7 @@ import type { Pf2eDerived } from "@/lib/rpg/character";
 import { formatMod, pfTierBonus } from "@/lib/rpg/dice";
 import { PF2E_SKILLS } from "@/lib/rpg/data/pf2e";
 import IdentityChips from "./IdentityChips";
-import type { RollRequest, SheetProps } from "../../types";
+import type { SheetProps } from "../../types";
 
 const RANKS: PfRank[] = ["untrained", "trained", "expert", "master", "legendary"];
 const RANK_LETTER: Record<PfRank, string> = { untrained: "—", trained: "T", expert: "E", master: "M", legendary: "L" };

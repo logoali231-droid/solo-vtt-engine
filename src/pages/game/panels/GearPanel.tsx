@@ -3,7 +3,7 @@ import type { DnDCharacter, InventoryItem } from "@/lib/rpg/types";
 import { uid } from "@/lib/rpg/types";
 import type { DndDerived } from "@/lib/rpg/character";
 import { formatMod } from "@/lib/rpg/dice";
-import { ARMORS, ARMOR_MAP, WEAPONS, WEAPON_MAP } from "@/lib/rpg/data/dnd";
+import { ARMORS, ARMOR_MAP, WEAPONS } from "@/lib/rpg/data/dnd";
 import { Backpack, Minus, Plus, Shield, Sword, Trash2 } from "lucide-react";
 import { useState } from "react";
 
@@ -19,7 +19,6 @@ interface Props {
 }
 
 export default function GearPanel({ character: c, derived: d, inventory, onInventoryChange, onSetWeapon, onSetArmor, onToggleShield, onAttack }: Props) {
-  const weapon = WEAPON_MAP[c.weaponId];
   const armor = ARMOR_MAP[c.armorId];
 
   return (

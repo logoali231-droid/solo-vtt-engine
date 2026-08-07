@@ -17,6 +17,7 @@ import {
   Settings2,
   Upload,
 } from "lucide-react";
+import { InstallApp } from "@/components/InstallApp";
 import { useEffect, useRef, useState } from "react";
 import {
   Dialog,
@@ -158,6 +159,7 @@ export default function TopBar({
             <Settings2 className="size-4" />
             <span className="hidden sm:inline">AI</span>
           </button>
+          <InstallApp variant="icon" />
           <button
             type="button"
             onClick={() => setAdsOpen(true)}
