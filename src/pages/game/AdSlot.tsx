@@ -224,7 +224,7 @@ export default function AdSlot({ settings }: Props) {
   return (
     <div
       ref={hostRef}
-      className="relative flex h-[76px] shrink-0 items-stretch overflow-hidden border-t border-slate-800/80 bg-slate-950/70"
+      className="relative flex h-[64px] shrink-0 items-stretch overflow-hidden border-t border-slate-800/80 bg-slate-950/70 sm:h-[76px]"
       aria-label="Sponsored"
     >
       <div className="flex w-full items-center gap-3 px-3 py-2">

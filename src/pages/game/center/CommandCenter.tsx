@@ -73,7 +73,7 @@ export default function CommandCenter({
           ];
 
   return (
-    <div className="shrink-0 border-t border-slate-800 bg-slate-950/95 px-4 py-3 backdrop-blur">
+    <div className="shrink-0 border-t border-slate-800 bg-slate-950/95 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2.5 backdrop-blur sm:px-4 sm:pt-3">
       {/* Roll preferences */}
       <div className="mb-2 flex flex-wrap items-center gap-2">
         <div className="flex items-center gap-1">
@@ -153,7 +153,7 @@ export default function CommandCenter({
         </button>
       </div>
       {/* Mobile quick actions */}
-      <div className="mt-2 flex gap-1 overflow-x-auto sm:hidden">
+      <div className="mt-2 flex gap-1 overflow-x-auto pb-0.5 sm:hidden">
         {actions.map((a) => (
           <button key={a.id} type="button" onClick={() => onQuickAction(a.id)}
             className="shrink-0 rounded-lg border border-slate-800 bg-slate-900 px-2.5 py-1.5 text-[11px] font-semibold text-slate-300">

@@ -12,7 +12,7 @@ import type {
   GmLanguage,
   GmTurn,
 } from "../types";
-import { prefsOf } from "../types";
+import { adventureScene, prefsOf } from "../types";
 import { getDndDerived, getGurpsDerived, getPf2eDerived } from "../character";
 
 function pick<T>(arr: T[]): T {
@@ -131,6 +131,80 @@ const EN = {
   npcTraits: ["carries a coin they never spend", "speaks only in questions", "laughs too easily in danger", "has not slept in days, by their own admission", "is missing the ring finger of their left hand", "never mentions the war unless pressed", "tends to whistle when lying", "keeps a charm of dried flowers"],
   npcSecrets: ["They know the location of the thing everyone is looking for — and they mean to use it first.", "They are in debt to the same shadowy figures that seem to run this region.", "They once survived an encounter with the very force behind your quest.", "They recognize your name from a story they never expected to be true.", "They carry a letter that was meant to reach you years ago.", "They are not entirely human, and they are trying very hard to hide it."],
   npcRandomEvent: ["A hawk circles twice overhead and then, deliberately, flies toward the horizon as if showing you the way.", "Far off, a bell tolls once — though the nearest bell tower is days away.", "The weather turns without warning; the sky darkens and holds its breath.", "A stranger passes you on the road, nods, and says your name without explanation.", "You find a fresh coin on the path — its face is stamped with a sigil you have seen in a dream."],
+  // Genre-flavored filler — used when the Adventure Setup genre matches.
+  genreGeneric: {
+    "high fantasy": [
+      "The world hums with old magic — every road, every ruin, every rumor is a thread someone is waiting for you to pull.",
+      "Prophecy lingers in the air like smoke. The kingdom's fate is being decided in small rooms and dark forests, and you are one of the few who know it.",
+    ],
+    "dark fantasy": [
+      "The land is sick, and the sickness has a name — though speaking it draws attention. You carry what light you can.",
+      "Hope here is a scarce currency, and you spend it carefully. Somewhere beneath the grey, something is counting your steps.",
+    ],
+    cyberpunk: [
+      "The city runs on neon, chrome and bad debt. Every favor is a transaction, every ally a liability — and the net never forgets.",
+      "Rain on the glass, red warning glyphs in your peripheral vision. The corporations play long games; you play short, sharp ones.",
+    ],
+    "sci-fi": [
+      "The station hums with recycled air and the quiet tension of people who have nowhere else to go. Out there, the dark is patient.",
+      "Signal lag, dead channels, a log that refuses to explain itself. Whatever is out here, it wanted you to come alone.",
+    ],
+    horror: [
+      "The silence has weight, and it is listening. You learn quickly which shadows are empty and which are merely patient.",
+      "Every instinct you own says leave. But the door is open, the light is on, and something in the house already knows your name.",
+    ],
+    western: [
+      "Dust on the wind, a town with one street and too many secrets. The map says the next town is a day away; the locals say it's a lifetime.",
+      "The sun's gone low and the shadows are long. Out here, a man's word is worth about as much as his aim.",
+    ],
+  },
+  genreExplore: {
+    "high fantasy": [
+      "You search the chamber. Dust, old coin, and a sigil on the wall that glows faintly when you pass your hand over it — a door no one has opened in an age.",
+      "Among the rubble you find a leather satchel, waterlogged but whole, and inside it a sealed letter addressed to no one you have ever heard of.",
+    ],
+    "dark fantasy": [
+      "You search carefully. Beneath a floorboard you find a child's shoe, a rusted locket, and a scrap of paper with a name crossed out in blood.",
+      "The walls here are carved with warnings in a language that is almost familiar. One symbol repeats: a door, always a door.",
+    ],
+    cyberpunk: [
+      "You sweep the data cache. Encrypted files, a dead man's credentials, and a location ping that shouldn't exist anymore — it is active now.",
+      "Under the floor grating you find a burner deck, still warm, with a single message open: 'They know. Move.'",
+    ],
+    "sci-fi": [
+      "You sweep the compartment. Frozen air, boot prints that lead nowhere, and a service log that ends abruptly mid-sentence on a word you don't like.",
+      "The scan returns a signature it cannot classify. It is not moving, but it is definitely waiting.",
+    ],
+    horror: [
+      "You search by lamplight, heart loud in your ears. The dust is undisturbed — except for a single set of footprints that walk the walls.",
+      "Tucked in the crawlspace you find a photograph of this house, taken from inside, with a figure in the window you do not recognize.",
+    ],
+    western: [
+      "You search the abandoned claim. A tin of beans, a broken watch, and a deed with a name scratched out — the survey date is next month.",
+      "Behind the saloon's false wall you find a strongbox, empty, and a wanted poster with your description on it.",
+    ],
+  },
+  heal: [
+    "You tend the wound with steady hands — pressure, binding, a breath held and released. The hurt settles, and the world steadies around you.",
+    "You set to work quietly, cleaning and dressing the injury. It is careful, unglamorous work, and it matters.",
+    "The healing is rough but true. You feel the ache ease, and the day seems a little less hostile.",
+  ],
+  cast: [
+    "You reach for the weave and it answers — a rush of warmth and intent as the magic takes shape in your hands and goes where you send it.",
+    "Words of power fall from your lips like a practiced song. The air thickens, brightens, and obeys.",
+    "The casting is clean and quick. Magic snaps into being around you, and the world rearranges itself to fit what you have asked.",
+  ],
+  companion: [
+    "Your companions move with you, watching the flanks. Whatever comes next, you will not face it alone.",
+    "One of your company catches your eye and nods — a small thing, but in moments like this it means everything.",
+    "The company settles into a familiar rhythm around you. You are more than one blade tonight, and it shows.",
+  ],
+  weather: [
+    " The wind shifts, carrying a scent of rain and wet earth.",
+    " A thin mist crawls in from the low ground, muffling sound.",
+    " The light changes — a cloud passing, a moment of grey — and then moves on.",
+    " Somewhere overhead, distant thunder rolls without hurry.",
+  ],
 };
 
 // ---------------------------------------------------------------------------
@@ -241,6 +315,80 @@ const PT: typeof EN = {
   npcTraits: ["carrega uma moeda que nunca gasta", "fala apenas em perguntas", "ri com facilidade demais em perigo", "não dorme há dias, pelas próprias palavras", "não tem o dedo anelar da mão esquerda", "nunca menciona a guerra a menos que pressionado", "costuma assobiar quando mente", "guarda um amuleto de flores secas"],
   npcSecrets: ["Eles sabem onde está a coisa que todos procuram — e pretendem usá-la primeiro.", "Eles devem dinheiro às mesmas figuras sombrias que parecem controlar a região.", "Eles já sobreviveram a um encontro com a própria força por trás da sua missão.", "Eles reconhecem seu nome de uma história que nunca esperaram que fosse verdade.", "Eles carregam uma carta que deveria ter chegado a você anos atrás.", "Eles não são inteiramente humanos, e tentam muito esconder isso."],
   npcRandomEvent: ["Um falcão circula duas vezes e então, deliberadamente, voa rumo ao horizonte como se mostrasse o caminho.", "Ao longe, um sino soa uma vez — embora a torre de sino mais próxima esteja a dias de distância.", "O tempo muda sem aviso; o céu escurece e prende a respiração.", "Um estranho passa por você na estrada, acena e diz seu nome sem explicação.", "Você encontra uma moeda nova no caminho — cunhada com um símbolo que você já viu em um sonho."],
+  // Recheio com sabor de gênero — usado quando a Configuração da Aventura coincide.
+  genreGeneric: {
+    "high fantasy": [
+      "O mundo vibra com magia antiga — cada estrada, cada ruína, cada boato é um fio que alguém espera que você puxe.",
+      "A profecia paira no ar como fumaça. O destino do reino está sendo decidido em salas pequenas e florestas escuras, e você é um dos poucos que sabem disso.",
+    ],
+    "dark fantasy": [
+      "A terra está doente, e a doença tem nome — embora dizê-lo atraia atenção. Você carrega a luz que consegue.",
+      "A esperança aqui é moeda escassa, e você a gasta com cuidado. Sob o cinza, algo está contando seus passos.",
+    ],
+    cyberpunk: [
+      "A cidade funciona a néon, cromo e dívidas podres. Todo favor é uma transação, todo aliado um passivo — e a rede nunca esquece.",
+      "Chuva no vidro, glifos vermelhos de alerta na visão periférica. As corporações jogam jogos longos; você joga os curtos e afiados.",
+    ],
+    "sci-fi": [
+      "A estação murmura com ar reciclado e a tensão quieta de gente sem outro lugar para ir. Lá fora, o escuro é paciente.",
+      "Atraso de sinal, canais mortos, um registro que se recusa a se explicar. O que quer que esteja aqui, queria que você viesse sozinho.",
+    ],
+    horror: [
+      "O silêncio tem peso, e está escutando. Você logo aprende quais sombras estão vazias e quais são apenas pacientes.",
+      "Todo instinto que você tem diz para ir embora. Mas a porta está aberta, a luz acesa, e algo dentro da casa já sabe o seu nome.",
+    ],
+    western: [
+      "Poeira no vento, uma cidade com uma rua só e segredos demais. O mapa diz que a próxima vila está a um dia; os locais dizem que é uma vida.",
+      "O sol já desceu e as sombras estão longas. Aqui fora, a palavra de um homem vale tanto quanto a sua pontaria.",
+    ],
+  },
+  genreExplore: {
+    "high fantasy": [
+      "Você vasculha a câmara. Poeira, moedas velhas e um sigilo na parede que brilha de leve quando a mão passa por cima — uma porta que ninguém abria há eras.",
+      "Entre os escombros você encontra uma bolsa de couro, encharcada mas inteira, e dentro uma carta selada endereçada a ninguém que você já tenha ouvido falar.",
+    ],
+    "dark fantasy": [
+      "Você procura com cuidado. Sob uma tábua solta encontra um sapato de criança, um medalhão enferrujado e um pedaço de papel com um nome riscado a sangue.",
+      "As paredes aqui são talhadas com avisos numa língua quase familiar. Um símbolo se repete: uma porta, sempre uma porta.",
+    ],
+    cyberpunk: [
+      "Você varre o cache de dados. Arquivos criptografados, credenciais de um morto e um ping de localização que não deveria mais existir — está ativo agora.",
+      "Sob a grade do piso você encontra um deck descartável, ainda quente, com uma única mensagem aberta: 'Eles sabem. Movam-se.'",
+    ],
+    "sci-fi": [
+      "Você varre o compartimento. Ar congelado, pegadas que não levam a lugar nenhum e um registro de manutenção que termina no meio de uma frase, numa palavra que você não gosta.",
+      "A varredura retorna uma assinatura que não consegue classificar. Não está se movendo, mas definitivamente está esperando.",
+    ],
+    horror: [
+      "Você procura à luz da lanterna, o coração alto nos ouvidos. A poeira está intocada — exceto por um único par de pegadas que andam pelas paredes.",
+      "Escondido no vão você encontra uma fotografia desta casa, tirada de dentro, com uma figura na janela que você não reconhece.",
+    ],
+    western: [
+      "Você revira a mina abandonada. Uma lata de feijão, um relógio quebrado e uma escritura com um nome raspado — a data do levantamento é mês que vem.",
+      "Atrás da parede falsa do saloon você encontra um cofre, vazio, e um cartaz de procurado com a sua descrição.",
+    ],
+  },
+  heal: [
+    "Você trata o ferimento com mãos firmes — pressão, atadura, uma respiração presa e solta. A dor se assenta, e o mundo se estabiliza ao seu redor.",
+    "Você trabalha em silêncio, limpando e enfaixando a lesão. É um trabalho cuidadoso, sem glamour, e importa.",
+    "A cura é rústica mas verdadeira. Você sente o incômodo aliviar, e o dia parece um pouco menos hostil.",
+  ],
+  cast: [
+    "Você alcança a teia e ela responde — uma onda de calor e intenção enquanto a magia ganha forma nas suas mãos e vai para onde você a envia.",
+    "Palavras de poder caem dos seus lábios como uma canção ensaiada. O ar engrossa, clareia e obedece.",
+    "A conjuração é limpa e rápida. A magia estala ao seu redor, e o mundo se rearranja para caber no que você pediu.",
+  ],
+  companion: [
+    "Seus companheiros se movem com você, vigiando os flancos. O que vier, você não vai enfrentar sozinho.",
+    "Um do seu grupo cruza seu olhar e acena — uma coisa pequena, mas em momentos assim significa tudo.",
+    "A companhia se acomoda num ritmo familiar ao seu redor. Esta noite você é mais do que uma lâmina, e isso se nota.",
+  ],
+  weather: [
+    " O vento muda, trazendo cheiro de chuva e terra molhada.",
+    " Uma névoa rala rasteja do chão baixo, abafando os sons.",
+    " A luz muda — uma nuvem passando, um momento cinzento — e segue adiante.",
+    " Lá em cima, um trovão distante rola sem pressa.",
+  ],
 };
 
 function bank(language: GmLanguage): typeof EN {
@@ -250,6 +398,14 @@ function bank(language: GmLanguage): typeof EN {
 // ---------------------------------------------------------------------------
 // Opening scene generation
 // ---------------------------------------------------------------------------
+
+const COMPANY_LINES: Record<string, { en: string; pt: string }> = {
+  "true solo": { en: " You walk this road alone.", pt: " Você caminha esta estrada sozinho." },
+  "one companion": { en: " A single trusted companion shares your road.", pt: " Um companheiro de confiança divide a estrada com você." },
+  "small band": { en: " A small band of allies shares your road.", pt: " Uma pequena banda de aliados divide a estrada com você." },
+  "as the adventure evolves": { en: " Your company is not fixed — fate will decide who walks beside you.", pt: " Sua companhia ainda não está definida — o destino decidirá quem caminha ao seu lado." },
+  "dice decides": { en: " The oracle will decide who joins you on the road.", pt: " O oráculo decidirá quem se junta a você na estrada." },
+};
 
 export function generateOpening(
   adventure: AdventureState,
@@ -268,9 +424,17 @@ export function generateOpening(
   // prefer them; otherwise fall back to the timeless generic openings.
   const genreLines = b.genreOpenings[prefs.genre as keyof typeof b.genreOpenings];
   const opening = pick(genreLines && genreLines.length > 0 ? genreLines : b.openings);
+  const scene = adventureScene(prefs);
+  const hookLine =
+    language === "pt-BR"
+      ? " Por trás de tudo, algo antigo e paciente puxa os fios do seu destino."
+      : ` Behind it all, ${scene.hook}.`;
+  const companyLine =
+    COMPANY_LINES[prefs.companions]?.[language === "pt-BR" ? "pt" : "en"] ?? "";
+  const body = opening.replace(/[.!?]\s*$/, "");
   return language === "pt-BR"
-    ? `A história de ${who} começa ${opening.replace(/^./, (ch) => ch.toLowerCase())}`
-    : `The tale of ${who} begins in ${opening}`;
+    ? `A história de ${who} começa ${body.replace(/^./, (ch) => ch.toLowerCase())}.${hookLine}${companyLine}`
+    : `The tale of ${who} begins in ${body}.${hookLine}${companyLine}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -310,19 +474,84 @@ export function oracleResponse(
 // Main responder
 // ---------------------------------------------------------------------------
 
-function reactToDice(dice: DiceResult, language: GmLanguage): string {
+/** Extra combat flavor kept in the right language (the reaction banks are
+ *  short, so a couple of longer alternates keep repeated fights fresh). */
+function combatExtras(language: GmLanguage): {
+  crit: string;
+  hit: string;
+  miss: string;
+  critFail: string;
+} {
+  return language === "pt-BR"
+    ? {
+        crit: "Você encontra a abertura que procurava e a explora sem piedade. É um golpe limpo e brutal.",
+        hit: "A lâmina encontra carne. Não é um golpe mortal, mas é revelador.",
+        miss: "Você se compromete com o golpe, mas ele lê seu movimento e se esquiva. Seu impulso o leva meio passo longe demais.",
+        critFail: "O ataque falha tão mal que você quase abaixa completamente a guarda.",
+      }
+    : {
+        crit: "You find the opening you were looking for and exploit it without mercy — a clean, brutal strike.",
+        hit: "The blade finds flesh. Not a killing blow, but a revealing one.",
+        miss: "You commit to the strike, but it reads your movement and slips aside — your momentum carries you half a step too far.",
+        critFail: "The attack fails so badly you nearly drop your guard entirely.",
+      };
+}
+
+/** Narrate a resolved roll with system-aware flavor:
+ *  - GURPS: the 3d6 bell curve rewards margins, so how far the roll landed
+ *    from the target drives the narration.
+ *  - Pathfinder 2e: each of the four degrees of success gets its own beat.
+ *  - D&D 5e: classic critical / success / failure beats. */
+function reactToDice(
+  dice: DiceResult,
+  adventure: AdventureState,
+  language: GmLanguage,
+): string {
   const b = bank(language);
   const r = b.reactions;
   const outcome = dice.outcome;
+  const ex = combatExtras(language);
+
+  if (dice.system === "gurps" && dice.margin !== undefined) {
+    if (outcome === "critical-success") {
+      return pick([r.checkCrit, "The dice land in your favor as if they had a grudge against the world."]);
+    }
+    if (outcome === "critical-failure") {
+      return pick([r.checkCritFail, "The dice betray you utterly — an 18 on the floor, and the universe grins."]);
+    }
+    if (dice.margin >= 5) {
+      return "A clean, professional result — your training shows. The margin is wide and the outcome beyond doubt.";
+    }
+    if (dice.margin >= 0) return r.checkSuccess;
+    if (dice.margin >= -4) return r.checkFail;
+    return "It goes badly — the roll misses by a wide margin, and you are left scrambling to recover.";
+  }
+
+  if (dice.system === "pf2e") {
+    switch (outcome) {
+      case "critical-success":
+        return pick([r.checkCrit, "The result is exceptional — ten or more over the DC, and the world bends to your will."]);
+      case "success":
+        return r.checkSuccess;
+      case "failure":
+        return r.checkFail;
+      case "critical-failure":
+        return pick([r.checkCritFail, "It goes wrong by a full ten — a spectacular collapse that the whole scene will remember."]);
+    }
+  }
+
   switch (dice.kind) {
     case "attack": {
-      if (outcome === "critical-success") return pick([r.attackCrit, "Você encontra a abertura que procurava e a explora sem piedade. É um golpe limpo e brutal."]);
-      if (outcome === "success") return pick([r.attackHit, "A lâmina encontra carne. Não é um golpe mortal, mas é revelador."]);
-      if (outcome === "failure") return pick([r.attackMiss, "Você se compromete com o golpe, mas ele lê seu movimento e se esquiva. Seu impulso o leva meio passo longe demais."]);
-      return pick([r.attackCritFail, "O ataque falha tão mal que você quase abaixa completamente a guarda."]);
+      if (outcome === "critical-success") return pick([r.attackCrit, ex.crit]);
+      if (outcome === "success") return pick([r.attackHit, ex.hit]);
+      if (outcome === "failure") return pick([r.attackMiss, ex.miss]);
+      return pick([r.attackCritFail, ex.critFail]);
     }
     case "save":
-      return outcome === "success" || outcome === "critical-success" ? r.saveSuccess : r.saveFail;
+      if (outcome === "critical-success") return pick([r.saveSuccess, ex.crit]);
+      if (outcome === "success") return r.saveSuccess;
+      if (outcome === "critical-failure") return pick([r.saveFail, ex.critFail]);
+      return r.saveFail;
     case "skill":
     case "check": {
       if (outcome === "critical-success") return r.checkCrit;
@@ -390,18 +619,26 @@ export function localRespond(
     );
   }
 
+  // Tending wounds
+  if (/(heal|tend|bandage|bind my wound|treat my|medic|cure|curar|tratar|bandagem|medicar|ferida)/.test(lower)) {
+    return pick(b.heal) + (chance(0.25) ? pick(b.weather) : "");
+  }
+
   // Combat actions
   if (/(attack|fight|strike|swing|shoot|hit|charge|engage|slash|stab|atacar|lutar|golpear|disparar|investir)/.test(lower)) {
-    if (turn.dice) return reactToDice(turn.dice, language);
+    if (turn.dice) return reactToDice(turn.dice, adventure, language);
     return pick(b.encounters) + (language === "pt-BR" ? " Você se prepara e escolhe seu momento." : " You ready yourself and choose your moment.");
   }
 
-  // Exploration
+  // Exploration — genre-flavored finds, with a roll reaction when dice were rolled.
   if (/(look|search|explore|investigat|inspect|examine|check|scout|olhar|procurar|explorar|investigar|inspecionar|examinar|reconhecer)/.test(lower)) {
-    const found = pick(b.explore);
-    const result = turn.dice ? ` ${reactToDice(turn.dice, language)}` : "";
+    const prefs: AdventurePrefs = prefsOf(adventure.character.adventurePrefs);
+    const genreLines = b.genreExplore[prefs.genre as keyof typeof b.genreExplore];
+    const found = pick(genreLines && genreLines.length > 0 ? genreLines : b.explore);
+    const result = turn.dice ? ` ${reactToDice(turn.dice, adventure, language)}` : "";
     const event = chance(0.25) ? ` ${pick(b.npcRandomEvent)}` : "";
-    return found + result + event;
+    const weather = chance(0.3) ? pick(b.weather) : "";
+    return found + result + event + weather;
   }
 
   // Movement / travel — difficulty from the Adventure Setup tunes how often
@@ -419,6 +656,7 @@ export function localRespond(
     let out = pick(b.travel);
     if (chance(danger)) out += " " + pick(b.encounters);
     else if (chance(0.25)) out += " " + pick(b.npcRandomEvent);
+    if (chance(0.3)) out += pick(b.weather);
     return out;
   }
 
@@ -427,9 +665,21 @@ export function localRespond(
     return pick(b.talk);
   }
 
+  // Casting magic
+  if (/\b(cast|casting|conjure|conjur|feitiço|feitiços|magia|spell|lançar|encantar)\b/.test(lower)) {
+    return pick(b.cast);
+  }
+
   // Class feature use
-  if (/(use|activate|channel|invoke|cast|rage|inspire|smite|summon|focus|usar|ativar|canalizar|invocar|conjurar|fúria|inspirar|concentrar)/.test(lower)) {
+  if (/(use|activate|channel|invoke|rage|inspire|smite|summon|focus|usar|ativar|canalizar|invocar|fúria|inspirar|concentrar)/.test(lower)) {
     return pick(b.featureUse);
+  }
+
+  // Company — respond to companion mentions with the actual party.
+  const company = adventure.companions ?? [];
+  if (/(companion|party|allies|ally|company|companheir|aliad|esquadr|grupo)/.test(lower) && company.length > 0) {
+    const name = pick(company).name;
+    return `${pick(b.companion)} ${language === "pt-BR" ? `(${name} está ao seu lado.)` : `(${name} stands with you.)`}`;
   }
 
   // Status recap
@@ -438,10 +688,13 @@ export function localRespond(
     return b.status(c, adventure.sceneTitle, adventure.location, adventure.quest[adventure.quest.length - 1] ?? (language === "pt-BR" ? "nenhuma definida" : "none set"));
   }
 
-  // Generic
-  if (turn.dice) return reactToDice(turn.dice, language);
+  // Generic — genre-flavored filler when nothing more specific matches.
+  if (turn.dice) return reactToDice(turn.dice, adventure, language);
+  const prefs: AdventurePrefs = prefsOf(adventure.character.adventurePrefs);
+  const genreLines = b.genreGeneric[prefs.genre as keyof typeof b.genreGeneric];
+  const filler = pick(genreLines && genreLines.length > 0 ? genreLines : b.generic);
   return (
-    pick(b.generic) +
+    filler +
     ` ${language === "pt-BR" ? "O caminho adiante leva" : "The road ahead leads"} ${pick(b.roads)}.`
   );
 }

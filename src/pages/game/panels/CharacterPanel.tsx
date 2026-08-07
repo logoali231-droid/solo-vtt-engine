@@ -109,7 +109,7 @@ export default function CharacterPanel({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex shrink-0 gap-1 border-b border-slate-800 bg-slate-950 px-2 pt-2">
+      <div className="flex shrink-0 gap-1 overflow-x-auto border-b border-slate-800 bg-slate-950 px-2 pt-2">
         {(
           [
             ["sheet", "Sheet"],

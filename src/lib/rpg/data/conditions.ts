@@ -108,6 +108,28 @@ export const CONDITIONS: ConditionDef[] = [
       gurpsPenalty: -1,
     },
   },
+  {
+    id: "incapacitated",
+    name: "Incapacitated",
+    summary: "You can't take actions or reactions. Strength and Dexterity saves and checks auto-fail; attacks against you have advantage.",
+    effects: {
+      autoFailStrDexSaves: true,
+      abilityCheckDisadvantage: true,
+      attacksAgainstAdvantage: true,
+      speedZero: true,
+      pf2ePenalty: -3,
+      gurpsPenalty: -3,
+    },
+  },
+  {
+    id: "deafened",
+    name: "Deafened",
+    summary: "You can't hear. Checks and saves that rely on hearing fail automatically, and perception suffers.",
+    effects: {
+      pf2ePenalty: -1,
+      gurpsPenalty: -1,
+    },
+  },
 ];
 
 export const CONDITION_MAP: Record<string, ConditionDef> = Object.fromEntries(
