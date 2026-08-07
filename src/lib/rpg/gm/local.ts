@@ -49,6 +49,12 @@ const EN = {
     "You find signs of a recent camp: cold ash, cut rope, and a boot print too large for any human you have met.",
     "High on the wall, barely visible, a mural shows a figure holding a key of pure light. The key is the last panel — the story is unfinished.",
   ],
+  searchFail: [
+    "You search thoroughly, but the place yields nothing — no hidden catch, no secret latch, nothing out of place.",
+    "You turn the room over, but whatever you were hoping to find is not here — or is hidden far better than this.",
+    "The dust is undisturbed and the seams are sealed. If there is anything here, it does not want to be found.",
+    "You check every shadow and every join. Nothing. The quiet feels pointed, as if the place is keeping its secrets.",
+  ],
   travel: [
     "You set off. The road unspools before you, past fieldstone walls and hedgerows full of birds. By midday the landmarks you were told to expect have failed to appear — either you are lost, or the map lies.",
     "You travel through the day and into the evening. Just before dusk, you crest a hill and see a settlement below, its chimneys smoking. It looks peaceful. It looks, perhaps, too peaceful.",
@@ -60,6 +66,12 @@ const EN = {
     "The conversation is wary at first, then warms. In the end they lean close and lower their voice: \"If you really want to help, don't go asking about the tower in the square. Go ask about the tunnel under the mill.\"",
     "They laugh, but there's no humor in it. \"Everyone who pokes around the old keep ends up in the river. The ones that are lucky.\"",
     "A bargain is struck — for now. You get the information you need, and they get a promise they intend to collect on.",
+  ],
+  talkFail: [
+    "They go cold the moment you press. The warmth drains from their voice: \"I've said what I've said. Don't push it.\"",
+    "They see through you in a heartbeat and shut the door on the conversation. Whatever you were hoping to get, you won't get it this way.",
+    "Your words land wrong — too eager, too rehearsed. They fold their arms and watch you like you've already lost.",
+    "The silence after your question is answer enough. They turn away, and you understand the matter is closed.",
   ],
   encounters: [
     "Ahead, the ground is strewn with white bones, cracked and picked clean. Nothing moves — but nothing here has been dead for very long.",
@@ -233,6 +245,12 @@ const PT: typeof EN = {
     "Você encontra sinais de um acampamento recente: cinzas frias, corda cortada e uma pegada grande demais para qualquer humano que você já conheceu.",
     "No alto da parede, quase invisível, um mural mostra uma figura segurando uma chave de luz pura. A chave é o último painel — a história está inacabada.",
   ],
+  searchFail: [
+    "Você revira tudo com cuidado, mas o lugar não revela nada — nenhum encaixe escondido, nenhum trinco secreto, nada fora do lugar.",
+    "Você vira o cômodo do avesso, mas o que esperava encontrar não está aqui — ou está escondido muito melhor do que isso.",
+    "A poeira está intacta e as frestas, seladas. Se há algo aqui, não quer ser encontrado.",
+    "Você confere cada sombra e cada emenda. Nada. O silêncio parece deliberado, como se o lugar guardasse seus segredos.",
+  ],
   travel: [
     "Você parte. A estrada se desenrola diante de você, entre muros de pedra e cercas vivas cheias de pássaros. Ao meio-dia, os marcos que lhe disseram para esperar não apareceram — ou você está perdido, ou o mapa mente.",
     "Você viaja o dia inteiro até o anoitecer. Pouco antes do crepúsculo, cruza uma colina e avista um povoado abaixo, com chaminés fumegando. Parece pacífico. Parece, talvez, pacífico demais.",
@@ -244,6 +262,12 @@ const PT: typeof EN = {
     "A conversa é desconfiada no início, depois esquenta. Por fim, eles se aproximam e abaixam a voz: \"Se você quer mesmo ajudar, não vá perguntar sobre a torre na praça. Pergunte sobre o túnel debaixo do moinho.\"",
     "Eles riem, mas não há humor naquilo. \"Todo mundo que remexe no velho castelo acaba no rio. Os que têm sorte.\"",
     "Um acordo é fechado — por enquanto. Você consegue a informação que precisava, e eles conseguem uma promessa que pretendem cobrar.",
+  ],
+  talkFail: [
+    "Eles esfriam na hora em que você insiste. O calor some da voz: \"Já disse o que tinha para dizer. Não insista.\"",
+    "Eles veem através de você num instante e fecham a porta da conversa. O que você esperava conseguir, não vai ser assim.",
+    "Suas palavras saem erradas — ansiosas demais, ensaiadas demais. Eles cruzam os braços e olham para você como quem já venceu.",
+    "O silêncio depois da sua pergunta já é a resposta. Eles se viram, e você entende que o assunto está encerrado.",
   ],
   encounters: [
     "Adiante, o chão está coberto de ossos brancos, rachados e limpos. Nada se move — mas nada aqui está morto há muito tempo.",
@@ -631,10 +655,15 @@ export function localRespond(
   }
 
   // Exploration — genre-flavored finds, with a roll reaction when dice were rolled.
+  // When the auto-rolled check failed, narrate a fruitless search instead of a find.
   if (/(look|search|explore|investigat|inspect|examine|check|scout|olhar|procurar|explorar|investigar|inspecionar|examinar|reconhecer)/.test(lower)) {
     const prefs: AdventurePrefs = prefsOf(adventure.character.adventurePrefs);
     const genreLines = b.genreExplore[prefs.genre as keyof typeof b.genreExplore];
-    const found = pick(genreLines && genreLines.length > 0 ? genreLines : b.explore);
+    const failed =
+      turn.dice?.outcome === "failure" || turn.dice?.outcome === "critical-failure";
+    const found = failed
+      ? pick(b.searchFail)
+      : pick(genreLines && genreLines.length > 0 ? genreLines : b.explore);
     const result = turn.dice ? ` ${reactToDice(turn.dice, adventure, language)}` : "";
     const event = chance(0.25) ? ` ${pick(b.npcRandomEvent)}` : "";
     const weather = chance(0.3) ? pick(b.weather) : "";
@@ -662,6 +691,10 @@ export function localRespond(
 
   // Social
   if (/(talk|speak|ask|negotiat|barter|persuade|convince|greet|call out|shout|yell|lie|flatter|falar|perguntar|negociar|barganhar|persuadir|convencer|cumprimentar|gritar|mentir|elogiar)/.test(lower)) {
+    if (turn.dice) {
+      const ok = turn.dice.outcome === "success" || turn.dice.outcome === "critical-success";
+      return (ok ? pick(b.talk) : pick(b.talkFail)) + ` ${reactToDice(turn.dice, adventure, language)}`;
+    }
     return pick(b.talk);
   }
 

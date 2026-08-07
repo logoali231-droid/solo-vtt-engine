@@ -54,6 +54,10 @@ function buildSystemPrompt(
 }
 
 function buildUserPrompt(turn: GmTurn): string {
+  if (turn.playerText && turn.dice) {
+    // The engine already resolved a check — the AI must narrate that outcome.
+    return `${turn.playerText}\n\n(dice result: ${turn.dice.label} — ${turn.dice.breakdown} — the outcome is already determined, narrate it faithfully)`;
+  }
   if (turn.playerText) return turn.playerText;
   if (turn.action) return `(the player takes the action "${turn.action}")`;
   if (turn.dice) {

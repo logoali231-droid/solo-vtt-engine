@@ -138,10 +138,10 @@ export default function CommandCenter({
           onKeyDown={(e) => e.key === "Enter" && submit()}
           placeholder={
             system === "dnd5e"
-              ? "Describe your action — e.g. “I search the room” or “oracle: does the door open?”…"
+              ? "Describe your action — “I search the room” auto-rolls Investigation, “oracle: …” asks the fates…"
               : system === "pf2e"
-                ? "Action — e.g. “I recall knowledge about the creature”…"
-                : "Action — e.g. “I sneak toward the guard”…"
+                ? "Action — “I recall knowledge about the creature” auto-rolls the skill…"
+                : "Action — “I sneak toward the guard” auto-rolls Stealth…"
           }
           className="h-10 flex-1 rounded-lg border border-slate-700 bg-slate-900 px-3.5 text-[16px] text-slate-100 placeholder:text-slate-600 outline-none transition-colors focus:border-amber-500/60 focus:ring-2 focus:ring-amber-500/20 sm:text-sm"
         />

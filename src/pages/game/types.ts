@@ -15,6 +15,9 @@ export interface RollRequest {
   usePending?: boolean;
   /** When set, dispatches the curated spellbook cast flow instead of a plain check. */
   spellId?: string;
+  /** When set, roll() skips its internal critical narration so the caller can
+   *  pass the dice result to the GM exactly once (used by skill auto-detection). */
+  suppressCritNarrate?: boolean;
 }
 
 export interface SheetProps<T> {

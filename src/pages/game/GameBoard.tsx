@@ -43,6 +43,7 @@ import {
   summarizeConversation,
 } from "@/lib/rpg/gm/providers";
 import { compileLorebook } from "@/lib/rpg/lorebook";
+import { detectSkillCheck } from "@/lib/rpg/skillDetect";
 import type {
   AdventureState,
   AdsSettings,
@@ -444,14 +445,14 @@ export default function GameBoard({ character, onNewCharacter, onSignOut }: Prop
   // -------------------------------------------------------------------------
   // Core dice engine entry point
   // -------------------------------------------------------------------------
-  function roll(request: RollRequest) {
+  function roll(request: RollRequest): DiceResult | undefined {
       const snap = adventureRef.current;
       const system = snap.system;
 
       // Spellbook cast — dispatched to the curated casting flow.
       if (request.spellId) {
         castSpell(request.spellId);
-        return;
+        return undefined;
       }
 
       if (system === "dnd5e") {
@@ -537,10 +538,10 @@ export default function GameBoard({ character, onNewCharacter, onSignOut }: Prop
           updatedAt: Date.now(),
         }));
         if (request.kind === "attack") void attackDamageFlow(dice, charNext);
-        else if (res.outcome === "critical-success" || res.outcome === "critical-failure") {
+        else if (!request.suppressCritNarrate && (res.outcome === "critical-success" || res.outcome === "critical-failure")) {
           void gmRespond({ dice });
         }
-        return;
+        return dice;
       }
 
       if (system === "pf2e") {
@@ -589,8 +590,8 @@ export default function GameBoard({ character, onNewCharacter, onSignOut }: Prop
           };
         });
         if (request.kind === "attack") void attackDamageFlow(dice, char);
-        else if (res.outcome === "critical-success" || res.outcome === "critical-failure") void gmRespond({ dice });
-        return;
+        else if (!request.suppressCritNarrate && (res.outcome === "critical-success" || res.outcome === "critical-failure")) void gmRespond({ dice });
+        return dice;
       }
 
       // GURPS
@@ -619,7 +620,8 @@ export default function GameBoard({ character, onNewCharacter, onSignOut }: Prop
         updatedAt: Date.now(),
       }));
       if (request.kind === "attack") void attackDamageFlow(dice, char);
-      else if (res.outcome === "critical-success" || res.outcome === "critical-failure") void gmRespond({ dice });
+      else if (!request.suppressCritNarrate && (res.outcome === "critical-success" || res.outcome === "critical-failure")) void gmRespond({ dice });
+      return dice;
   }
 
   // -------------------------------------------------------------------------
@@ -1183,6 +1185,15 @@ export default function GameBoard({ character, onNewCharacter, onSignOut }: Prop
     (text: string) => {
       pushLog("player", text);
       const snap = adventureRef.current;
+      // Skill-intent detection: if the command implies a rules check
+      // (investigate, sneak, persuade, climb…), resolve it through the dice
+      // engine and hand the outcome to the GM — dice first, narration second.
+      const autoCheck = detectSkillCheck(text, snap);
+      if (autoCheck) {
+        const dice = roll(autoCheck);
+        void gmRespond({ playerText: text, dice });
+        return;
+      }
       const narrative = snap.logs.filter(
         (l) => l.kind === "gm" || l.kind === "player" || l.kind === "combat",
       ).length;
@@ -1195,7 +1206,7 @@ export default function GameBoard({ character, onNewCharacter, onSignOut }: Prop
       }
       void gmRespond({ playerText: text });
     },
-    [pushLog, gmRespond, summarizeNow],
+    [pushLog, gmRespond, summarizeNow, roll],
   );
 
   const shortRest = useCallback(() => {
