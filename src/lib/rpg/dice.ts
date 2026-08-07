@@ -44,23 +44,27 @@ export function parseDice(notation: string): { count: number; sides: number; fla
   };
 }
 
-/** GURPS thrust-damage table by Strength. */
+/**
+ * GURPS 4e thrust-damage table (Basic Set p.16).
+ * Each +2 ST adds +1 damage; the number of dice grows by one every 8 ST
+ * above 17 (2d at ST 18, 3d at ST 26, 4d at ST 34, ...).
+ */
 export function gurpsThrust(st: number): { notation: string; flat: number } {
-  const notation =
-    st <= 9 ? "1d6-2" : st <= 11 ? "1d6-1" : st <= 13 ? "1d6" : st <= 15 ? "1d6+1" : st <= 17 ? "1d6+2" : "2d6-1";
-  const flat =
-    notation === "1d6-2"
-      ? -2
-      : notation === "1d6-1"
-        ? -1
-        : notation === "1d6+1"
-          ? 1
-          : notation === "1d6+2"
-            ? 2
-            : notation === "2d6-1"
-              ? -1
-              : 0;
-  return { notation, flat };
+  const s = Math.max(4, Math.min(50, st));
+  let dice = 1;
+  let flat = 0;
+  if (s <= 9) {
+    flat = s <= 7 ? -4 : s === 8 ? -3 : -2;
+  } else if (s <= 11) {
+    flat = s === 10 ? -2 : -1;
+  } else if (s <= 17) {
+    flat = Math.floor((s - 12) / 2);
+  } else {
+    dice = 2 + Math.floor((s - 18) / 8);
+    flat = Math.floor(((s - 18) % 8) / 2) - 1;
+  }
+  const flatText = flat > 0 ? `+${flat}` : flat < 0 ? `${flat}` : "";
+  return { notation: `${dice}d6${flatText}`, flat };
 }
 
 // ---------------------------------------------------------------------------
@@ -117,15 +121,7 @@ export function resolveD20Check(opts: D20CheckOptions): ResolvedCheck {
   if (opts.autoFail) {
     outcome = "critical-failure";
   } else if (opts.system === "pf2e") {
-    const degrees = total - opts.dc;
-    if (nat20) {
-      outcome = degrees >= -9 ? "critical-success" : "success";
-    } else if (nat1) {
-      outcome = degrees <= 9 ? "critical-failure" : "failure";
-    } else if (degrees >= 10) outcome = "critical-success";
-    else if (degrees >= 0) outcome = "success";
-    else if (degrees >= -10) outcome = "failure";
-    else outcome = "critical-failure";
+    outcome = pf2eOutcome(total, opts.dc, kept);
   } else {
     if (nat20) outcome = "critical-success";
     else if (nat1) outcome = "critical-failure";
@@ -139,7 +135,44 @@ export function resolveD20Check(opts: D20CheckOptions): ResolvedCheck {
     `${rollText} + ${lines.map((l) => `${l.label} ${formatMod(l.value)}`).join(" + ") || "0"} ` +
     `= ${total} vs DC ${opts.dc} → ${outcome.replace("-", " ").toUpperCase()}`;
 
-  return { rolls: [first, second], kept, modifiers: lines, total, nat20, nat1, outcome, breakdown };
+  return {
+    // Only report the second die when advantage/disadvantage actually rolled
+    // two dice — a plain roll must render a single die face.
+    rolls: opts.advantage || opts.disadvantage ? [first, second] : [first],
+    kept,
+    modifiers: lines,
+    total,
+    nat20,
+    nat1,
+    outcome,
+    breakdown,
+  };
+}
+
+/**
+ * Pathfinder 2e degree-of-success evaluation matrix.
+ *
+ * The raw result (total vs DC) sets a base degree: +10 or more is a critical
+ * success, +0..9 a success, -1..-10 a failure, worse a critical failure.
+ * A natural 20 then shifts the degree one step UP; a natural 1 shifts it one
+ * step DOWN (this is the official PF2e rule — never a raw auto-win/loss).
+ */
+export function pf2eOutcome(total: number, dc: number, kept: number): Outcome {
+  const degrees = total - dc;
+  let base: Outcome =
+    degrees >= 10
+      ? "critical-success"
+      : degrees >= 0
+        ? "success"
+        : degrees >= -10
+          ? "failure"
+          : "critical-failure";
+  if (kept === 20) {
+    base = base === "critical-failure" ? "failure" : base === "failure" ? "success" : "critical-success";
+  } else if (kept === 1) {
+    base = base === "critical-success" ? "success" : base === "success" ? "failure" : "critical-failure";
+  }
+  return base;
 }
 
 // ---------------------------------------------------------------------------
@@ -158,10 +191,12 @@ export interface GurpsCheckResult {
 export function resolve3d6(target: number): GurpsCheckResult {
   const rolls = rollDice(3, 6);
   const total = sum(rolls);
-  const isCritSuccess = total === 3 || total === 4;
-  const isCritFail = total >= 18;
+  // GURPS 4e critical rules: 3-4 always crit, 5 crits at effective skill 15+;
+  // 18 always crit-fails, 17 crit-fails at effective skill 15 or less.
+  const isCritSuccess = total === 3 || total === 4 || (total === 5 && target >= 15);
+  const isCritFail = total >= 18 || (total === 17 && target <= 15);
   const success = total <= target && !isCritFail;
-  const margin = total <= target ? target - total : target - total; // negative on failure
+  const margin = target - total; // positive on success, negative on failure
 
   let outcome: Outcome;
   if (isCritSuccess) outcome = "critical-success";

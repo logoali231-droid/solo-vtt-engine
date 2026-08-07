@@ -14,7 +14,9 @@ import {
   buildDiceResult,
   d as rollDie,
   formatMod,
+  gurpsThrust,
   parseDice,
+  pf2eOutcome,
   pfTierBonus,
   resolve3d6,
   resolveD20Check,
@@ -72,7 +74,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 
 const COND_EFFECTS = Object.fromEntries(CONDITIONS.map((cd) => [cd.id, cd.effects]));
-
 interface Props {
   character: Character;
   onNewCharacter: () => void;
@@ -1008,13 +1009,12 @@ export default function GameBoard({ character, onNewCharacter, onSignOut }: Prop
     } else {
       const gp = char as GurpsCharacter;
       const st = gp.attributes.st;
-      // thrust damage table (simplified)
-      const thr = st <= 9 ? "1d6-2" : st <= 11 ? "1d6-1" : st <= 13 ? "1d6" : st <= 15 ? "1d6+1" : st <= 17 ? "1d6+2" : "2d6-1";
-      const flat = thr === "1d6-2" ? -2 : thr === "1d6-1" ? -1 : thr === "1d6+1" ? 1 : thr === "1d6+2" ? 2 : 0;
-      const r = rollDice(1, 6);
+      // GURPS thrust damage table — rolls the correct dice for high ST
+      const thr = gurpsThrust(st);
+      const r = rollDice(parseDice(thr.notation).count, 6);
       rolls.push(...r);
-      labels.push(thr);
-      damageTotal = Math.max(1, sum(r) + flat);
+      labels.push(thr.notation);
+      damageTotal = Math.max(1, sum(r) + thr.flat);
     }
 
     const dmgDice = buildDiceResult({
@@ -1201,13 +1201,16 @@ export default function GameBoard({ character, onNewCharacter, onSignOut }: Prop
         if (r.rest !== "none") resourceUses[r.id] = 0;
       }
       const pactUsed = char.classId === "warlock" ? 0 : char.state.pactUsed;
-      const heal = rollDie(10) + d.mods.con;
+      // Roll the class's actual hit die (d6/d8/d10/d12) on a short rest
+      const hd = klass.hitDie ?? 10;
+      const rolled = rollDie(hd);
+      const heal = rolled + d.mods.con;
       const healDice = buildDiceResult({
         system: "dnd5e",
-        label: "Short Rest — Hit Die",
+        label: `Short Rest — Hit Die (d${hd})`,
         kind: "heal",
-        rolls: [heal],
-        diceNotation: `1d10 + ${formatMod(d.mods.con)}`,
+        rolls: [rolled],
+        diceNotation: `1d${hd} + ${formatMod(d.mods.con)}`,
         modifiers: [{ label: "Constitution", value: d.mods.con, source: "ability" }],
         total: heal,
         outcome: "success",
@@ -1565,28 +1568,35 @@ export default function GameBoard({ character, onNewCharacter, onSignOut }: Prop
       const kept = opts.advantage && !opts.disadvantage ? Math.max(first, second) : opts.disadvantage && !opts.advantage ? Math.min(first, second) : first;
       const flat = original.modifiers.reduce((a, l) => a + l.value, 0);
       const total = kept + flat;
-      const isP2 = snap.system === "pf2e";
-      let outcome = original.outcome;
-      if (isP2) {
-        const degrees = total - (original.target ?? rollPrefs.dc);
-        outcome = kept === 20 ? (degrees >= -9 ? "critical-success" : "success") : kept === 1 ? (degrees <= 9 ? "critical-failure" : "failure") : degrees >= 10 ? "critical-success" : degrees >= 0 ? "success" : degrees >= -10 ? "failure" : "critical-failure";
-      } else {
-        outcome = kept === 20 ? "critical-success" : kept === 1 ? "critical-failure" : total >= (original.target ?? rollPrefs.dc) ? "success" : "failure";
-      }
+      const dc = original.target ?? rollPrefs.dc;
+      // PF2e uses the official degree-of-success matrix (a natural 1/20 shifts
+      // the degree by exactly one step); D&D 5e is binary with auto-crits.
+      const outcome =
+        snap.system === "pf2e"
+          ? pf2eOutcome(total, dc, kept)
+          : kept === 20
+            ? "critical-success"
+            : kept === 1
+              ? "critical-failure"
+              : total >= dc
+                ? "success"
+                : "failure";
       const dice = buildDiceResult({
         system: snap.system,
         label: original.label,
         kind: original.kind,
-        rolls: [first, second],
+        // Only include the second die when advantage/disadvantage actually
+        // rolled one — a plain reroll must render a single die face.
+        rolls: opts.advantage || opts.disadvantage ? [first, second] : [first],
         diceNotation: `${opts.advantage || opts.disadvantage ? "2d20 kh" : "1d20"} + ${flat}`,
         modifiers: original.modifiers,
         total,
-        target: original.target ?? rollPrefs.dc,
+        target: dc,
         outcome,
         critical: kept === 20 || kept === 1,
         advantage: opts.advantage,
         disadvantage: opts.disadvantage,
-        breakdown: `${kept} + ${flat} = ${total} vs DC ${original.target ?? rollPrefs.dc} → ${outcome.replace("-", " ").toUpperCase()}`,
+        breakdown: `${kept} + ${flat} = ${total} vs DC ${dc} → ${outcome.replace("-", " ").toUpperCase()}`,
       });
       pushLog("dice", "", dice);
     },

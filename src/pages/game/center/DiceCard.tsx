@@ -20,6 +20,15 @@ export default function DiceCard({ result, onReroll }: Props) {
   const style = OUTCOME_STYLES[result.outcome];
   const total = result.total;
 
+  // The die that was actually kept: max with advantage, min with disadvantage,
+  // otherwise the single rolled die. Used to dim the discarded die face.
+  const kept =
+    result.advantage && !result.disadvantage
+      ? Math.max(...result.rolls)
+      : result.disadvantage && !result.advantage
+        ? Math.min(...result.rolls)
+        : result.rolls[0];
+
   // Gyroscope tilt (mobile) — gentle 3D lean of the dice
   const [tilt, setTilt] = useState({ x: 0, y: 0 });
   useEffect(() => {
@@ -70,9 +79,9 @@ export default function DiceCard({ result, onReroll }: Props) {
         >
           {(result.advantage || result.disadvantage) && result.rolls.length > 1 ? (
             <>
-              <DieFace key={result.id} value={result.rolls[0]} dimmed={result.rolls[0] !== result.total} />
+              <DieFace key={result.id} value={result.rolls[0]} dimmed={result.rolls[0] !== kept} />
               <span className="text-[10px] font-bold text-slate-500">{result.disadvantage ? "⇣" : "⇡"}</span>
-              <DieFace key={`${result.id}-b`} value={result.rolls[1]} dimmed={result.rolls[1] !== result.total} />
+              <DieFace key={`${result.id}-b`} value={result.rolls[1]} dimmed={result.rolls[1] !== kept} />
             </>
           ) : (
             result.rolls.map((r, i) => <DieFace key={`${result.id}-${i}`} value={r} />)

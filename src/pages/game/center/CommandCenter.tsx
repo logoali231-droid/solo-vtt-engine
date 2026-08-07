@@ -34,7 +34,10 @@ export default function CommandCenter({
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    inputRef.current?.focus();
+    // Skip autofocus on touch-primary devices — popping the keyboard open on
+    // load is jarring and covers the game board on mobile.
+    const finePointer = window.matchMedia?.("(pointer: fine)").matches ?? true;
+    if (finePointer) inputRef.current?.focus();
   }, []);
 
   const submit = () => {
