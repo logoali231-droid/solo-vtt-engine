@@ -6,11 +6,13 @@
 // ============================================================================
 
 import type {
+  AdventurePrefs,
   AdventureState,
   DiceResult,
   GmLanguage,
   GmTurn,
 } from "../types";
+import { prefsOf } from "../types";
 import { getDndDerived, getGurpsDerived, getPf2eDerived } from "../character";
 
 function pick<T>(arr: T[]): T {
@@ -108,6 +110,27 @@ const EN = {
   status: (c: AdventureState["character"], sceneTitle: string, location: string, quest: string) =>
     `You are ${c.name}. ${sceneTitle} — ${location}. Current quest: ${quest}. The world waits on your next move.`,
   oraclePrefix: "The oracle answers:",
+  // Genre-flavored openings — chosen when the Adventure Setup matches.
+  genreOpenings: {
+    "high fantasy": ["Ancient magic hums beneath the kingdom's oldest stones, and the road before you glows with the weight of prophecy.", "Banners snap in the wind over a land that remembers dragons — and expects their return."],
+    "dark fantasy": ["The sun has not truly risen in weeks. What light reaches this land is grey, and the woods whisper with things that should have stayed buried.", "A curse has settled over the region like frost — quiet, patient, and spreading."],
+    "sword & sorcery": ["The dungeon mouth yawns beneath the temple steps, and somewhere in the dark, a crown that men killed for is waiting for someone bold enough to take it.", "Savage lands, bloodied gold, and a name you can carve into history — if you survive the first step."],
+    "mythic & epic": ["The gods have placed their thumb on the scale of your fate. Old songs will one day be sung of what begins here.", "Across the sea, a titan stirs. The world has need of a story with a living hero in it."],
+    "fairy tale": ["The forest path is lined with foxglove and half-remembered warnings, and every gift you are offered carries a small, smiling price.", "Three roads meet at the hollow tree. One leads home, one leads to the castle, and one — the one with the moonlight on it — leads to the queen."],
+    "sci-fi": ["The station's docking clamps hiss open, and the void beyond the viewport is vast, patient, and full of things that do not answer hails.", "Your ship's logs have recorded nothing for twelve hours. The last message from the colony was a single word: 'wrong'."],
+    "space opera": ["The war has been over for a decade, but the wreckage still burns in the asteroid belt — and someone just lit a beacon inside it.", "An admiral's seal, a dead courier, and a star map to a place that officially does not exist. That is how your adventure begins."],
+    cyberpunk: ["The neon rain over the sprawl tastes of rust and bad luck. Your cred chip is nearly empty, and the fix is always somewhere dangerous.", "A ghost in the net is selling a memory that a megacorp would kill to delete — and it has your name on it."],
+    "post-apocalyptic": ["The old highway runs east through the dust. Beyond the dead city, a radio tower is broadcasting a message that has not changed in three weeks.", "The water is scarce, the nights are cold, and the ruins still hold things worth trading — and things worth running from."],
+    steampunk: ["The city's brass heart thunders beneath the cobblestones, and the airship docks are thick with spies. Someone has stolen a design that could end the age.", "Steam, gears and grand conspiracies — your ticket to the upper city is a lie, but it is a very well-forged lie."],
+    horror: ["The last light of dusk dies behind you, and the house at the end of the lane has been waiting for you all your life.", "The fog is wrong. It moves against the wind, and inside it, something is humming a song you only half-remember."],
+    western: ["Dust, whiskey, and a town with a fresh grave and a lie for every stranger. The bounty poster has your face on it — and it is not the one you expected.", "The train is due at noon. The outlaw gang wants the vault, the sheriff wants the gang, and you want to be somewhere else by sundown."],
+  },
+  // NPC generator banks
+  npcNames: ["Maren", "Corvin", "Elara", "Bram", "Sable", "Torvin", "Ilyse", "Rook", "Veska", "Aldric", "Nia", "Dorian", "Petra", "Kessler", "Juno", "Wren"],
+  npcRoles: ["a scarred caravan guard", "a hedge apothecary", "a disgraced scholar", "a quiet bounty hunter", "an innkeeper with too many questions", "a wandering storyteller", "a retired soldier", "a smuggler captain", "a village elder", "an apprentice enchanter"],
+  npcTraits: ["carries a coin they never spend", "speaks only in questions", "laughs too easily in danger", "has not slept in days, by their own admission", "is missing the ring finger of their left hand", "never mentions the war unless pressed", "tends to whistle when lying", "keeps a charm of dried flowers"],
+  npcSecrets: ["They know the location of the thing everyone is looking for — and they mean to use it first.", "They are in debt to the same shadowy figures that seem to run this region.", "They once survived an encounter with the very force behind your quest.", "They recognize your name from a story they never expected to be true.", "They carry a letter that was meant to reach you years ago.", "They are not entirely human, and they are trying very hard to hide it."],
+  npcRandomEvent: ["A hawk circles twice overhead and then, deliberately, flies toward the horizon as if showing you the way.", "Far off, a bell tolls once — though the nearest bell tower is days away.", "The weather turns without warning; the sky darkens and holds its breath.", "A stranger passes you on the road, nods, and says your name without explanation.", "You find a fresh coin on the path — its face is stamped with a sigil you have seen in a dream."],
 };
 
 // ---------------------------------------------------------------------------
@@ -197,6 +220,27 @@ const PT: typeof EN = {
   status: (c: AdventureState["character"], sceneTitle: string, location: string, quest: string) =>
     `Você é ${c.name}. ${sceneTitle} — ${location}. Missão atual: ${quest}. O mundo espera o seu próximo passo.`,
   oraclePrefix: "O oráculo responde:",
+  // Aberturas com sabor de gênero — usadas quando a Configuração da Aventura coincide.
+  genreOpenings: {
+    "high fantasy": ["Magia antiga vibra sob as pedras mais velhas do reino, e a estrada diante de você brilha com o peso da profecia.", "Estandartes estalam ao vento sobre uma terra que lembra dos dragões — e espera o retorno deles."],
+    "dark fantasy": ["O sol não nasce de verdade há semanas. A luz que alcança esta terra é cinzenta, e as matas sussurram com coisas que deveriam ter ficado enterradas.", "Uma maldição se instalou sobre a região como geada — silenciosa, paciente e se espalhando."],
+    "sword & sorcery": ["A boca da masmorra se abre sob os degraus do templo, e em algum lugar no escuro, uma coroa pela qual homens mataram espera alguém corajoso o bastante para tomá-la.", "Terras selvagens, ouro ensanguentado e um nome que você pode gravar na história — se sobreviver ao primeiro passo."],
+    "mythic & epic": ["Os deuses puseram o polegar na balança do seu destino. Canções antigas um dia serão cantadas sobre o que começa aqui.", "Além do mar, um titã desperta. O mundo precisa de uma história com um herói vivo nela."],
+    "fairy tale": ["O caminho da floresta é ladeado por dedaleiras e avisos meio esquecidos, e todo presente que lhe oferecem tem um pequeno preço sorridente.", "Três estradas se encontram na árvore oca. Uma leva para casa, uma leva ao castelo, e uma — a que tem luar — leva à rainha."],
+    "sci-fi": ["As travas de acoplamento da estação abrem com um silvo, e o vazio além da vigia é vasto, paciente e cheio de coisas que não respondem às chamadas.", "Os registros da sua nave não anotaram nada há doze horas. A última mensagem da colônia foi uma única palavra: 'errado'."],
+    "space opera": ["A guerra acabou há uma década, mas os destroços ainda queimam no cinturão de asteroides — e alguém acaba de acender um farol dentro deles.", "Um selo de almirante, um mensageiro morto e um mapa estelar para um lugar que oficialmente não existe. É assim que sua aventura começa."],
+    cyberpunk: ["A chuva de neon sobre a cidade tem gosto de ferrugem e má sorte. Seu chip de crédito está quase vazio, e a solução está sempre em algum lugar perigoso.", "Um fantasma na rede está vendendo uma memória que uma megacorporação mataria para apagar — e ela tem o seu nome."],
+    "post-apocalyptic": ["A velha rodovia segue para leste pela poeira. Além da cidade morta, uma torre de rádio transmite uma mensagem que não muda há três semanas.", "A água é escassa, as noites são frias, e as ruínas ainda guardam coisas que valem troca — e coisas das quais vale a pena fugir."],
+    steampunk: ["O coração de latão da cidade troveja sob as pedras do calçamento, e os docas de dirigíveis estão cheias de espiões. Alguém roubou um projeto que pode encerrar a era.", "Vapor, engrenagens e grandes conspirações — seu bilhete para a cidade alta é uma mentira, mas é uma mentira muito bem forjada."],
+    horror: ["A última luz do crepúsculo morre atrás de você, e a casa no fim da viela esperou por você a vida toda.", "O nevoeiro está errado. Move-se contra o vento, e dentro dele algo canta uma canção que você só lembra pela metade."],
+    western: ["Poeira, uísque e uma cidade com uma cova nova e uma mentira para cada forasteiro. O cartaz de recompensa tem o seu rosto — e não é o que você esperava.", "O trem chega ao meio-dia. A quadrilha quer o cofre, o xerife quer a quadrilha, e você quer estar em outro lugar antes do pôr do sol."],
+  },
+  // Banco do gerador de NPCs
+  npcNames: ["Maren", "Corvin", "Elara", "Bram", "Sable", "Torvin", "Ilyse", "Rook", "Veska", "Aldric", "Nia", "Dorian", "Petra", "Kessler", "Juno", "Wren"],
+  npcRoles: ["um guarda de caravana marcado por cicatrizes", "um boticário de beira de estrada", "um estudioso em desgraça", "um caçador de recompensas quieto", "um estalajadeiro com perguntas demais", "um contador de histórias andarilho", "um soldado aposentado", "um capitão contrabandista", "um ancião da aldeia", "um aprendiz de encantador"],
+  npcTraits: ["carrega uma moeda que nunca gasta", "fala apenas em perguntas", "ri com facilidade demais em perigo", "não dorme há dias, pelas próprias palavras", "não tem o dedo anelar da mão esquerda", "nunca menciona a guerra a menos que pressionado", "costuma assobiar quando mente", "guarda um amuleto de flores secas"],
+  npcSecrets: ["Eles sabem onde está a coisa que todos procuram — e pretendem usá-la primeiro.", "Eles devem dinheiro às mesmas figuras sombrias que parecem controlar a região.", "Eles já sobreviveram a um encontro com a própria força por trás da sua missão.", "Eles reconhecem seu nome de uma história que nunca esperaram que fosse verdade.", "Eles carregam uma carta que deveria ter chegado a você anos atrás.", "Eles não são inteiramente humanos, e tentam muito esconder isso."],
+  npcRandomEvent: ["Um falcão circula duas vezes e então, deliberadamente, voa rumo ao horizonte como se mostrasse o caminho.", "Ao longe, um sino soa uma vez — embora a torre de sino mais próxima esteja a dias de distância.", "O tempo muda sem aviso; o céu escurece e prende a respiração.", "Um estranho passa por você na estrada, acena e diz seu nome sem explicação.", "Você encontra uma moeda nova no caminho — cunhada com um símbolo que você já viu em um sonho."],
 };
 
 function bank(language: GmLanguage): typeof EN {
@@ -213,15 +257,20 @@ export function generateOpening(
 ): string {
   const b = bank(language);
   const c = adventure.character;
+  const prefs: AdventurePrefs = prefsOf(c.adventurePrefs);
   const who =
     c.system === "dnd5e"
       ? `${c.name}, ${getDndDerived(c).raceName} ${getDndDerived(c).className} da tradição ${getDndDerived(c).subclassName}`
       : c.system === "pf2e"
         ? `${c.name}, ${getPf2eDerived(c).className}`
         : `${c.name}, aventureiro de ${getGurpsDerived(c).pointTotal} pontos`;
+  // Pref-aware flavor: when the Adventure Setup genre has its own opening lines,
+  // prefer them; otherwise fall back to the timeless generic openings.
+  const genreLines = b.genreOpenings[prefs.genre as keyof typeof b.genreOpenings];
+  const opening = pick(genreLines && genreLines.length > 0 ? genreLines : b.openings);
   return language === "pt-BR"
-    ? `A história de ${who} começa ${pick(b.openings).replace(/^./, (ch) => ch.toLowerCase())}`
-    : `The tale of ${who} begins in ${pick(b.openings)}`;
+    ? `A história de ${who} começa ${opening.replace(/^./, (ch) => ch.toLowerCase())}`
+    : `The tale of ${who} begins in ${opening}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -288,6 +337,22 @@ function reactToDice(dice: DiceResult, language: GmLanguage): string {
   }
 }
 
+// ---------------------------------------------------------------------------
+// NPC generator — names a stranger from the banks and gives them a hook.
+// ---------------------------------------------------------------------------
+
+function npcGenerator(language: GmLanguage): string {
+  const b = bank(language);
+  const name = pick(b.npcNames);
+  const role = pick(b.npcRoles);
+  const trait = pick(b.npcTraits);
+  const secret = pick(b.npcSecrets);
+  if (language === "pt-BR") {
+    return `Você cruza com ${name}, ${role}. Elu ${trait}. Enquanto conversam, você percebe algo: ${secret}`;
+  }
+  return `You cross paths with ${name}, ${role}. They ${trait}. As you talk, you notice something: ${secret}`;
+}
+
 export function localRespond(
   turn: GmTurn,
   adventure: AdventureState,
@@ -296,6 +361,15 @@ export function localRespond(
   const b = bank(language);
   const text = (turn.playerText ?? "").trim();
   const lower = text.toLowerCase();
+
+  // NPC generator — "npc", "who is this", "meet someone"…
+  if (
+    /(^|\s)(npc|stranger|who is (this|that)|meet someone|introduce someone|roll an npc|personagem|quem é (esse|essa)|estranho|apresente alguém|conhecer alguém)/.test(
+      lower,
+    )
+  ) {
+    return npcGenerator(language);
+  }
 
   // Oracle questions
   if (text.startsWith("oracle") || /^[?]|oráculo|oraculo/.test(lower) || text.endsWith("?")) {
@@ -324,12 +398,28 @@ export function localRespond(
 
   // Exploration
   if (/(look|search|explore|investigat|inspect|examine|check|scout|olhar|procurar|explorar|investigar|inspecionar|examinar|reconhecer)/.test(lower)) {
-    return pick(b.explore) + (turn.dice ? " " + reactToDice(turn.dice, language) : "");
+    const found = pick(b.explore);
+    const result = turn.dice ? ` ${reactToDice(turn.dice, language)}` : "";
+    const event = chance(0.25) ? ` ${pick(b.npcRandomEvent)}` : "";
+    return found + result + event;
   }
 
-  // Movement / travel
+  // Movement / travel — difficulty from the Adventure Setup tunes how often
+  // trouble finds you on the road.
   if (/(go |walk|travel|enter|leave|follow|head|move|approach|north|south|east|west|road|path|climb|descend|open|ir|andar|viajar|entrar|sair|seguir|seguir|mover|aproximar|norte|sul|leste|oeste|estrada|caminho|subir|descer|abrir)/.test(lower)) {
-    return pick(b.travel) + (chance(0.35) ? " " + pick(b.encounters) : "");
+    const prefs: AdventurePrefs = prefsOf(adventure.character.adventurePrefs);
+    const danger =
+      prefs.difficulty === "deadly"
+        ? 0.65
+        : prefs.difficulty === "challenging"
+          ? 0.5
+          : prefs.difficulty === "lenient"
+            ? 0.2
+            : 0.35;
+    let out = pick(b.travel);
+    if (chance(danger)) out += " " + pick(b.encounters);
+    else if (chance(0.25)) out += " " + pick(b.npcRandomEvent);
+    return out;
   }
 
   // Social

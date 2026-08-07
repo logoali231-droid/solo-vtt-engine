@@ -8,6 +8,9 @@ import {
 import type { DndDerived } from "@/lib/rpg/character";
 import { formatMod } from "@/lib/rpg/dice";
 import { CLASS_MAP } from "@/lib/rpg/data/dnd";
+import { knownSpellsFor } from "@/lib/rpg/data/spells";
+import type { SpellDef } from "@/lib/rpg/types";
+import { BookOpen } from "lucide-react";
 import { Wand2, Zap } from "lucide-react";
 import IdentityChips from "./IdentityChips";
 import type { RollRequest, SheetProps } from "../../types";
@@ -42,6 +45,15 @@ export default function DndSheet({ character: c, derived: d, onRoll, onUseFeatur
 
   const spellSlots = d.spellSlots;
   const pact = d.pact;
+  const spells: SpellDef[] = knownSpellsFor(klass.id, c.level);
+  const canCast = (sp: SpellDef): boolean => {
+    if (sp.level === 0) return true;
+    if (pact) return c.state.pactUsed < pact.count;
+    for (let i = sp.level - 1; i < spellSlots.length; i++) {
+      if (spellSlots[i] > 0 && (c.state.spellSlotsUsed[i] ?? 0) < spellSlots[i]) return true;
+    }
+    return false;
+  };
 
   return (
     <div className="relative overflow-hidden rounded-xl border-2 border-[#c9b88d] bg-[#f3e9d1] text-[#3b2f1b] shadow-[inset_0_0_40px_rgba(140,110,60,0.18),0_12px_32px_-16px_rgba(0,0,0,0.7)]">
@@ -249,6 +261,51 @@ export default function DndSheet({ character: c, derived: d, onRoll, onUseFeatur
                 })}
               </div>
             )}
+          </div>
+        )}
+
+        {/* Spellbook */}
+        {spells.length > 0 && (
+          <div>
+            <p className="mb-1 flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-[#7a6436]">
+              <BookOpen className="size-3" /> Spellbook
+              <span className="normal-case tracking-normal text-[#8a7444]">(tap to cast)</span>
+            </p>
+            <div className="flex flex-col gap-1.5">
+              {spells.map((sp) => {
+                const usable = canCast(sp);
+                return (
+                  <div key={sp.id} className="rounded-md border border-[#d4c49a] bg-[#f8f0dc] px-2.5 py-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="min-w-0 text-[11px] font-bold text-[#3b2f1b]">
+                        <span className="truncate">{sp.name}</span>
+                        <span className="ml-1.5 text-[9px] font-semibold text-[#8a7444]">
+                          {sp.level === 0 ? "Cantrip" : `Lv ${sp.level}`} · {sp.school}
+                        </span>
+                      </p>
+                      <button
+                        type="button"
+                        disabled={!usable}
+                        onClick={() =>
+                          onRoll({ label: sp.name, kind: "check", spellId: sp.id })
+                        }
+                        title={
+                          usable
+                            ? `Cast ${sp.name}${sp.level > 0 ? ` (costs a${sp.level === 1 ? "" : ` level-${sp.level}`} slot)` : " (free)"}`
+                            : "No spell slot available — rest to recover"
+                        }
+                        className="shrink-0 rounded bg-[#3b2f1b] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-[#f3e9d1] transition-colors hover:bg-[#5a4a2a] disabled:cursor-not-allowed disabled:opacity-35"
+                      >
+                        Cast
+                      </button>
+                    </div>
+                    <p className="mt-0.5 text-[10px] leading-relaxed text-[#6b5530]">
+                      {sp.description}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
 

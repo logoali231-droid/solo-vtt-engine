@@ -100,7 +100,7 @@ export default function TopBar({
 
   return (
     <>
-      <header className="flex shrink-0 items-center gap-2 border-b border-slate-800 bg-slate-950/95 px-3 py-2.5 sm:gap-3 sm:px-4">
+      <header className="flex shrink-0 items-center gap-1.5 border-b border-slate-800 bg-slate-950/95 px-2.5 py-2 sm:gap-3 sm:px-4 sm:py-2.5">
         <button
           type="button"
           onClick={onOpenSheet}
@@ -127,7 +127,7 @@ export default function TopBar({
         </div>
 
         <div className="ml-auto flex items-center gap-2">
-          <span className="hidden rounded-lg border border-slate-800 bg-slate-900 px-2.5 py-1.5 font-mono text-[11px] font-bold text-emerald-400 lg:inline">
+          <span className="hidden rounded-lg border border-slate-800 bg-slate-900 px-2.5 py-1.5 font-mono text-[11px] font-bold text-emerald-400 xl:inline">
             {hpText}
           </span>
           <div className="flex items-center rounded-lg border border-slate-800 bg-slate-900 p-0.5">
@@ -210,9 +210,10 @@ export default function TopBar({
             type="button"
             onClick={onNewCharacter}
             title="New character (back to Phase 1)"
-            className="flex items-center gap-1 rounded-lg border border-slate-800 px-2.5 py-1.5 text-[11px] font-semibold text-slate-400 transition-colors hover:border-amber-500/50 hover:text-amber-300"
+            className="flex items-center gap-1 rounded-lg border border-slate-800 px-2 py-1.5 text-[11px] font-semibold text-slate-400 transition-colors hover:border-amber-500/50 hover:text-amber-300"
           >
-            <Plus className="size-3.5" /> New
+            <Plus className="size-3.5" />
+            <span className="hidden sm:inline">New</span>
           </button>
           <button
             type="button"
@@ -232,6 +233,54 @@ export default function TopBar({
             <DialogTitle className="text-base font-semibold">AI Model & GM Settings</DialogTitle>
           </DialogHeader>
           <div className="flex flex-col gap-4">
+            {/* One-click free setups */}
+            <div>
+              <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                Start playing free — one tap
+              </p>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    patch({ provider: "horde", model: "koboldcpp/L3-8B-Stheno-v3.2-IQ3_S-imat" });
+                    toast.success("AI Horde is on — 100% free & unlimited, no key needed.");
+                  }}
+                  className="rounded-xl border border-emerald-500/40 bg-emerald-500/5 p-2.5 text-left transition-colors hover:bg-emerald-500/10"
+                >
+                  <p className="text-xs font-bold text-emerald-200">AI Horde</p>
+                  <p className="mt-0.5 text-[10px] leading-snug text-slate-400">Community GPUs · no key · unlimited. Expect a queue of seconds to minutes.</p>
+                  <span className="mt-1.5 inline-block rounded-full bg-emerald-500/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-emerald-300">Free · no key</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    patch({ provider: "gemini", model: "gemini-2.5-flash" });
+                    toast.info("Gemini selected — paste your free key (AIza…) below, then Test connection.");
+                  }}
+                  className="rounded-xl border border-slate-800 bg-slate-950 p-2.5 text-left transition-colors hover:border-slate-600"
+                >
+                  <p className="text-xs font-bold text-slate-100">Google Gemini</p>
+                  <p className="mt-0.5 text-[10px] leading-snug text-slate-400">Free API key, generous daily quota, strong storytelling.</p>
+                  <span className="mt-1.5 inline-block rounded-full bg-emerald-500/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-emerald-300">Free key</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    patch({ provider: "groq", model: "llama-3.3-70b-versatile" });
+                    toast.info("Groq selected — paste your free key (gsk_…) below, then Test connection.");
+                  }}
+                  className="rounded-xl border border-slate-800 bg-slate-950 p-2.5 text-left transition-colors hover:border-slate-600"
+                >
+                  <p className="text-xs font-bold text-slate-100">Groq</p>
+                  <p className="mt-0.5 text-[10px] leading-snug text-slate-400">Blazing-fast open models · ~1k free requests/day.</p>
+                  <span className="mt-1.5 inline-block rounded-full bg-emerald-500/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-emerald-300">Free key</span>
+                </button>
+              </div>
+              <p className="mt-1.5 text-[10px] leading-relaxed text-slate-500">
+                New players already start on <span className="text-emerald-300/80">AI Horde</span> — the only provider with zero accounts and zero cost.
+              </p>
+            </div>
+
             <div>
               <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">
                 AI Provider

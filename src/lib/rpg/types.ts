@@ -297,9 +297,12 @@ export interface GmSettings {
   temperature: number;
 }
 
+// New players start on AI Horde — 100% free, no key, unlimited community GPUs.
+// The built-in (platform-key) provider and the other free providers remain one
+// tap away in GM Settings.
 export const DEFAULT_GM_SETTINGS: GmSettings = {
-  provider: "builtin",
-  model: "gpt-4o-mini",
+  provider: "horde",
+  model: "koboldcpp/L3-8B-Stheno-v3.2-IQ3_S-imat",
   apiKey: "",
   baseUrl: "http://localhost:11434",
   language: "en",
@@ -695,12 +698,41 @@ export interface EnemyState {
   maxHp: number;
   attackBonus: number;
   damage: string;
+  // Kill rewards — awarded automatically when the foe is slain.
+  xp?: number;
+  gold?: number;
+  loot?: string[];
 }
 
 export interface InventoryItem {
   id: string;
   name: string;
   qty: number;
+}
+
+// ---------------------------------------------------------------------------
+// D&D 5e spellbook (curated; see data/dnd.ts for the full list)
+// ---------------------------------------------------------------------------
+
+export interface SpellDef {
+  id: string;
+  name: string;
+  level: number; // 0 = cantrip
+  school: string;
+  range: string;
+  cast: string;
+  concentration?: boolean;
+  ritual?: boolean;
+  /** Requires a spell attack roll vs the target's AC. */
+  attack?: boolean;
+  /** Saving-throw spell — the target rolls against the caster's spell save DC. */
+  save?: AbilityId;
+  /** Auto-hits (e.g. Magic Missile) — no roll needed. */
+  autoHit?: boolean;
+  damage?: string;
+  healDice?: string;
+  description: string;
+  classes: DnDClassId[];
 }
 
 export interface LogEntry {

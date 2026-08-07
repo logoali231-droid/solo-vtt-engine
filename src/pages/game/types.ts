@@ -13,6 +13,8 @@ export interface RollRequest {
   gurpsTarget?: number;
   flashOfGenius?: boolean;
   usePending?: boolean;
+  /** When set, dispatches the curated spellbook cast flow instead of a plain check. */
+  spellId?: string;
 }
 
 export interface SheetProps<T> {

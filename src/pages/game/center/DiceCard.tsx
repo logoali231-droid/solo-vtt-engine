@@ -62,7 +62,7 @@ export default function DiceCard({ result, onReroll }: Props) {
         </span>
       </div>
 
-      <div className="flex items-center gap-4 px-3 py-3">
+      <div className="flex flex-wrap items-center gap-3 px-3 py-3 sm:flex-nowrap sm:gap-4">
         {/* Dice faces — 3D tumble + gyro tilt */}
         <div
           className="flex flex-wrap items-center gap-1.5"
@@ -79,7 +79,7 @@ export default function DiceCard({ result, onReroll }: Props) {
           )}
         </div>
 
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 break-words">
           <p className="font-mono text-[10px] text-slate-400">{result.diceNotation}</p>
           <p className="mt-0.5 font-mono text-[10px] leading-relaxed text-slate-500">{result.breakdown}</p>
           {result.featureUsed && (

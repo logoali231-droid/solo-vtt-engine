@@ -7,6 +7,7 @@ import {
 } from "@/lib/rpg/character";
 import { CONDITIONS } from "@/lib/rpg/data/conditions";
 import { CLASS_MAP } from "@/lib/rpg/data/dnd";
+import { SPELL_MAP } from "@/lib/rpg/data/spells";
 import { GURPS_SKILL_MAP } from "@/lib/rpg/data/gurps";
 import { PF2E_CLASS_MAP } from "@/lib/rpg/data/pf2e";
 import {
@@ -60,7 +61,7 @@ import type {
   PendingBonus,
   RollModifierLine,
 } from "@/lib/rpg/types";
-import { adventureScene, campaignBriefing, prefsOf, uid } from "@/lib/rpg/types";
+import { ABILITY_LABELS, adventureScene, campaignBriefing, prefsOf, uid } from "@/lib/rpg/types";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import AdSlot from "./AdSlot";
 import CharacterPanel, { type PanelActions } from "./panels/CharacterPanel";
@@ -135,23 +136,42 @@ function createAdventure(character: Character, language: GmLanguage = "en"): Adv
 
 const ENEMY_TABLES: Record<string, EnemyState[]> = {
   dnd5e: [
-    { id: "goblin", name: "Goblin", ac: 15, hp: 7, maxHp: 7, attackBonus: 4, damage: "1d6+2" },
-    { id: "bandit", name: "Bandit", ac: 12, hp: 11, maxHp: 11, attackBonus: 3, damage: "1d8+1" },
-    { id: "skeleton", name: "Skeleton", ac: 13, hp: 13, maxHp: 13, attackBonus: 4, damage: "1d6+2" },
-    { id: "zombie", name: "Zombie", ac: 8, hp: 22, maxHp: 22, attackBonus: 3, damage: "1d6+1" },
-    { id: "orc", name: "Orc", ac: 13, hp: 15, maxHp: 15, attackBonus: 5, damage: "1d12+3" },
-    { id: "owlbear", name: "Owlbear", ac: 13, hp: 59, maxHp: 59, attackBonus: 7, damage: "1d10+5" },
+    { id: "goblin", name: "Goblin", ac: 15, hp: 7, maxHp: 7, attackBonus: 4, damage: "1d6+2", xp: 50, gold: 5, loot: ["a crude dagger"] },
+    { id: "wolf", name: "Wolf", ac: 13, hp: 11, maxHp: 11, attackBonus: 4, damage: "2d4+2", xp: 25, gold: 0, loot: ["wolf pelt"] },
+    { id: "bandit", name: "Bandit", ac: 12, hp: 11, maxHp: 11, attackBonus: 3, damage: "1d8+1", xp: 25, gold: 8, loot: ["a worn coin purse"] },
+    { id: "skeleton", name: "Skeleton", ac: 13, hp: 13, maxHp: 13, attackBonus: 4, damage: "1d6+2", xp: 50, gold: 4, loot: ["a brittle bone charm"] },
+    { id: "zombie", name: "Zombie", ac: 8, hp: 22, maxHp: 22, attackBonus: 3, damage: "1d6+1", xp: 50, gold: 0, loot: ["a tattered coat with a key in the pocket"] },
+    { id: "cultist", name: "Cultist", ac: 13, hp: 9, maxHp: 9, attackBonus: 3, damage: "1d6+1", xp: 50, gold: 10, loot: ["a black iron medallion"] },
+    { id: "hobgoblin", name: "Hobgoblin", ac: 18, hp: 13, maxHp: 13, attackBonus: 3, damage: "1d8+1", xp: 100, gold: 20, loot: ["a hobgoblin captain's badge"] },
+    { id: "orc", name: "Orc", ac: 13, hp: 15, maxHp: 15, attackBonus: 5, damage: "1d12+3", xp: 100, gold: 12, loot: ["an orcish war axe"] },
+    { id: "bugbear", name: "Bugbear", ac: 16, hp: 27, maxHp: 27, attackBonus: 4, damage: "2d8+2", xp: 200, gold: 25, loot: ["a heavy iron spear"] },
+    { id: "dire-wolf", name: "Dire Wolf", ac: 14, hp: 37, maxHp: 37, attackBonus: 5, damage: "2d6+3", xp: 200, gold: 0, loot: ["a dire wolf pelt"] },
+    { id: "mage", name: "Rogue Mage", ac: 12, hp: 22, maxHp: 22, attackBonus: 5, damage: "2d8", xp: 1100, gold: 100, loot: ["a spell scroll (2nd-level)", "a quarterstaff"] },
+    { id: "dragon-wyrmling", name: "Dragon Wyrmling", ac: 17, hp: 75, maxHp: 75, attackBonus: 6, damage: "2d6+4", xp: 450, gold: 200, loot: ["a draconic scale", "a nest hoard"] },
+    { id: "owlbear", name: "Owlbear", ac: 13, hp: 59, maxHp: 59, attackBonus: 7, damage: "1d10+5", xp: 700, gold: 40, loot: ["an owlbear feather", "a gold ring in its gullet"] },
+    { id: "troll", name: "Troll", ac: 15, hp: 84, maxHp: 84, attackBonus: 7, damage: "2d6+4", xp: 1800, gold: 60, loot: ["a troll heart (regenerative)"] },
   ],
   pf2e: [
-    { id: "goblin-warrior", name: "Goblin Warrior", ac: 16, hp: 9, maxHp: 9, attackBonus: 6, damage: "1d6" },
-    { id: "skeleton-guard", name: "Skeleton Guard", ac: 15, hp: 12, maxHp: 12, attackBonus: 6, damage: "1d6+2" },
-    { id: "orc-brute", name: "Orc Brute", ac: 15, hp: 22, maxHp: 22, attackBonus: 8, damage: "1d12+3" },
-    { id: "worg", name: "Worg", ac: 14, hp: 26, maxHp: 26, attackBonus: 9, damage: "2d6+4" },
+    { id: "goblin-warrior", name: "Goblin Warrior", ac: 16, hp: 9, maxHp: 9, attackBonus: 6, damage: "1d6", xp: 40, gold: 3, loot: ["a goblin dogslicer"] },
+    { id: "zombie-shambler", name: "Zombie Shambler", ac: 13, hp: 20, maxHp: 20, attackBonus: 7, damage: "1d8+3", xp: 40, gold: 1 },
+    { id: "giant-spider", name: "Giant Spider", ac: 16, hp: 15, maxHp: 15, attackBonus: 10, damage: "1d8+2", xp: 40, gold: 5, loot: ["a venom gland", "a wad of spider silk"] },
+    { id: "skeleton-guard", name: "Skeleton Guard", ac: 15, hp: 12, maxHp: 12, attackBonus: 6, damage: "1d6+2", xp: 40, gold: 2 },
+    { id: "orc-brute", name: "Orc Brute", ac: 15, hp: 22, maxHp: 22, attackBonus: 8, damage: "1d12+3", xp: 80, gold: 10, loot: ["an orcish greataxe"] },
+    { id: "worg", name: "Worg", ac: 14, hp: 26, maxHp: 26, attackBonus: 9, damage: "2d6+4", xp: 80, gold: 8, loot: ["a worg pelt"] },
+    { id: "cult-leader", name: "Cult Leader", ac: 18, hp: 32, maxHp: 32, attackBonus: 10, damage: "1d8+4", xp: 160, gold: 30, loot: ["a tarnished ritual dagger"] },
+    { id: "otyugh", name: "Otyugh", ac: 18, hp: 40, maxHp: 40, attackBonus: 9, damage: "2d6+4", xp: 120, gold: 20, loot: ["a swallowed pouch of coins"] },
+    { id: "ghost", name: "Ghost", ac: 16, hp: 22, maxHp: 22, attackBonus: 11, damage: "2d6+2", xp: 160, gold: 0, loot: ["a mourning veil"] },
+    { id: "hill-giant", name: "Hill Giant", ac: 17, hp: 60, maxHp: 60, attackBonus: 11, damage: "3d8+6", xp: 240, gold: 50, loot: ["a giant's club", "a pouch of gold teeth"] },
   ],
   gurps: [
-    { id: "thug", name: "Thug", ac: 9, hp: 11, maxHp: 11, attackBonus: 11, damage: "1d6" },
-    { id: "orc-soldier", name: "Orc Soldier", ac: 9, hp: 13, maxHp: 13, attackBonus: 12, damage: "1d6+2" },
-    { id: "guard-lieutenant", name: "Guard Lieutenant", ac: 10, hp: 15, maxHp: 15, attackBonus: 14, damage: "1d6+2" },
+    { id: "wolf", name: "Wolf", ac: 9, hp: 10, maxHp: 10, attackBonus: 12, damage: "1d6-1", xp: 1, gold: 0, loot: ["wolf pelt"] },
+    { id: "thug", name: "Thug", ac: 9, hp: 11, maxHp: 11, attackBonus: 11, damage: "1d6", xp: 1, gold: 5, loot: ["a heavy club"] },
+    { id: "bandit-archer", name: "Bandit Archer", ac: 9, hp: 10, maxHp: 10, attackBonus: 13, damage: "1d6+1", xp: 1, gold: 6, loot: ["a shortbow", "10 arrows"] },
+    { id: "orc-soldier", name: "Orc Soldier", ac: 9, hp: 13, maxHp: 13, attackBonus: 12, damage: "1d6+2", xp: 1, gold: 8, loot: ["an orcish blade"] },
+    { id: "brute", name: "Brute", ac: 9, hp: 15, maxHp: 15, attackBonus: 13, damage: "1d6+3", xp: 2, gold: 12, loot: ["a broken war-hammer"] },
+    { id: "guard-lieutenant", name: "Guard Lieutenant", ac: 10, hp: 15, maxHp: 15, attackBonus: 14, damage: "1d6+2", xp: 2, gold: 15, loot: ["a lieutenant's badge"] },
+    { id: "wraith", name: "Wraith", ac: 9, hp: 12, maxHp: 12, attackBonus: 14, damage: "1d6+1", xp: 3, gold: 0, loot: ["a silver key that opens nothing nearby"] },
+    { id: "troll", name: "Troll", ac: 9, hp: 20, maxHp: 20, attackBonus: 15, damage: "2d6+2", xp: 3, gold: 20, loot: ["a troll heart (regenerative)"] },
   ],
 };
 
@@ -382,6 +402,12 @@ export default function GameBoard({ character, onNewCharacter, onSignOut }: Prop
       const snap = adventureRef.current;
       const system = snap.system;
 
+      // Spellbook cast — dispatched to the curated casting flow.
+      if (request.spellId) {
+        castSpell(request.spellId);
+        return;
+      }
+
       if (system === "dnd5e") {
         const char = snap.character as DnDCharacter;
         const d = getDndDerived(char);
@@ -558,6 +584,334 @@ export default function GameBoard({ character, onNewCharacter, onSignOut }: Prop
   const firstAliveEnemy = (): EnemyState | null =>
     adventureRef.current.enemies.find((e) => e.hp > 0) ?? null;
 
+  // -------------------------------------------------------------------------
+  // Kill rewards — XP (D&D/PF2e) or character points (GURPS), gold and loot.
+  // Automatically levels the hero when the XP threshold is crossed.
+  // -------------------------------------------------------------------------
+  const awardKill = useCallback((enemy: EnemyState) => {
+    const snap = adventureRef.current;
+    const isGurps = snap.system === "gurps";
+    const gained = enemy.xp ?? (snap.system === "dnd5e" ? 50 : snap.system === "pf2e" ? 40 : 1);
+    const gold = enemy.gold ?? 0;
+    const loot = enemy.loot ?? [];
+    setAdventure((prev) => {
+      const logs: LogEntry[] = [];
+      let character = prev.character;
+      let xp = prev.xp ?? 0;
+      let goldNext = prev.gold ?? 0;
+      let inventory = prev.inventory ?? [];
+
+      if (isGurps) {
+        const cp = Math.max(1, gained);
+        const gp = prev.character as GurpsCharacter;
+        character = { ...gp, points: { ...gp.points, budget: gp.points.budget + cp } };
+        logs.push({
+          id: uid(), kind: "system" as const,
+          text: `+${cp} character points awarded — added to your budget.`,
+          timestamp: Date.now(),
+        });
+      } else {
+        xp += gained;
+        let leveled = false;
+        let level = charLevel(prev.character);
+        while (level < 20 && xp >= xpNeededFor(level, prev.system)) {
+          xp -= xpNeededFor(level, prev.system);
+          level += 1;
+          leveled = true;
+        }
+        if (leveled) {
+          character = { ...(prev.character as DnDCharacter | Pf2eCharacter), level };
+          logs.push({
+            id: uid(), kind: "system" as const,
+            text: `Level up! ${prev.character.name} is now level ${level}.`,
+            timestamp: Date.now(),
+          });
+        }
+      }
+
+      goldNext = goldNext + gold;
+      for (const item of loot) {
+        const existing = inventory.find((i) => i.name === item);
+        if (existing) {
+          inventory = inventory.map((i) =>
+            i.id === existing.id ? { ...i, qty: i.qty + 1 } : i,
+          );
+        } else {
+          inventory = [...inventory, { id: uid(), name: item, qty: 1 }];
+        }
+      }
+
+      const lootText = loot.length > 0 ? ` Loot: ${loot.join(", ")}.` : "";
+      logs.push({
+        id: uid(), kind: "combat" as const,
+        text: `You claim the spoils: ${gold > 0 ? `${gold} gold.` : "nothing of value."}${lootText}${isGurps ? "" : ` (+${gained} XP)`}`,
+        timestamp: Date.now(),
+      });
+      return {
+        ...prev,
+        character,
+        xp,
+        gold: goldNext,
+        inventory,
+        logs: [...prev.logs, ...logs],
+        updatedAt: Date.now(),
+      };
+    });
+  }, []);
+
+  // -------------------------------------------------------------------------
+  // Spellbook casting — consumes a slot (or is free for cantrips), then
+  // resolves the spell through the dice engine: attack rolls vs AC, save
+  // spells as the target's roll vs your spell save DC, auto-hits and heals.
+  // -------------------------------------------------------------------------
+  const castSpell = useCallback(
+    (spellId: string) => {
+      const snap = adventureRef.current;
+      if (snap.system !== "dnd5e") return;
+      const char = snap.character as DnDCharacter;
+      const spell = SPELL_MAP[spellId];
+      if (!spell) return;
+      const d = getDndDerived(char);
+      const spellAbility = d.spellAbility ?? "int";
+      const spellMod = d.mods[spellAbility];
+      const saveDc = 8 + d.profBonus + spellMod;
+      const enemy = snap.enemies.find((e) => e.hp > 0);
+
+      // --- Slot cost (cantrips are free) ---
+      if (spell.level > 0) {
+        if (char.classId === "warlock" && d.pact) {
+          if (char.state.pactUsed >= d.pact.count) {
+            toast("No pact magic slots left — rest to recover.");
+            return;
+          }
+          updateChar((ch) =>
+            ch.system === "dnd5e"
+              ? { ...ch, state: { ...ch.state, pactUsed: ch.state.pactUsed + 1 } }
+              : ch,
+          );
+        } else {
+          const slots = d.spellSlots;
+          let slotIdx = -1;
+          for (let i = spell.level - 1; i < slots.length; i++) {
+            if (slots[i] > 0 && (char.state.spellSlotsUsed[i] ?? 0) < slots[i]) {
+              slotIdx = i;
+              break;
+            }
+          }
+          if (slotIdx === -1) {
+            toast("No spell slots of that level (or higher) left — rest to recover.");
+            return;
+          }
+          updateChar((ch) => {
+            if (ch.system !== "dnd5e") return ch;
+            const used = [...(ch.state.spellSlotsUsed ?? [])];
+            used[slotIdx] = (used[slotIdx] ?? 0) + 1;
+            return { ...ch, state: { ...ch.state, spellSlotsUsed: used } };
+          });
+        }
+      }
+
+      // --- Heal spells ---
+      if (spell.healDice) {
+        const p = parseDice(spell.healDice);
+        const rolled = rollDice(p.count, p.sides);
+        const healed = sum(rolled) + p.flat + Math.max(0, spellMod);
+        updateChar((ch) =>
+          ch.system === "dnd5e"
+            ? { ...ch, state: { ...ch.state, hpDamage: Math.max(0, ch.state.hpDamage - healed) } }
+            : ch,
+        );
+        const dice = buildDiceResult({
+          system: "dnd5e",
+          label: spell.name,
+          kind: "heal",
+          rolls: rolled,
+          diceNotation: `${p.count}d${p.sides}${p.flat !== 0 ? (p.flat > 0 ? `+${p.flat}` : p.flat) : ""} + ${formatMod(spellMod)}`,
+          modifiers: [{ label: ABILITY_LABELS[spellAbility], value: spellMod, source: "ability" }],
+          total: healed,
+          outcome: "success",
+          breakdown: `Healed ${healed} HP`,
+        });
+        pushLog("dice", "", dice);
+        pushLog("system", `You cast ${spell.name} — ${healed} HP restored.`);
+        void gmRespond({ playerText: `I cast ${spell.name}.` });
+        return;
+      }
+
+      // --- Auto-hit spells (e.g. Magic Missile) ---
+      if (spell.autoHit) {
+        const p = parseDice(spell.damage ?? "1d4+1");
+        const rolled = rollDice(p.count, p.sides);
+        const total = sum(rolled) + p.flat;
+        const dice = buildDiceResult({
+          system: "dnd5e",
+          label: spell.name,
+          kind: "damage",
+          rolls: rolled,
+          diceNotation: spell.damage ?? "1d4+1",
+          modifiers: [],
+          total,
+          outcome: "success",
+          breakdown: `Magic Missile strikes unerringly for ${total} damage`,
+        });
+        pushLog("dice", "", dice);
+        if (enemy) {
+          setAdventure((prev) => ({
+            ...prev,
+            enemies: prev.enemies.map((e) =>
+              e.id === enemy.id ? { ...e, hp: Math.max(0, e.hp - total) } : e,
+            ),
+            updatedAt: Date.now(),
+          }));
+          const slain = enemy.hp - total <= 0;
+          pushLog(
+            "combat",
+            slain
+              ? `${enemy.name} is destroyed by the darts of force.`
+              : `${enemy.name} takes ${total} force damage (${Math.max(0, enemy.hp - total)} HP left).`,
+          );
+          if (slain) awardKill(enemy);
+        } else {
+          pushLog("combat", `${spell.name} arcs through the air — but there is no enemy in the scene.`);
+        }
+        void gmRespond({ playerText: `I cast ${spell.name}.` });
+        return;
+      }
+
+      // --- Attack-roll spells ---
+      if (spell.attack) {
+        const targetAC = enemy?.ac ?? rollPrefs.dc;
+        const res = resolveD20Check({
+          dc: targetAC,
+          abilityMod: spellMod,
+          bonus: d.profBonus,
+          system: "dnd5e",
+        });
+        const dice = buildDiceResult({
+          system: "dnd5e",
+          label: `${spell.name} (spell attack vs AC ${targetAC})`,
+          kind: "attack",
+          rolls: res.rolls,
+          diceNotation: `1d20 + ${spellMod + d.profBonus}`,
+          modifiers: [
+            { label: "Spell ability", value: spellMod, source: "ability" },
+            { label: "Proficiency", value: d.profBonus, source: "proficiency" },
+          ],
+          total: res.total,
+          target: targetAC,
+          outcome: res.outcome,
+          critical: res.nat20 || res.nat1,
+          breakdown: res.breakdown,
+        });
+        pushLog("dice", "", dice);
+        const hit = res.outcome === "success" || res.outcome === "critical-success";
+        if (!enemy) {
+          pushLog("combat", `${spell.name} is ready to fly — but there is no enemy in the scene.`);
+        } else if (!hit) {
+          pushLog("combat", `${spell.name} misses ${enemy.name}.`);
+        } else {
+          const p = parseDice(spell.damage ?? "1d8");
+          const count = res.nat20 ? p.count * 2 : p.count;
+          const rolled = rollDice(count, p.sides);
+          const total = sum(rolled) + p.flat;
+          const dmgDice = buildDiceResult({
+            system: "dnd5e",
+            label: `${spell.name} — damage`,
+            kind: "damage",
+            rolls: rolled,
+            diceNotation: `${count}d${p.sides}${p.flat !== 0 ? (p.flat > 0 ? `+${p.flat}` : p.flat) : ""}`,
+            modifiers: [],
+            total,
+            outcome: "success",
+            breakdown: `${spell.name} deals ${total} damage`,
+          });
+          pushLog("dice", "", dmgDice);
+          setAdventure((prev) => ({
+            ...prev,
+            enemies: prev.enemies.map((e) =>
+              e.id === enemy.id ? { ...e, hp: Math.max(0, e.hp - total) } : e,
+            ),
+            updatedAt: Date.now(),
+          }));
+          const slain = enemy.hp - total <= 0;
+          pushLog(
+            "combat",
+            slain
+              ? `${enemy.name} falls to your ${spell.name}.`
+              : `${enemy.name} takes ${total} damage (${Math.max(0, enemy.hp - total)} HP left).`,
+          );
+          if (slain) awardKill(enemy);
+        }
+        void gmRespond({ playerText: `I cast ${spell.name}.` });
+        return;
+      }
+
+      // --- Save spells: the target rolls against your spell save DC ---
+      const res = resolveD20Check({
+        dc: saveDc,
+        abilityMod: 0,
+        bonus: 0,
+        system: "dnd5e",
+      });
+      const dice = buildDiceResult({
+        system: "dnd5e",
+        label: `${spell.name} (${ABILITY_LABELS[spell.save ?? "dex"]} save DC ${saveDc})`,
+        kind: "save",
+        rolls: res.rolls,
+        diceNotation: "1d20 (target's save)",
+        modifiers: [],
+        total: res.total,
+        target: saveDc,
+        outcome: res.outcome,
+        critical: res.nat20 || res.nat1,
+        breakdown: res.breakdown,
+      });
+      pushLog("dice", "", dice);
+      const saved = res.outcome === "success" || res.outcome === "critical-success";
+      if (!enemy) {
+        pushLog("combat", `You cast ${spell.name} — the magic settles, but there is no enemy in the scene.`);
+      } else {
+        const p = parseDice(spell.damage ?? "2d6");
+        const rolled = rollDice(p.count, p.sides);
+        const raw = sum(rolled) + p.flat;
+        const total = saved ? Math.max(1, Math.floor(raw / 2)) : raw;
+        const dmgDice = buildDiceResult({
+          system: "dnd5e",
+          label: `${spell.name} — damage`,
+          kind: "damage",
+          rolls: rolled,
+          diceNotation: `${p.count}d${p.sides}${p.flat !== 0 ? (p.flat > 0 ? `+${p.flat}` : p.flat) : ""}${saved ? " (halved)" : ""}`,
+          modifiers: [],
+          total,
+          outcome: "success",
+          breakdown: saved
+            ? `${spell.name} deals half damage (${total}) on a successful save`
+            : `${spell.name} deals full damage (${total})`,
+        });
+        pushLog("dice", "", dmgDice);
+        setAdventure((prev) => ({
+          ...prev,
+          enemies: prev.enemies.map((e) =>
+            e.id === enemy.id ? { ...e, hp: Math.max(0, e.hp - total) } : e,
+          ),
+          updatedAt: Date.now(),
+        }));
+        const slain = enemy.hp - total <= 0;
+        pushLog(
+          "combat",
+          saved
+            ? `${enemy.name} braces against the magic and takes only ${total} damage.`
+            : slain
+              ? `${enemy.name} is consumed by your ${spell.name}.`
+              : `${enemy.name} takes ${total} damage (${Math.max(0, enemy.hp - total)} HP left).`,
+        );
+        if (slain) awardKill(enemy);
+      }
+      void gmRespond({ playerText: `I cast ${spell.name}.` });
+    },
+    [updateChar, pushLog, gmRespond, awardKill, rollPrefs.dc],
+  );
+
   const attackDamageFlow = async (attackDice: AdventureState["diceLog"][number], char: Character) => {
     const enemy = firstAliveEnemy();
     const hit = attackDice.outcome === "success" || attackDice.outcome === "critical-success";
@@ -652,6 +1006,7 @@ export default function GameBoard({ character, onNewCharacter, onSignOut }: Prop
     pushLog("dice", "", dmgDice);
     if (enemy.hp - damageTotal <= 0) {
       pushLog("combat", `${enemy.name} is slain. The immediate threat is gone — the scene falls quiet.`);
+      awardKill(enemy);
     } else {
       pushLog("combat", `${enemy.name} takes ${damageTotal} damage (${Math.max(0, enemy.hp - damageTotal)} HP left).`);
     }
@@ -768,15 +1123,17 @@ export default function GameBoard({ character, onNewCharacter, onSignOut }: Prop
         updatedAt: Date.now(),
       }));
       pushLog("dice", "", dmgDice);
+      const slain = enemy.hp - total <= 0;
       pushLog(
         "combat",
-        enemy.hp - total <= 0
+        slain
           ? `${comp.name} slays ${enemy.name}.`
           : `${comp.name} hits ${enemy.name} for ${total} damage (${Math.max(0, enemy.hp - total)} HP left).`,
       );
+      if (slain) awardKill(enemy);
       void gmRespond({ dice });
     },
-    [rollPrefs.dc, pushLog, gmRespond],
+    [rollPrefs.dc, pushLog, gmRespond, awardKill],
   );
 
   // -------------------------------------------------------------------------

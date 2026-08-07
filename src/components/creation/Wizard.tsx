@@ -600,7 +600,7 @@ export default function Wizard({ onLock, initial }: WizardProps) {
                     </p>
                   </div>
                 </div>
-                <div className="mt-4 grid grid-cols-6 gap-2">
+                <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-6">
                   {ABILITIES.map((a) => (
                     <div key={a} className="rounded-lg bg-stone-50 p-2 text-center">
                       <p className="text-[10px] font-bold uppercase text-stone-400">{a}</p>
@@ -747,7 +747,7 @@ export default function Wizard({ onLock, initial }: WizardProps) {
 
   return (
     <div className="flex min-h-screen flex-col bg-[#f7f5f0] text-stone-900">
-      <header className="flex items-center justify-between border-b border-stone-200/80 bg-white/70 px-6 py-4 backdrop-blur">
+      <header className="flex items-center justify-between border-b border-stone-200/80 bg-white/70 px-4 py-3 backdrop-blur sm:px-6 sm:py-4">
         <div className="flex items-center gap-3">
           <div className="flex size-9 items-center justify-center rounded-lg bg-stone-900 text-amber-400">
             <Dices className="size-5" />
@@ -808,7 +808,7 @@ export default function Wizard({ onLock, initial }: WizardProps) {
         </aside>
 
         {/* Content */}
-        <main className="flex-1 overflow-y-auto px-6 py-8 lg:px-10">
+        <main className="flex-1 overflow-y-auto px-4 py-6 sm:px-6 lg:px-10">
           <div className="mx-auto max-w-4xl pb-24">{renderStep()}</div>
         </main>
       </div>
