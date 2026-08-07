@@ -1798,7 +1798,7 @@ export default function GameBoard({ character, onNewCharacter, onSignOut }: Prop
   };
 
   return (
-    <div className="flex h-screen flex-col bg-slate-950 text-slate-100">
+    <div className="flex h-screen flex-col bg-slate-950 text-slate-100 supports-[height:100dvh]:h-dvh">
       <TopBar
         adventure={adventure}
         hpText={hpText}

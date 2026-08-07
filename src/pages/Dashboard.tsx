@@ -42,7 +42,7 @@ function StartScreen({
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#f7f5f0] text-stone-900">
+    <div className="flex min-h-screen flex-col bg-[#f7f5f0] text-stone-900 supports-[height:100dvh]:min-h-dvh">
       <header className="flex items-center justify-between border-b border-stone-200/80 bg-white/70 px-6 py-4 backdrop-blur">
         <div className="flex items-center gap-3">
           <div className="flex size-9 items-center justify-center rounded-lg bg-stone-900 text-amber-400">

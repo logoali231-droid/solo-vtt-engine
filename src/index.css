@@ -134,6 +134,13 @@
   }
 }
 
+/* Mobile hardening — no font inflation on iOS rotation, no grey tap flash */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
 /* Quiet scrollbars for the VTT */
 @layer utilities {
   .oracle-scroll::-webkit-scrollbar {

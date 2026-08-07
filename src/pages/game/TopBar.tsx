@@ -101,7 +101,7 @@ export default function TopBar({
 
   return (
     <>
-      <header className="flex shrink-0 items-center gap-1.5 border-b border-slate-800 bg-slate-950/95 px-2.5 py-2 sm:gap-3 sm:px-4 sm:py-2.5">
+      <header className="flex flex-wrap shrink-0 items-center gap-x-1.5 gap-y-1.5 border-b border-slate-800 bg-slate-950/95 px-2.5 py-2 sm:gap-x-3 sm:gap-y-2 sm:px-4 sm:py-2.5">
         <button
           type="button"
           onClick={onOpenSheet}
@@ -111,7 +111,7 @@ export default function TopBar({
           <Menu className="size-4" />
         </button>
         <div className="flex items-center gap-2.5">
-          <div className="flex size-8 items-center justify-center rounded-lg bg-amber-500 text-slate-950">
+          <div className="hidden size-8 items-center justify-center rounded-lg bg-amber-500 text-slate-950 min-[420px]:flex">
             <Dices className="size-4.5" />
           </div>
           <div className="hidden sm:block">

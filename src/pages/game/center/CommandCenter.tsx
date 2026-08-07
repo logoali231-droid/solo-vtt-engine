@@ -143,7 +143,7 @@ export default function CommandCenter({
                 ? "Action — e.g. “I recall knowledge about the creature”…"
                 : "Action — e.g. “I sneak toward the guard”…"
           }
-          className="h-10 flex-1 rounded-lg border border-slate-700 bg-slate-900 px-3.5 text-sm text-slate-100 placeholder:text-slate-600 outline-none transition-colors focus:border-amber-500/60 focus:ring-2 focus:ring-amber-500/20"
+          className="h-10 flex-1 rounded-lg border border-slate-700 bg-slate-900 px-3.5 text-[16px] text-slate-100 placeholder:text-slate-600 outline-none transition-colors focus:border-amber-500/60 focus:ring-2 focus:ring-amber-500/20 sm:text-sm"
         />
         <button
           type="button"
