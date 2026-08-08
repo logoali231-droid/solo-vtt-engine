@@ -131,6 +131,11 @@ export const generate = action({
           "Ground the scene in the ADVENTURE STATE and RECENT HISTORY (the player's campaign briefing) below — honor the chosen tone, genre, setting, style, villain, stakes and company.",
           "Place the hero at the threshold of the story, show the setting and the first thread, then leave the scene in motion.",
           "Do not end with a question. Do not summarize the plot. Never roll dice yourself; the engine rolls.",
+          ...(args.system === "dnd5e"
+            ? [`\n\nD&D 5E RULES REFERENCE (grounds every narration in the real rules):\n${dndRulesContext()}`]
+            : args.system === "pf2e"
+              ? [`\n\nPATHFINDER 2E RULES & REFERENCE CORPUS (grounds every narration in the real rules):\n${pf2eRulesContext()}`]
+              : []),
           lang === "pt-BR"
             ? "Escreva sempre em português brasileiro, com tom envolvente e imagens vívidas."
             : "Always respond in English.",

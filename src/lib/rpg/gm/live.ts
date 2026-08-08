@@ -125,6 +125,11 @@ function buildOpeningMessages(
         "Ground every detail in the campaign briefing below — honor the chosen tone, genre, setting, style, villain, stakes and company.",
         "Place the hero at the threshold of the story, show the setting and the first thread, then leave the scene in motion.",
         "Do not end with a question. Do not summarize the plot. Never roll dice yourself.",
+        ...(adventure.system === "dnd5e"
+          ? [`Rules reference: ${dndRulesContext()}`]
+          : adventure.system === "pf2e"
+            ? [`Rules reference: ${pf2eRulesContext()}`]
+            : []),
         languageInstruction(settings.language),
       ].join(" "),
     },
