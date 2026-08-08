@@ -5,7 +5,7 @@ import {
   getPf2eDerived,
   applyConditions,
 } from "@/lib/rpg/character";
-import { CONDITIONS } from "@/lib/rpg/data/conditions";
+import { CONDITIONS, CONDITION_MAP } from "@/lib/rpg/data/conditions";
 import { CLASS_MAP } from "@/lib/rpg/data/dnd";
 import { SPELL_MAP } from "@/lib/rpg/data/spells";
 import { GURPS_SKILL_MAP } from "@/lib/rpg/data/gurps";
@@ -261,7 +261,7 @@ export default function GameBoard({
     return createAdventure(character, settings.language, settings);
   });
   const [gmBusy, setGmBusy] = useState(false);
-  const [rollPrefs, setRollPrefs] = useState({ adv: false, dis: false, dc: 13 });
+  const [rollPrefs, setRollPrefs] = useState({ dc: 13 });
   const [featurePicker, setFeaturePicker] = useState(false);
   const [saveDialog, setSaveDialog] = useState(false);
   const [saveLabel, setSaveLabel] = useState("");
@@ -457,6 +457,38 @@ export default function GameBoard({
   );
 
   // -------------------------------------------------------------------------
+  // Automatic advantage / disadvantage — derived from context, never toggled.
+  // Sources: hero conditions (applyConditions), hero unseen status, and the
+  // target enemy's own conditions (prone / restrained / blinded / hidden…).
+  // -------------------------------------------------------------------------
+  const TARGET_GRANTS_ADV = ["restrained", "blinded", "stunned", "incapacitated", "unconscious", "paralyzed"];
+
+  const targetAttackContext = (
+    enemy: EnemyState | null | undefined,
+    ranged: boolean,
+  ): { advantage: boolean; disadvantage: boolean; advSources: string[]; disSources: string[] } => {
+    const advSources: string[] = [];
+    const disSources: string[] = [];
+    for (const c of enemy?.conditions ?? []) {
+      const name = CONDITION_MAP[c]?.name.toLowerCase() ?? c;
+      if (c === "prone") {
+        if (ranged) disSources.push("ranged attack vs prone target");
+        else advSources.push("target is prone (melee)");
+      } else if (c === "hidden" || c === "invisible") {
+        disSources.push("can't see the target");
+      } else if (TARGET_GRANTS_ADV.includes(c)) {
+        advSources.push(`target is ${name}`);
+      }
+    }
+    return {
+      advantage: advSources.length > 0,
+      disadvantage: disSources.length > 0,
+      advSources,
+      disSources,
+    };
+  };
+
+  // -------------------------------------------------------------------------
   // Core dice engine entry point
   // -------------------------------------------------------------------------
   function roll(request: RollRequest): DiceResult | undefined {
@@ -478,14 +510,52 @@ export default function GameBoard({
           ability: request.ability,
         }, COND_EFFECTS);
 
-        let advantage = rollPrefs.adv || cond.advantage;
-        const disadvantage = rollPrefs.dis || cond.disadvantage;
-        if (char.state.activeStatus.includes("raging") && request.ability === "str") advantage = true;
+        // Advantage / disadvantage is ALWAYS derived from context — there is
+        // no manual toggle. Sources: the hero's own conditions (poisoned →
+        // disadvantage…), rage / reckless / fighting spirit, unseen-attacker
+        // status (hidden / invisible), and the target enemy's state.
+        let advantage = cond.advantage;
+        let disadvantage = cond.disadvantage;
+        const advSources: string[] = [];
+        const disSources: string[] = [];
+        if (char.state.activeStatus.includes("raging") && request.ability === "str") {
+          advantage = true;
+          advSources.push("raging");
+        }
         if (
           char.state.activeStatus.includes("reckless") ||
           char.state.activeStatus.includes("fighting-spirit")
         ) {
-          if (request.kind === "attack") advantage = true;
+          if (request.kind === "attack") {
+            advantage = true;
+            advSources.push(char.state.activeStatus.includes("reckless") ? "reckless attack" : "fighting spirit");
+          }
+        }
+        // Unseen attacker — hidden or invisible heroes strike with advantage.
+        if (
+          request.kind === "attack" &&
+          (char.state.conditions.includes("hidden") ||
+            char.state.conditions.includes("invisible") ||
+            char.state.activeStatus.includes("hidden") ||
+            char.state.activeStatus.includes("invisible"))
+        ) {
+          advantage = true;
+          advSources.push("unseen attacker");
+        }
+        // Target state — a disabled / exposed foe grants advantage; a hidden
+        // or prone-at-range foe forces disadvantage.
+        if (request.kind === "attack") {
+          const atk = d.attacks.find((a) => request.label.startsWith(a.name));
+          const ranged = atk ? atk.range != null && atk.range !== "—" : false;
+          const tctx = targetAttackContext(firstAliveEnemy(), ranged);
+          if (tctx.advantage) {
+            advantage = true;
+            advSources.push(...tctx.advSources);
+          }
+          if (tctx.disadvantage) {
+            disadvantage = true;
+            disSources.push(...tctx.disSources);
+          }
         }
 
         const extra: RollModifierLine[] = [...cond.lines];
@@ -529,6 +599,8 @@ export default function GameBoard({
           critical: res.nat20 || res.nat1,
           advantage,
           disadvantage,
+          advSources: advSources.length > 0 ? advSources : undefined,
+          disSources: disSources.length > 0 ? disSources : undefined,
           breakdown: res.breakdown,
           featureUsed,
         });
@@ -565,12 +637,12 @@ export default function GameBoard({
         const rank = request.rank ?? "untrained";
         const tierBonus = pfTierBonus(rank, char.level);
         const extra: RollModifierLine[] = [...cond.lines];
+        // PF2e has no advantage mechanic — status penalties from conditions
+        // (via applyConditions) are the automatic context here.
         const res = resolveD20Check({
           dc: request.dc ?? rollPrefs.dc,
           abilityMod: request.ability ? d.mods[request.ability] : 0,
           bonus: tierBonus + (request.pf2eBonus ?? 0),
-          advantage: rollPrefs.adv,
-          disadvantage: rollPrefs.dis,
           extra,
           system: "pf2e",
           natAdjust: true,
@@ -839,11 +911,39 @@ export default function GameBoard({
 
       // --- Attack-roll spells ---
       if (spell.attack) {
+        // Same automatic context engine as weapon attacks: unseen attacker
+        // and the target's state (spells resolve at range, so a prone foe
+        // imposes disadvantage instead of granting melee advantage).
+        const heroState = snap.character as DnDCharacter;
+        const advSources: string[] = [];
+        const disSources: string[] = [];
+        let advantage = false;
+        let disadvantage = false;
+        if (
+          heroState.state.conditions.includes("hidden") ||
+          heroState.state.conditions.includes("invisible") ||
+          heroState.state.activeStatus.includes("hidden") ||
+          heroState.state.activeStatus.includes("invisible")
+        ) {
+          advantage = true;
+          advSources.push("unseen attacker");
+        }
+        const tctx = targetAttackContext(enemy, true);
+        if (tctx.advantage) {
+          advantage = true;
+          advSources.push(...tctx.advSources);
+        }
+        if (tctx.disadvantage) {
+          disadvantage = true;
+          disSources.push(...tctx.disSources);
+        }
         const targetAC = enemy?.ac ?? rollPrefs.dc;
         const res = resolveD20Check({
           dc: targetAC,
           abilityMod: spellMod,
           bonus: d.profBonus,
+          advantage,
+          disadvantage,
           system: "dnd5e",
         });
         const dice = buildDiceResult({
@@ -851,7 +951,7 @@ export default function GameBoard({
           label: `${spell.name} (spell attack vs AC ${targetAC})`,
           kind: "attack",
           rolls: res.rolls,
-          diceNotation: `1d20 + ${spellMod + d.profBonus}`,
+          diceNotation: `${advantage || disadvantage ? "2d20 kh" : "1d20"} + ${spellMod + d.profBonus}`,
           modifiers: [
             { label: "Spell ability", value: spellMod, source: "ability" },
             { label: "Proficiency", value: d.profBonus, source: "proficiency" },
@@ -860,6 +960,10 @@ export default function GameBoard({
           target: targetAC,
           outcome: res.outcome,
           critical: res.nat20 || res.nat1,
+          advantage,
+          disadvantage,
+          advSources: advSources.length > 0 ? advSources : undefined,
+          disSources: disSources.length > 0 ? disSources : undefined,
           breakdown: res.breakdown,
         });
         pushLog("dice", "", dice);
@@ -1579,7 +1683,7 @@ export default function GameBoard({
   // Reroll from dice card
   // -------------------------------------------------------------------------
   const rerollDice = useCallback(
-    (diceId: string, opts: { advantage?: boolean; disadvantage?: boolean }) => {
+    (diceId: string) => {
       const snap = adventureRef.current;
       const entry = snap.logs.find((l) => l.dice?.id === diceId);
       if (!entry?.dice) return;
@@ -1596,9 +1700,14 @@ export default function GameBoard({
         pushLog("dice", "", dice);
         return;
       }
+      // A reroll preserves the ORIGINAL automatic context — advantage and
+      // disadvantage were derived from the situation when the first roll was
+      // made, and nothing about the situation changed for a reroll.
+      const useAdv = original.advantage === true;
+      const useDis = original.disadvantage === true;
       const first = rollDie(20);
-      const second = opts.advantage || opts.disadvantage ? rollDie(20) : first;
-      const kept = opts.advantage && !opts.disadvantage ? Math.max(first, second) : opts.disadvantage && !opts.advantage ? Math.min(first, second) : first;
+      const second = useAdv || useDis ? rollDie(20) : first;
+      const kept = useAdv && !useDis ? Math.max(first, second) : useDis && !useAdv ? Math.min(first, second) : first;
       const flat = original.modifiers.reduce((a, l) => a + l.value, 0);
       const total = kept + flat;
       const dc = original.target ?? rollPrefs.dc;
@@ -1620,15 +1729,17 @@ export default function GameBoard({
         kind: original.kind,
         // Only include the second die when advantage/disadvantage actually
         // rolled one — a plain reroll must render a single die face.
-        rolls: opts.advantage || opts.disadvantage ? [first, second] : [first],
-        diceNotation: `${opts.advantage || opts.disadvantage ? "2d20 kh" : "1d20"} + ${flat}`,
+        rolls: useAdv || useDis ? [first, second] : [first],
+        diceNotation: `${useAdv || useDis ? "2d20 kh" : "1d20"} + ${flat}`,
         modifiers: original.modifiers,
         total,
         target: dc,
         outcome,
         critical: kept === 20 || kept === 1,
-        advantage: opts.advantage,
-        disadvantage: opts.disadvantage,
+        advantage: useAdv,
+        disadvantage: useDis,
+        advSources: original.advSources,
+        disSources: original.disSources,
         breakdown: `${kept} + ${flat} = ${total} vs DC ${dc} → ${outcome.replace("-", " ").toUpperCase()}`,
       });
       pushLog("dice", "", dice);
@@ -1657,6 +1768,43 @@ export default function GameBoard({
     [updateChar, pushLog],
   );
 
+
+  // Toggle a condition on the current foe — feeds the automatic
+  // advantage/disadvantage engine (a prone goblin grants melee advantage,
+  // a hidden one forces disadvantage, etc.).
+  const toggleEnemyCondition = useCallback(
+    (id: string) => {
+      const snap = adventureRef.current;
+      const target = snap.enemies.find((e) => e.hp > 0);
+      if (!target) {
+        pushLog("system", "No enemy in the scene — use “New Encounter” to set one up first.");
+        return;
+      }
+      const has = (target.conditions ?? []).includes(id);
+      const def = CONDITIONS.find((cd) => cd.id === id);
+      setAdventure((prev) => ({
+        ...prev,
+        enemies: prev.enemies.map((e) =>
+          e.id === target.id
+            ? {
+                ...e,
+                conditions: has
+                  ? (e.conditions ?? []).filter((c) => c !== id)
+                  : [...(e.conditions ?? []), id],
+              }
+            : e,
+        ),
+        updatedAt: Date.now(),
+      }));
+      pushLog(
+        "system",
+        has
+          ? `${target.name} is no longer ${def?.name.toLowerCase() ?? id}.`
+          : `${target.name} is now ${def?.name.toLowerCase() ?? id} — the dice engine will apply it automatically.`,
+      );
+    },
+    [pushLog],
+  );
   // -------------------------------------------------------------------------
   // Panel actions bundle
   // -------------------------------------------------------------------------
@@ -1944,6 +2092,8 @@ export default function GameBoard({
               pendingCount={
                 c.system === "dnd5e" ? (c as DnDCharacter).state.pending.length + (c as DnDCharacter).state.damagePending.length : 0
               }
+              enemyConditions={adventure.enemies.find((e) => e.hp > 0)?.conditions ?? []}
+              onEnemyConditionToggle={toggleEnemyCondition}
             />
           </div>
           <AdSlot settings={ads} />

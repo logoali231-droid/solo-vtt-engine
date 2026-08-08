@@ -244,6 +244,8 @@ export interface BuildResultOptions {
   margin?: number;
   advantage?: boolean;
   disadvantage?: boolean;
+  advSources?: string[];
+  disSources?: string[];
   critical?: boolean;
   breakdown: string;
   featureUsed?: string;

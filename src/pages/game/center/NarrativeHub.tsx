@@ -5,7 +5,7 @@ import DiceCard from "./DiceCard";
 
 interface Props {
   logs: LogEntry[];
-  onReroll: (diceId: string, opts: { advantage?: boolean; disadvantage?: boolean }) => void;
+  onReroll: (diceId: string) => void;
 }
 
 export default function NarrativeHub({ logs, onReroll }: Props) {
@@ -21,10 +21,7 @@ export default function NarrativeHub({ logs, onReroll }: Props) {
         if (entry.kind === "dice" && entry.dice) {
           return (
             <div key={entry.id} className="max-w-xl">
-              <DiceCard
-                result={entry.dice}
-                onReroll={(opts) => onReroll(entry.id, { advantage: opts.advantage, disadvantage: opts.disadvantage })}
-              />
+              <DiceCard result={entry.dice} onReroll={() => onReroll(entry.id)} />
             </div>
           );
         }

@@ -495,6 +495,7 @@ export function applyConditions(
     res.sources.push(id);
     if (system === "dnd5e") {
       if (ctx.kind === "attack" && e.attackDisadvantage) res.disadvantage = true;
+      if (ctx.kind === "attack" && e.attackAdvantage) res.advantage = true;
       if (ctx.kind === "check" && e.abilityCheckDisadvantage) res.disadvantage = true;
       if (ctx.kind === "save") {
         if (e.saveDisadvantage) res.disadvantage = true;

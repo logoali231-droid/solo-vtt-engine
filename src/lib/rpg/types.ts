@@ -98,6 +98,10 @@ export interface DiceResult {
   margin?: number;
   advantage?: boolean;
   disadvantage?: boolean;
+  /** Why advantage was granted automatically (e.g. "unseen attacker"). */
+  advSources?: string[];
+  /** Why disadvantage was granted automatically (e.g. "can't see the target"). */
+  disSources?: string[];
   critical?: boolean;
   breakdown: string;
   featureUsed?: string;
@@ -391,6 +395,10 @@ export interface ConditionEffect {
   // D&D 5e
   attackDisadvantage?: boolean;
   attacksAgainstAdvantage?: boolean;
+  /** Your attack rolls have advantage (e.g. invisible / unseen attacker). */
+  attackAdvantage?: boolean;
+  /** Attack rolls made against you have disadvantage (e.g. invisible). */
+  attacksAgainstDisadvantage?: boolean;
   abilityCheckDisadvantage?: boolean;
   saveDisadvantage?: boolean;
   dexSaveDisadvantage?: boolean;
@@ -744,6 +752,8 @@ export interface EnemyState {
   maxHp: number;
   attackBonus: number;
   damage: string;
+  /** Active conditions on this foe — feed the auto advantage/disadvantage engine (e.g. prone, restrained). */
+  conditions?: string[];
   // Kill rewards — awarded automatically when the foe is slain.
   xp?: number;
   gold?: number;

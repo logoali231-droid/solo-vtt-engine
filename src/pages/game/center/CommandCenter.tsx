@@ -1,8 +1,9 @@
 import { cn } from "@/lib/utils";
 import type { GameSystem } from "@/lib/rpg/types";
 import type { RollRequest } from "../types";
-import { Loader2, Send } from "lucide-react";
+import { Loader2, Send, Sparkles } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { CONDITION_MAP } from "@/lib/rpg/data/conditions";
 
 export interface QuickAction {
   id: string;
@@ -10,15 +11,22 @@ export interface QuickAction {
   hint: string;
 }
 
+/** Foe states that the auto engine reads at attack time (D&D 5e). */
+const ENEMY_STATES = ["prone", "restrained", "blinded", "stunned", "incapacitated", "invisible"];
+
 interface Props {
   system: GameSystem;
   onSend: (text: string) => void;
   onQuickAction: (id: string) => void;
   onRoll: (r: RollRequest) => void;
   busy: boolean;
-  rollPrefs: { adv: boolean; dis: boolean; dc: number };
-  setRollPrefs: (p: { adv: boolean; dis: boolean; dc: number }) => void;
+  /** Difficulty class — the only manual roll preference left. */
+  rollPrefs: { dc: number };
+  setRollPrefs: (p: { dc: number }) => void;
   pendingCount: number;
+  /** Conditions on the current foe — drive automatic advantage/disadvantage. */
+  enemyConditions?: string[];
+  onEnemyConditionToggle?: (id: string) => void;
 }
 
 export default function CommandCenter({
@@ -29,6 +37,8 @@ export default function CommandCenter({
   rollPrefs,
   setRollPrefs,
   pendingCount,
+  enemyConditions,
+  onEnemyConditionToggle,
 }: Props) {
   const [text, setText] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -76,31 +86,39 @@ export default function CommandCenter({
 
   return (
     <div className="shrink-0 border-t border-slate-800 bg-slate-950/95 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2.5 backdrop-blur sm:px-4 sm:pt-3">
-      {/* Roll preferences */}
+      {/* Roll preferences — advantage/disadvantage is ALWAYS automatic;
+          the only manual preference left is the difficulty class. */}
       <div className="mb-2 flex flex-wrap items-center gap-2">
-        <div className="flex items-center gap-1">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Roll:</span>
-          <button
-            type="button"
-            onClick={() => setRollPrefs({ ...rollPrefs, adv: !rollPrefs.adv, dis: false })}
-            className={cn(
-              "rounded px-2 py-1 text-[10px] font-bold transition-colors",
-              rollPrefs.adv ? "bg-amber-500/25 text-amber-300" : "bg-slate-900 text-slate-500 hover:text-slate-300",
-            )}
-          >
-            ⇡ Adv
-          </button>
-          <button
-            type="button"
-            onClick={() => setRollPrefs({ ...rollPrefs, dis: !rollPrefs.dis, adv: false })}
-            className={cn(
-              "rounded px-2 py-1 text-[10px] font-bold transition-colors",
-              rollPrefs.dis ? "bg-red-500/25 text-red-300" : "bg-slate-900 text-slate-500 hover:text-slate-300",
-            )}
-          >
-            ⇣ Dis
-          </button>
-        </div>
+        <span
+          title="Advantage and disadvantage are applied automatically from context: your conditions (poisoned, blinded…), unseen-attacker status (hidden / invisible), class features (rage, reckless attack) and the target's state (prone, restrained, hidden…)."
+          className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[9px] font-bold uppercase tracking-widest text-amber-300"
+        >
+          <Sparkles className="size-3" /> Adv/Dis · auto
+        </span>
+        {system === "dnd5e" && onEnemyConditionToggle && (
+          <div className="flex flex-wrap items-center gap-1">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Foe:</span>
+            {ENEMY_STATES.map((id) => {
+              const on = (enemyConditions ?? []).includes(id);
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => onEnemyConditionToggle(id)}
+                  className={cn(
+                    "rounded px-1.5 py-0.5 text-[9px] font-bold capitalize transition-colors",
+                    on
+                      ? "bg-rose-500/25 text-rose-300 ring-1 ring-rose-500/50"
+                      : "bg-slate-900 text-slate-500 hover:text-slate-300",
+                  )}
+                  title={`Mark the current foe ${CONDITION_MAP[id]?.name.toLowerCase() ?? id} — attack rolls adapt automatically`}
+                >
+                  {CONDITION_MAP[id]?.name.toLowerCase() ?? id}
+                </button>
+              );
+            })}
+          </div>
+        )}
         <div className="flex items-center gap-1">
           <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">DC</span>
           <button type="button" onClick={() => setRollPrefs({ ...rollPrefs, dc: Math.max(5, rollPrefs.dc - 1) })}

@@ -32,7 +32,7 @@ const ADV_CHIP: Record<"adv" | "dis" | "both", { label: string; cls: string }> =
 
 interface Props {
   result: DiceResult;
-  onReroll?: (opts: { advantage?: boolean; disadvantage?: boolean; dc?: number }) => void;
+  onReroll?: () => void;
 }
 
 export default function DiceCard({ result, onReroll }: Props) {
@@ -83,7 +83,7 @@ export default function DiceCard({ result, onReroll }: Props) {
       const now = Date.now();
       if (mag > 32 && now - lastShake.current > 2500) {
         lastShake.current = now;
-        onReroll({});
+        onReroll();
       }
     };
     window.addEventListener("devicemotion", handler);
@@ -98,6 +98,16 @@ export default function DiceCard({ result, onReroll }: Props) {
           {advChip && (
             <span className={cn("rounded-full border px-2 py-0.5 text-[9px] font-bold tracking-widest", advChip.cls)}>
               {advChip.label}
+            </span>
+          )}
+          {(result.advSources?.length ?? 0) > 0 && (
+            <span className="rounded-full border border-amber-500/25 bg-amber-500/5 px-2 py-0.5 text-[8px] font-medium text-amber-300/90">
+              {result.advSources!.join(" · ")}
+            </span>
+          )}
+          {(result.disSources?.length ?? 0) > 0 && (
+            <span className="rounded-full border border-red-500/25 bg-red-500/5 px-2 py-0.5 text-[8px] font-medium text-red-300/90">
+              {result.disSources!.join(" · ")}
             </span>
           )}
           {result.target !== undefined && (
@@ -168,29 +178,10 @@ export default function DiceCard({ result, onReroll }: Props) {
 
       {onReroll && (
         <div className="flex items-center gap-1.5 border-t border-slate-800 px-3 py-1.5">
+          <span className="text-[9px] text-slate-600">Advantage / disadvantage follow the situation automatically.</span>
           <button
             type="button"
-            onClick={() => onReroll({ advantage: true })}
-            className={cn(
-              "rounded px-2 py-0.5 text-[10px] font-semibold transition-colors",
-              result.advantage ? "bg-amber-500/20 text-amber-300" : "text-slate-500 hover:bg-slate-800 hover:text-slate-300",
-            )}
-          >
-            ⇡ Advantage
-          </button>
-          <button
-            type="button"
-            onClick={() => onReroll({ disadvantage: true })}
-            className={cn(
-              "rounded px-2 py-0.5 text-[10px] font-semibold transition-colors",
-              result.disadvantage ? "bg-red-500/20 text-red-300" : "text-slate-500 hover:bg-slate-800 hover:text-slate-300",
-            )}
-          >
-            ⇣ Disadvantage
-          </button>
-          <button
-            type="button"
-            onClick={() => onReroll({})}
+            onClick={() => onReroll()}
             className="ml-auto flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-semibold text-slate-500 hover:bg-slate-800 hover:text-slate-300"
           >
             <RefreshCw className="size-3" /> Roll again

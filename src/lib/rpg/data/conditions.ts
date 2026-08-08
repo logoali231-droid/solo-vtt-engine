@@ -130,6 +130,24 @@ export const CONDITIONS: ConditionDef[] = [
       gurpsPenalty: -1,
     },
   },
+  {
+    id: "hidden",
+    name: "Hidden",
+    summary: "You're out of sight. Attack rolls you make have advantage (unseen attacker).",
+    effects: {
+      attackAdvantage: true,
+      attacksAgainstDisadvantage: true,
+    },
+  },
+  {
+    id: "invisible",
+    name: "Invisible",
+    summary: "You can't be seen. Attack rolls you make have advantage, and attacks against you have disadvantage.",
+    effects: {
+      attackAdvantage: true,
+      attacksAgainstDisadvantage: true,
+    },
+  },
 ];
 
 export const CONDITION_MAP: Record<string, ConditionDef> = Object.fromEntries(
