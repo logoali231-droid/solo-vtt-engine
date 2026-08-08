@@ -4,6 +4,7 @@ import { getDndDerived, getGurpsDerived, getPf2eDerived } from "../character";
 import type { AdventureState, GmSettings, GmTurn } from "../types";
 import { campaignBriefing, prefsOf } from "../types";
 import { payloadToJson, serializeAdventure } from "../serializer";
+import { dndRulesContext } from "../data/adventure-samples";
 import { MAX_RECENT_MESSAGES, streamChatWithProvider, type ChatMessage } from "./providers";
 import { localRespond } from "./local";
 
@@ -38,6 +39,8 @@ function buildSystemPrompt(
     "Narrate in vivid second-person prose, 2-5 short paragraphs, advancing the scene. NPCs have desires and secrets.",
     "End each response with a single evocative question or hook for the player's next move.",
     languageInstruction(settings.language),
+    "",
+    adventure.system === "dnd5e" ? `D&D 5E RULES REFERENCE (grounds every narration in the real rules):\n${dndRulesContext()}` : "",
     "",
     lorebook
       ? `WORLD LOREBOOK (facts about this campaign — use them when relevant):\n${lorebook}`
@@ -154,6 +157,7 @@ export function useGmClient(settings: GmSettings) {
         history: [brief],
         model: settings.model || undefined,
         language: settings.language,
+        system: adventure.system,
         opening: true,
       });
       if (res.ok && res.text) {
@@ -199,6 +203,7 @@ export function useGmClient(settings: GmSettings) {
           history,
           model: settings.model || undefined,
           language: settings.language,
+          system: adventure.system,
         });
         if (res.ok && res.text) {
           onDelta(res.text);

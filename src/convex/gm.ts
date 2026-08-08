@@ -1,5 +1,6 @@
 import { action } from "./_generated/server.js";
 import { v } from "convex/values";
+import { dndRulesContext } from "../lib/rpg/data/adventure-samples";
 
 // Live Game Master completion endpoint (OpenAI-compatible chat completions).
 // The API key lives server-side: OPENAI_API_KEY (set in the Keys/API keys UI).
@@ -9,6 +10,7 @@ export const generate = action({
     history: v.array(v.string()), // recent narrative/player log lines (or the campaign briefing for the opening scene)
     model: v.optional(v.string()), // OpenAI model id
     language: v.optional(v.string()), // "en" | "pt-BR"
+    system: v.optional(v.string()), // "dnd5e" | "pf2e" | "gurps" — gates the injected rules corpus
     opening: v.optional(v.boolean()), // true = generate the campaign's AI opening scene
   },
   handler: async (_ctx, args) => {
@@ -38,7 +40,12 @@ export const generate = action({
           lang === "pt-BR"
             ? "Narre sempre em português brasileiro, com tom envolvente e imagens vívidas."
             : "Always respond in English.",
-        ].join(" ");
+          args.system === "dnd5e"
+            ? `\n\nD&D 5E RULES REFERENCE (grounds every narration in the real rules):\n${dndRulesContext()}`
+            : null,
+        ]
+          .filter((x): x is string => !!x)
+          .join(" ");
 
     const user = [
       args.opening ? "OPENING SCENE REQUEST — write the opening of this campaign now." : null,

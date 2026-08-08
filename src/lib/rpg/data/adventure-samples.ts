@@ -226,4 +226,53 @@ export const dndTestCases = {
   ],
 } as const;
 
+type TestCase = { instruction: string; output: string };
+
+/** Flatten a golden example's JSON output into a single readable line. */
+function formatExample(c: TestCase): string {
+  try {
+    const o = JSON.parse(c.output) as {
+      narracao?: string;
+      teste_sucesso?: boolean;
+      dados_alterados?: Record<string, unknown>;
+    };
+    const parts: string[] = [];
+    if (typeof o.teste_sucesso === "boolean") {
+      parts.push(o.teste_sucesso ? "outcome: success" : "outcome: failure");
+    }
+    if (o.narracao) parts.push(o.narracao);
+    if (o.dados_alterados && Object.keys(o.dados_alterados).length > 0) {
+      parts.push(`state changes: ${JSON.stringify(o.dados_alterados)}`);
+    }
+    return parts.join(" — ");
+  } catch {
+    return c.output;
+  }
+}
+
+/** Format the D&D 5e golden rules corpus into a compact prompt block. Feed this
+ *  to the AI GM as system context whenever the adventure runs D&D 5e, so it
+ *  narrates dice outcomes faithfully and applies modifiers/DCs/state changes
+ *  exactly like the engine. */
+export function dndRulesContext(): string {
+  const sections: { title: string; cases: readonly TestCase[] }[] = [
+    { title: "SKILL CHECKS & SAVING THROWS", cases: dndTestCases.mecanicas },
+    { title: "ATTRIBUTES, HP & AC", cases: dndTestCases.atributos },
+    { title: "COMBAT", cases: dndTestCases.combate },
+  ];
+  const lines: string[] = [
+    "D&D 5E RULES & NARRATION EXAMPLES (golden reference from the Oraculum rules corpus).",
+    "The engine rolls the dice and resolves outcomes — you only narrate. Study these examples to narrate faithfully: apply the exact modifiers and DCs shown, honor advantage/disadvantage and criticals, and reflect state changes (HP, conditions, resources) in the scene.",
+    "The example narrations below are drawn from a Portuguese rules corpus — match the player's language, not the examples'.",
+  ];
+  for (const s of sections) {
+    lines.push(`[${s.title}]`);
+    s.cases.forEach((c, i) => {
+      lines.push(`${i + 1}. ${c.instruction}`);
+      lines.push(`   → ${formatExample(c)}`);
+    });
+  }
+  return lines.join("\n");
+}
+
 export default dndTestCases;
