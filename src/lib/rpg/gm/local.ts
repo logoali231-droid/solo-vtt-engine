@@ -14,6 +14,7 @@ import type {
 } from "../types";
 import { adventureScene, prefsOf } from "../types";
 import { getDndDerived, getGurpsDerived, getPf2eDerived } from "../character";
+import { formatMod } from "../dice";
 
 function pick<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
@@ -119,6 +120,12 @@ const EN = {
   roads: ["deeper into the wilds", "toward the village lights", "past the old keep", "into the dark wood"],
   watchHint: " Near the edge of the firelight, something watches. It does not approach — yet.",
   shortRest: "You catch your breath, tend to your wounds, and recover your strength.",
+  gurpsCrit: "The dice land in your favor as if they had a grudge against the world.",
+  gurpsCritFail: "The dice betray you utterly — an 18 on the floor, and the universe grins.",
+  gurpsWide: "A clean, professional result — your training shows. The margin is wide and the outcome beyond doubt.",
+  gurpsBad: "It goes badly — the roll misses by a wide margin, and you are left scrambling to recover.",
+  pf2eCrit: "The result is exceptional — ten or more over the DC, and the world bends to your will.",
+  pf2eCritFail: "It goes wrong by a full ten — a spectacular collapse that the whole scene will remember.",
   status: (c: AdventureState["character"], sceneTitle: string, location: string, quest: string) =>
     `You are ${c.name}. ${sceneTitle} — ${location}. Current quest: ${quest}. The world waits on your next move.`,
   oraclePrefix: "The oracle answers:",
@@ -315,6 +322,12 @@ const PT: typeof EN = {
   roads: ["mais fundo no ermo", "em direção às luzes da vila", "para além do velho castelo", "para dentro da mata escura"],
   watchHint: " Perto da borda da luz da fogueira, algo observa. Não se aproxima — ainda.",
   shortRest: "Você recupera o fôlego, trata dos ferimentos e retoma as forças.",
+  gurpsCrit: "Os dados caem a seu favor como se guardassem rancor do mundo.",
+  gurpsCritFail: "Os dados o traem por completo — um 18 na mesa, e o universo sorri.",
+  gurpsWide: "Um resultado limpo e profissional — seu treinamento aparece. A margem é ampla e o desfecho não deixa dúvidas.",
+  gurpsBad: "Vai mal — a rolagem erra por uma margem larga, e você fica se recuperando do baque.",
+  pf2eCrit: "O resultado é excepcional — dez ou mais acima da CD, e o mundo se curva à sua vontade.",
+  pf2eCritFail: "Dá errado por dez completos — um colapso espetacular que a cena inteira vai lembrar.",
   status: (c: AdventureState["character"], sceneTitle: string, location: string, quest: string) =>
     `Você é ${c.name}. ${sceneTitle} — ${location}. Missão atual: ${quest}. O mundo espera o seu próximo passo.`,
   oraclePrefix: "O oráculo responde:",
@@ -521,7 +534,55 @@ function combatExtras(language: GmLanguage): {
       };
 }
 
-/** Narrate a resolved roll with system-aware flavor:
+/** The die that was kept for the roll (higher with advantage, lower with
+ *  disadvantage, otherwise the single rolled die). */
+function keptDice(dice: DiceResult): number {
+  if (dice.advantage && !dice.disadvantage) return Math.max(...dice.rolls);
+  if (dice.disadvantage && !dice.advantage) return Math.min(...dice.rolls);
+  return dice.rolls[0] ?? 0;
+}
+
+/** Localize the engine's generic modifier labels for PT-BR narration. */
+function modLabel(label: string, language: GmLanguage): string {
+  if (language !== "pt-BR") return label;
+  const map: Record<string, string> = {
+    Ability: "Atributo",
+    Proficiency: "Proficiência",
+    Bonus: "Bônus",
+    Tier: "Grau",
+    Condition: "Condição",
+    Feature: "Talento",
+    Equipment: "Equipamento",
+    Other: "Outro",
+  };
+  return map[label] ?? label;
+}
+
+/** Exact math from the roll — the local narrator mirrors the rules corpus
+ *  (adventure-samples.ts) by showing the same arithmetic the engine used:
+ *  kept die + each modifier vs the DC, then the outcome. */
+function mathLine(dice: DiceResult, language: GmLanguage): string {
+  const pt = language === "pt-BR";
+  const kept = keptDice(dice);
+  const mods =
+    dice.modifiers.length > 0
+      ? ` ${pt ? "com" : "with"} ${dice.modifiers
+          .map((m) => `${m.value >= 0 ? "+" : ""}${m.value} ${modLabel(m.label, language)}`)
+          .join(" ")}`
+      : "";
+  const vs =
+    dice.target !== undefined
+      ? ` ${pt ? "contra a CD" : "against DC"} ${dice.target}`
+      : "";
+  const die =
+    dice.system === "gurps" ? (pt ? "nos 3d6" : "on 3d6") : pt ? "no d20" : "on the d20";
+  return `${kept} ${die}${mods} = ${dice.total}${vs}`;
+}
+
+/** Narrate a resolved roll with system-aware flavor. Mirrors the golden
+ *  rules corpus (adventure-samples.ts): the outcome beat always carries the
+ *  exact math (roll + modifiers vs DC), advantage/disadvantage is called out,
+ *  and natural 20s / 1s are named like the corpus teaches.
  *  - GURPS: the 3d6 bell curve rewards margins, so how far the roll landed
  *    from the target drives the narration.
  *  - Pathfinder 2e: each of the four degrees of success gets its own beat.
@@ -535,53 +596,68 @@ function reactToDice(
   const r = b.reactions;
   const outcome = dice.outcome;
   const ex = combatExtras(language);
+  const pt = language === "pt-BR";
+  const kept = keptDice(dice);
 
   if (dice.system === "gurps" && dice.margin !== undefined) {
-    if (outcome === "critical-success") {
-      return pick([r.checkCrit, "The dice land in your favor as if they had a grudge against the world."]);
-    }
-    if (outcome === "critical-failure") {
-      return pick([r.checkCritFail, "The dice betray you utterly — an 18 on the floor, and the universe grins."]);
-    }
-    if (dice.margin >= 5) {
-      return "A clean, professional result — your training shows. The margin is wide and the outcome beyond doubt.";
-    }
-    if (dice.margin >= 0) return r.checkSuccess;
-    if (dice.margin >= -4) return r.checkFail;
-    return "It goes badly — the roll misses by a wide margin, and you are left scrambling to recover.";
+    const gmath = `3d6 = ${dice.total} ${pt ? "contra alvo" : "vs target"} ${dice.target ?? "?"} (${pt ? "margem" : "margin"} ${formatMod(dice.margin)})`;
+    if (outcome === "critical-success") return `${pick([r.checkCrit, b.gurpsCrit])} (${gmath})`;
+    if (outcome === "critical-failure") return `${pick([r.checkCritFail, b.gurpsCritFail])} (${gmath})`;
+    if (dice.margin >= 5) return `${b.gurpsWide} (${gmath})`;
+    if (dice.margin >= 0) return `${r.checkSuccess} (${gmath})`;
+    if (dice.margin >= -4) return `${r.checkFail} (${gmath})`;
+    return `${b.gurpsBad} (${gmath})`;
   }
 
   if (dice.system === "pf2e") {
+    const margin =
+      dice.target !== undefined ? dice.total - dice.target : undefined;
+    const m =
+      margin !== undefined ? ` (${pt ? "margem" : "margin"} ${formatMod(margin)})` : "";
+    const math = mathLine(dice, language);
     switch (outcome) {
       case "critical-success":
-        return pick([r.checkCrit, "The result is exceptional — ten or more over the DC, and the world bends to your will."]);
+        return `${pick([r.checkCrit, b.pf2eCrit])} ${math}${m}`;
       case "success":
-        return r.checkSuccess;
+        return `${r.checkSuccess} ${math}${m}`;
       case "failure":
-        return r.checkFail;
+        return `${r.checkFail} ${math}${m}`;
       case "critical-failure":
-        return pick([r.checkCritFail, "It goes wrong by a full ten — a spectacular collapse that the whole scene will remember."]);
+        return `${pick([r.checkCritFail, b.pf2eCritFail])} ${math}${m}`;
     }
   }
 
+  const math = mathLine(dice, language);
+  const nat =
+    dice.critical
+      ? kept === 20
+        ? pt
+          ? " 20 natural!"
+          : " a natural 20!"
+        : kept === 1
+          ? pt
+            ? " 1 natural!"
+            : " a natural 1!"
+          : ""
+      : "";
   switch (dice.kind) {
     case "attack": {
-      if (outcome === "critical-success") return pick([r.attackCrit, ex.crit]);
-      if (outcome === "success") return pick([r.attackHit, ex.hit]);
-      if (outcome === "failure") return pick([r.attackMiss, ex.miss]);
-      return pick([r.attackCritFail, ex.critFail]);
+      if (outcome === "critical-success") return `${pick([r.attackCrit, ex.crit])}${nat} ${math}`;
+      if (outcome === "success") return `${pick([r.attackHit, ex.hit])} ${math}`;
+      if (outcome === "failure") return `${pick([r.attackMiss, ex.miss])} ${math}`;
+      return `${pick([r.attackCritFail, ex.critFail])}${nat} ${math}`;
     }
     case "save":
-      if (outcome === "critical-success") return pick([r.saveSuccess, ex.crit]);
-      if (outcome === "success") return r.saveSuccess;
-      if (outcome === "critical-failure") return pick([r.saveFail, ex.critFail]);
-      return r.saveFail;
+      if (outcome === "critical-success") return `${pick([r.saveSuccess, ex.crit])}${nat} ${math}`;
+      if (outcome === "success") return `${r.saveSuccess} ${math}`;
+      if (outcome === "critical-failure") return `${pick([r.saveFail, ex.critFail])}${nat} ${math}`;
+      return `${r.saveFail} ${math}`;
     case "skill":
     case "check": {
-      if (outcome === "critical-success") return r.checkCrit;
-      if (outcome === "success") return r.checkSuccess;
-      if (outcome === "failure") return r.checkFail;
-      return r.checkCritFail;
+      if (outcome === "critical-success") return `${r.checkCrit}${nat} ${math}`;
+      if (outcome === "success") return `${r.checkSuccess} ${math}`;
+      if (outcome === "failure") return `${r.checkFail} ${math}`;
+      return `${r.checkCritFail}${nat} ${math}`;
     }
     case "damage":
       return dice.total >= 8 ? r.damageBig : r.damageSmall;
@@ -634,8 +710,10 @@ export function localRespond(
     return oracleResponse(q || "Will the next step go well?", language);
   }
 
-  // Rest handling
-  if (/(short rest|long rest|rest|sleep|camp|meditat|settle in|descansar|dormir|acampar|meditar)/.test(lower)) {
+  // Rest handling — word-boundary aware so "search the rest of the
+  // warehouse" narrates the check instead of pretending to rest, and
+  // "the goblin camp" isn't mistaken for camping.
+  if (/(\b(?:short|long)\s+rest\b|\brest\b(?!\s+of)|\bsleep\b|\b(?:make|set up|pitch) camp\b|meditat|\bsettle in\b|descansar|dormir|acampar|meditar|assentar)/.test(lower)) {
     const long = /(long rest|sleep|night|dormir|noite|descanso longo)/.test(lower);
     return (
       (long ? pick(b.rest) : b.shortRest) +
@@ -652,6 +730,13 @@ export function localRespond(
   if (/(attack|fight|strike|swing|shoot|hit|charge|engage|slash|stab|atacar|lutar|golpear|disparar|investir)/.test(lower)) {
     if (turn.dice) return reactToDice(turn.dice, adventure, language);
     return pick(b.encounters) + (language === "pt-BR" ? " Você se prepara e escolhe seu momento." : " You ready yourself and choose your moment.");
+  }
+
+  // Status recap — checked BEFORE exploration so "check my status" isn't
+  // swallowed by the search branch (which matches on "check").
+  if (/(status|inventory|who am i|recap|where am i|status|inventário|quem sou|recapitular|onde estou)/.test(lower)) {
+    const c = adventure.character;
+    return b.status(c, adventure.sceneTitle, adventure.location, adventure.quest[adventure.quest.length - 1] ?? (language === "pt-BR" ? "nenhuma definida" : "none set"));
   }
 
   // Exploration — genre-flavored finds, with a roll reaction when dice were rolled.
@@ -672,7 +757,7 @@ export function localRespond(
 
   // Movement / travel — difficulty from the Adventure Setup tunes how often
   // trouble finds you on the road.
-  if (/(go |walk|travel|enter|leave|follow|head|move|approach|north|south|east|west|road|path|climb|descend|open|ir|andar|viajar|entrar|sair|seguir|seguir|mover|aproximar|norte|sul|leste|oeste|estrada|caminho|subir|descer|abrir)/.test(lower)) {
+  if (/(go |walk|travel|enter|leave|follow|head|move|approach|north|south|east|west|road|path|climb|descend|open|ir|andar|viajar|entrar|sair|seguir|mover|aproximar|norte|sul|leste|oeste|estrada|caminho|subir|descer|abrir)/.test(lower)) {
     const prefs: AdventurePrefs = prefsOf(adventure.character.adventurePrefs);
     const danger =
       prefs.difficulty === "deadly"
@@ -713,12 +798,6 @@ export function localRespond(
   if (/(companion|party|allies|ally|company|companheir|aliad|esquadr|grupo)/.test(lower) && company.length > 0) {
     const name = pick(company).name;
     return `${pick(b.companion)} ${language === "pt-BR" ? `(${name} está ao seu lado.)` : `(${name} stands with you.)`}`;
-  }
-
-  // Status recap
-  if (/(status|inventory|who am i|recap|where am i|what do i know|status|inventário|quem sou|recapitular|onde estou)/.test(lower)) {
-    const c = adventure.character;
-    return b.status(c, adventure.sceneTitle, adventure.location, adventure.quest[adventure.quest.length - 1] ?? (language === "pt-BR" ? "nenhuma definida" : "none set"));
   }
 
   // Generic — genre-flavored filler when nothing more specific matches.

@@ -124,9 +124,13 @@ const GURPS_RULES: GurpsRule[] = [
   { skill: "", ability: "ht", label: "HT Roll (Endure)", re: /hold (my|your) breath|resist|endure|exertion/ },
 ];
 
-/** Commands with dedicated flows — never hijack these into skill rolls. */
+/** Commands with dedicated flows — never hijack these into skill rolls.
+ *  Word-boundary + verb-aware so common false positives like "search the
+ *  rest of the warehouse" or "track the goblin camp" still auto-roll.
+ *  Bare "rest"/"camp" as nouns are fine; only the rest/camp actions are
+ *  excluded ("take a rest", "make camp", "sleep"), and meta commands. */
 const EXCLUDE =
-  /(rest|sleep|camp|meditat|heal (up|me|myself)|cast |spell|oracle|npc|status|inventory|recap|companion|attack|fight|strike|shoot|charge|engage|help|who am i|where am i)/i;
+  /(\b(?:take a|have a|need a)?(?:short|long)?\s*rest\b(?!\s+of)|\bmake camp\b|\b(?:set up|pitch) camp\b|\bsleep\b|meditat|\bsettle in\b|heal (up|me|myself)|\bcast(?:ing)?\b|oracle|oráculo|oraculo|\bnpc\b|status|inventory|inventário|recap|companion|companheir|attack|fight|strike|shoot|charge|engage|help|who am i|where am i|quem sou|onde estou)/i;
 
 function matchRule<T extends { re: RegExp }>(rules: T[], text: string): T | null {
   return rules.find((r) => r.re.test(text)) ?? null;

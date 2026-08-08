@@ -11,6 +11,25 @@ const OUTCOME_STYLES: Record<DiceResult["outcome"], { label: string; cls: string
   "critical-failure": { label: "CRITICAL FAILURE", cls: "bg-red-500/15 text-red-300 border-red-500/40" },
 };
 
+/** Modifier chip colors — tinted by where the bonus comes from so the math
+ *  reads at a glance (ability = sky, proficiency/tier = emerald, conditions =
+ *  red, features = violet, equipment = amber). */
+const MOD_CHIP_CLS: Record<string, string> = {
+  ability: "bg-sky-500/10 text-sky-300 border-sky-500/25",
+  proficiency: "bg-emerald-500/10 text-emerald-300 border-emerald-500/25",
+  tier: "bg-teal-500/10 text-teal-300 border-teal-500/25",
+  condition: "bg-red-500/10 text-red-300 border-red-500/25",
+  feature: "bg-violet-500/10 text-violet-300 border-violet-500/25",
+  equipment: "bg-amber-500/10 text-amber-300 border-amber-500/25",
+  other: "bg-slate-500/10 text-slate-300 border-slate-500/25",
+};
+
+const ADV_CHIP: Record<"adv" | "dis" | "both", { label: string; cls: string }> = {
+  adv: { label: "⇡ ADVANTAGE", cls: "bg-amber-500/15 text-amber-300 border-amber-500/40" },
+  dis: { label: "⇣ DISADVANTAGE", cls: "bg-red-500/15 text-red-300 border-red-500/40" },
+  both: { label: "⇡⇣ ADV + DIS", cls: "bg-slate-500/15 text-slate-300 border-slate-500/40" },
+};
+
 interface Props {
   result: DiceResult;
   onReroll?: (opts: { advantage?: boolean; disadvantage?: boolean; dc?: number }) => void;
@@ -19,6 +38,15 @@ interface Props {
 export default function DiceCard({ result, onReroll }: Props) {
   const style = OUTCOME_STYLES[result.outcome];
   const total = result.total;
+  const advChip =
+    result.advantage && result.disadvantage
+      ? ADV_CHIP.both
+      : result.advantage
+        ? ADV_CHIP.adv
+        : result.disadvantage
+          ? ADV_CHIP.dis
+          : null;
+  const dcLabel = result.system === "gurps" ? "target" : "DC";
 
   // The die that was actually kept: max with advantage, min with disadvantage,
   // otherwise the single rolled die. Used to dim the discarded die face.
@@ -64,10 +92,22 @@ export default function DiceCard({ result, onReroll }: Props) {
 
   return (
     <div className="overflow-hidden rounded-xl border border-slate-700/80 bg-slate-900/80 shadow-lg">
-      <div className="flex items-center justify-between border-b border-slate-800 px-3 py-2">
-        <p className="text-xs font-semibold text-slate-200">{result.label}</p>
-        <span className={cn("rounded-full border px-2 py-0.5 text-[9px] font-bold tracking-widest", style.cls)}>
-          {style.label}
+      <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 border-b border-slate-800 px-3 py-2">
+        <p className="min-w-0 truncate text-xs font-semibold text-slate-200">{result.label}</p>
+        <span className="flex flex-wrap items-center gap-1.5">
+          {advChip && (
+            <span className={cn("rounded-full border px-2 py-0.5 text-[9px] font-bold tracking-widest", advChip.cls)}>
+              {advChip.label}
+            </span>
+          )}
+          {result.target !== undefined && (
+            <span className="rounded-full border border-slate-600/60 bg-slate-800/80 px-2 py-0.5 text-[9px] font-bold tracking-widest text-slate-300">
+              vs {dcLabel} {result.target}
+            </span>
+          )}
+          <span className={cn("rounded-full border px-2 py-0.5 text-[9px] font-bold tracking-widest", style.cls)}>
+            {style.label}
+          </span>
         </span>
       </div>
 
@@ -91,6 +131,21 @@ export default function DiceCard({ result, onReroll }: Props) {
         <div className="min-w-0 flex-1 break-words">
           <p className="font-mono text-[10px] text-slate-400">{result.diceNotation}</p>
           <p className="mt-0.5 font-mono text-[10px] leading-relaxed text-slate-500">{result.breakdown}</p>
+          {result.modifiers.length > 0 && (
+            <div className="mt-1.5 flex flex-wrap gap-1">
+              {result.modifiers.map((m, i) => (
+                <span
+                  key={`${result.id}-mod-${i}`}
+                  className={cn(
+                    "rounded border px-1.5 py-0.5 font-mono text-[9px] font-semibold",
+                    MOD_CHIP_CLS[m.source] ?? MOD_CHIP_CLS.other,
+                  )}
+                >
+                  {formatMod(m.value)} {m.label}
+                </span>
+              ))}
+            </div>
+          )}
           {result.featureUsed && (
             <p className="mt-1 inline-flex rounded bg-violet-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-violet-300">
               ✦ {result.featureUsed}
