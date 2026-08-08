@@ -1,4 +1,5 @@
 import type {
+  AdventureRecord,
   AdventureState,
   AdsSettings,
   Character,
@@ -11,6 +12,7 @@ import { serializeAdventure } from "./serializer";
 
 const CHARACTER_KEY = "oraculum.character.v1";
 const ADVENTURE_KEY = "oraculum.adventure.v1";
+const ADVENTURES_KEY = "oraculum.adventures.v1"; // saved-session library
 const SETTINGS_KEY = "oraculum.gmSettings.v1";
 const LOREBOOK_KEY = "oraculum.lorebook.v1"; // legacy global array
 const LOREBOOK_V2_KEY = "oraculum.lorebook.v2"; // per-campaign map
@@ -46,9 +48,16 @@ export function clearCharacter(): void {
   }
 }
 
+/** Backfill a stable id so every session can live in the Adventures library. */
+function withAdventureId(a: AdventureState): AdventureState {
+  return a.id ? a : { ...a, id: uid() };
+}
+
 export function saveAdventure(adventure: AdventureState): void {
+  const stamped = withAdventureId(adventure);
   try {
-    localStorage.setItem(ADVENTURE_KEY, JSON.stringify(adventure));
+    localStorage.setItem(ADVENTURE_KEY, JSON.stringify(stamped));
+    upsertAdventureRecord(stamped);
   } catch {
     // non-fatal
   }
@@ -64,6 +73,72 @@ export function loadAdventure(): AdventureState | null {
   } catch {
     return null;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Adventures library (all saved sessions, newest first)
+// ---------------------------------------------------------------------------
+
+function readAdventureRecords(): AdventureRecord[] {
+  try {
+    const raw = localStorage.getItem(ADVENTURES_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as AdventureRecord[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeAdventureRecords(records: AdventureRecord[]): void {
+  try {
+    localStorage.setItem(ADVENTURES_KEY, JSON.stringify(records));
+  } catch {
+    // non-fatal
+  }
+}
+
+function upsertAdventureRecord(adventure: AdventureState): void {
+  const stamped = withAdventureId(adventure);
+  const records = readAdventureRecords();
+  const existing = records.find((r) => r.id === stamped.id);
+  const record: AdventureRecord = {
+    id: stamped.id!,
+    label: existing?.label ?? `${stamped.character.name} · ${stamped.sceneTitle}`,
+    system: stamped.system,
+    character: stamped.character,
+    adventure: stamped,
+    createdAt: existing?.createdAt ?? stamped.createdAt,
+    updatedAt: stamped.updatedAt,
+  };
+  const next = [record, ...records.filter((r) => r.id !== stamped.id)];
+  writeAdventureRecords(next.slice(0, 50));
+}
+
+export function listAdventures(): AdventureRecord[] {
+  const records = readAdventureRecords();
+  // Adopt any legacy single-slot adventure that was never registered.
+  const legacy = loadAdventure();
+  if (legacy && !records.some((r) => r.adventure.id === legacy.id || (legacy.id && r.id === legacy.id))) {
+    const stamped = withAdventureId(legacy);
+    upsertAdventureRecord(stamped);
+    return readAdventureRecords();
+  }
+  return records;
+}
+
+export function deleteAdventure(id: string): void {
+  writeAdventureRecords(readAdventureRecords().filter((r) => r.id !== id));
+  try {
+    const current = loadAdventure();
+    if (current?.id === id) localStorage.removeItem(ADVENTURE_KEY);
+  } catch {
+    // non-fatal
+  }
+}
+
+export function loadAdventureById(id: string): AdventureState | null {
+  return readAdventureRecords().find((r) => r.id === id)?.adventure ?? null;
 }
 
 // ---------------------------------------------------------------------------

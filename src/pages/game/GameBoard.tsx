@@ -78,8 +78,10 @@ import { Sheet, SheetContent } from "@/components/ui/sheet";
 const COND_EFFECTS = Object.fromEntries(CONDITIONS.map((cd) => [cd.id, cd.effects]));
 interface Props {
   character: Character;
+  initialAdventure?: AdventureState | null; // resume a specific saved session
   onNewCharacter: () => void;
   onSignOut: () => void;
+  onBackToHub?: () => void; // leave the game and return to the hub (adventures/characters/settings)
 }
 
 function xpNeededFor(level: number, system: GameSystem): number {
@@ -104,6 +106,7 @@ function createAdventure(
   // offline narrator automatically.
   const liveByDefault = settings?.provider === "horde";
   const adventure: AdventureState = {
+    id: uid(),
     system,
     character,
     logs: [],
@@ -232,7 +235,13 @@ function fingerprint(c: Character): string {
   return `gurps:${c.name}:${JSON.stringify(c.attributes)}`;
 }
 
-export default function GameBoard({ character, onNewCharacter, onSignOut }: Props) {
+export default function GameBoard({
+  character,
+  initialAdventure,
+  onNewCharacter,
+  onSignOut,
+  onBackToHub,
+}: Props) {
   const [settings, setSettings] = useState<GmSettings>(() => loadGmSettings());
   const [ads, setAds] = useState<AdsSettings>(() => loadAdsSettings());
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -240,6 +249,11 @@ export default function GameBoard({ character, onNewCharacter, onSignOut }: Prop
     loadLorebook(fingerprint(character)),
   );
   const [adventure, setAdventure] = useState<AdventureState>(() => {
+    if (initialAdventure) {
+      return fingerprint(initialAdventure.character) === fingerprint(character)
+        ? initialAdventure
+        : createAdventure(character, settings.language, settings);
+    }
     const saved = loadAdventure();
     if (saved && fingerprint(saved.character) === fingerprint(character)) {
       return saved;
@@ -1828,6 +1842,7 @@ export default function GameBoard({ character, onNewCharacter, onSignOut }: Prop
         onOpenSheet={() => setSheetOpen(true)}
         onGmMode={(m) => setAdventure((prev) => ({ ...prev, gmMode: m, updatedAt: Date.now() }))}
         onNewCharacter={onNewCharacter}
+        onBackToHub={onBackToHub}
         onExport={() => exportAdventureJSON(adventure)}
         onImport={handleImport}
         onSaveToLibrary={() => {

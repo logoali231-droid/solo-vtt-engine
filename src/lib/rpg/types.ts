@@ -790,6 +790,7 @@ export interface LogEntry {
 }
 
 export interface AdventureState {
+  id?: string; // stable id used by the Adventures library (backfilled on save if missing)
   system: GameSystem;
   character: Character;
   logs: LogEntry[];
@@ -805,6 +806,17 @@ export interface AdventureState {
   gold?: number;
   inventory?: InventoryItem[];
   memory?: string; // auto-generated session summary injected into the GM context
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** Library entry for a saved adventure session (see storage.ts). */
+export interface AdventureRecord {
+  id: string;
+  label: string;
+  system: GameSystem;
+  character: Character;
+  adventure: AdventureState;
   createdAt: number;
   updatedAt: number;
 }

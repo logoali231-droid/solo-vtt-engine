@@ -8,6 +8,7 @@ import {
   BookmarkPlus,
   Dices,
   Download,
+  Home,
   Loader2,
   LogOut,
   Megaphone,
@@ -36,6 +37,7 @@ interface Props {
   onOpenSheet: () => void;
   onGmMode: (mode: "local" | "live") => void;
   onNewCharacter: () => void;
+  onBackToHub?: () => void;
   onExport: () => void;
   onImport: (file: File) => void;
   onSaveToLibrary: () => void;
@@ -52,6 +54,7 @@ export default function TopBar({
   onOpenSheet,
   onGmMode,
   onNewCharacter,
+  onBackToHub,
   onExport,
   onImport,
   onSaveToLibrary,
@@ -208,6 +211,17 @@ export default function TopBar({
               e.target.value = "";
             }}
           />
+          {onBackToHub && (
+            <button
+              type="button"
+              onClick={onBackToHub}
+              title="Back to the hub (adventures, characters, settings)"
+              className="flex items-center gap-1 rounded-lg border border-slate-800 px-2 py-1.5 text-[11px] font-semibold text-slate-400 transition-colors hover:border-teal-500/50 hover:text-teal-300"
+            >
+              <Home className="size-3.5" />
+              <span className="hidden sm:inline">Hub</span>
+            </button>
+          )}
           <button
             type="button"
             onClick={onNewCharacter}
