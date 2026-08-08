@@ -1,8 +1,8 @@
 import { cn } from "@/lib/utils";
 import type { DiceResult } from "@/lib/rpg/types";
 import { formatMod } from "@/lib/rpg/dice";
-import { RefreshCw, Vibrate } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { Move, RefreshCw, Vibrate } from "lucide-react";
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 
 const OUTCOME_STYLES: Record<DiceResult["outcome"], { label: string; cls: string }> = {
   "critical-success": { label: "CRITICAL SUCCESS", cls: "bg-emerald-500/15 text-emerald-300 border-emerald-500/40" },
@@ -35,6 +35,21 @@ interface Props {
   onReroll?: () => void;
 }
 
+/** iOS 13+ requires a one-time user gesture before `devicemotion` /
+ *  `deviceorientation` fire at all. Android and desktop don't need it. */
+function needsMotionPermission() {
+  return (
+    typeof window !== "undefined" &&
+    typeof DeviceMotionEvent !== "undefined" &&
+    typeof (DeviceMotionEvent as unknown as { requestPermission?: () => Promise<string> }).requestPermission ===
+      "function"
+  );
+}
+
+/** Minimum fling speed (px per ms) for a drag release to count as a throw. */
+const FLING_SPEED = 0.9;
+const FLING_DISTANCE = 12;
+
 export default function DiceCard({ result, onReroll }: Props) {
   const style = OUTCOME_STYLES[result.outcome];
   const total = result.total;
@@ -57,9 +72,27 @@ export default function DiceCard({ result, onReroll }: Props) {
         ? Math.min(...result.rolls)
         : result.rolls[0];
 
+  // -------------------------------------------------------------------------
+  // Physical dice: motion permission (iOS) + gyro tilt + shake + fling
+  // -------------------------------------------------------------------------
+
+  const [motionState, setMotionState] = useState<"unknown" | "granted" | "denied">(() =>
+    needsMotionPermission() ? "unknown" : "granted",
+  );
+  const requestMotion = async () => {
+    try {
+      const api = (DeviceMotionEvent as unknown as { requestPermission: () => Promise<string> }).requestPermission;
+      const res = await api.call(DeviceMotionEvent);
+      setMotionState(res === "granted" ? "granted" : "denied");
+    } catch {
+      setMotionState("denied");
+    }
+  };
+
   // Gyroscope tilt (mobile) — gentle 3D lean of the dice
   const [tilt, setTilt] = useState({ x: 0, y: 0 });
   useEffect(() => {
+    if (motionState !== "granted") return;
     if (typeof window === "undefined" || !("DeviceOrientationEvent" in window)) return;
     const handler = (e: DeviceOrientationEvent) => {
       if (e.beta == null || e.gamma == null) return;
@@ -70,12 +103,14 @@ export default function DiceCard({ result, onReroll }: Props) {
     };
     window.addEventListener("deviceorientation", handler);
     return () => window.removeEventListener("deviceorientation", handler);
-  }, []);
+  }, [motionState]);
 
-  // Shake-to-roll (mobile accelerometer)
+  // Shake-to-roll (mobile accelerometer — the same sensor family as a
+  // speedometer: it measures proper acceleration along X/Y/Z)
   const lastShake = useRef(0);
   useEffect(() => {
-    if (!onReroll || typeof window === "undefined" || !("DeviceMotionEvent" in window)) return;
+    if (!onReroll || motionState !== "granted") return;
+    if (typeof window === "undefined" || !("DeviceMotionEvent" in window)) return;
     const handler = (e: DeviceMotionEvent) => {
       const a = e.accelerationIncludingGravity;
       if (!a) return;
@@ -83,12 +118,61 @@ export default function DiceCard({ result, onReroll }: Props) {
       const now = Date.now();
       if (mag > 32 && now - lastShake.current > 2500) {
         lastShake.current = now;
-        onReroll();
+        if (typeof navigator !== "undefined" && "vibrate" in navigator) navigator.vibrate(50);
+        onReroll?.();
       }
     };
     window.addEventListener("devicemotion", handler);
     return () => window.removeEventListener("devicemotion", handler);
-  }, [onReroll]);
+  }, [onReroll, motionState]);
+
+  // Fling-to-roll (mouse + touch) — grab the dice, drag, and release with
+  // enough speed to "throw" them. Works on desktop, where there is no
+  // accelerometer.
+  const dragRef = useRef({ active: false, startX: 0, startY: 0, lastX: 0, lastY: 0, lastT: 0 });
+  const [throwPos, setThrowPos] = useState({ x: 0, y: 0, dragging: false });
+
+  const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (!onReroll) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    const now = performance.now();
+    dragRef.current = {
+      active: true,
+      startX: e.clientX,
+      startY: e.clientY,
+      lastX: e.clientX,
+      lastY: e.clientY,
+      lastT: now,
+    };
+    setThrowPos({ x: 0, y: 0, dragging: true });
+  };
+  const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const d = dragRef.current;
+    if (!d.active) return;
+    d.lastX = e.clientX;
+    d.lastY = e.clientY;
+    d.lastT = performance.now();
+    setThrowPos({ x: e.clientX - d.startX, y: e.clientY - d.startY, dragging: true });
+  };
+  const onPointerUp = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const d = dragRef.current;
+    if (!d.active) return;
+    d.active = false;
+    const now = performance.now();
+    const dx = e.clientX - d.lastX;
+    const dy = e.clientY - d.lastY;
+    const dist = Math.hypot(dx, dy);
+    const speed = now - d.lastT > 0 ? dist / (now - d.lastT) : 0;
+    setThrowPos({ x: 0, y: 0, dragging: false });
+    if (speed > FLING_SPEED && dist > FLING_DISTANCE) {
+      if (typeof navigator !== "undefined" && "vibrate" in navigator) navigator.vibrate(30);
+      onReroll?.();
+    }
+  };
+  const onPointerCancel = () => {
+    dragRef.current.active = false;
+    setThrowPos({ x: 0, y: 0, dragging: false });
+  };
 
   return (
     <div className="overflow-hidden rounded-xl border border-slate-700/80 bg-slate-900/80 shadow-lg">
@@ -122,10 +206,21 @@ export default function DiceCard({ result, onReroll }: Props) {
       </div>
 
       <div className="flex flex-wrap items-center gap-3 px-3 py-3 sm:flex-nowrap sm:gap-4">
-        {/* Dice faces — 3D tumble + gyro tilt */}
+        {/* Dice faces — 3D tumble + gyro tilt + grab-and-fling */}
         <div
-          className="flex flex-wrap items-center gap-1.5"
-          style={{ transform: `rotateX(${tilt.x}deg) rotateY(${tilt.y}deg)` }}
+          className="flex cursor-grab touch-none select-none flex-wrap items-center gap-1.5 active:cursor-grabbing"
+          style={{
+            transform: `translate(${throwPos.x}px, ${throwPos.y}px) rotateX(${tilt.x}deg) rotateY(${tilt.y}deg)`,
+            transition: throwPos.dragging
+              ? "none"
+              : "transform 0.35s cubic-bezier(0.22, 1, 0.36, 1)",
+            willChange: "transform",
+          }}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerCancel}
+          title={onReroll ? "Drag and fling the dice to roll" : undefined}
         >
           {(result.advantage || result.disadvantage) && result.rolls.length > 1 ? (
             <>
@@ -177,8 +272,23 @@ export default function DiceCard({ result, onReroll }: Props) {
       </div>
 
       {onReroll && (
-        <div className="flex items-center gap-1.5 border-t border-slate-800 px-3 py-1.5">
+        <div className="flex flex-wrap items-center gap-1.5 border-t border-slate-800 px-3 py-1.5">
           <span className="text-[9px] text-slate-600">Advantage / disadvantage follow the situation automatically.</span>
+          <span className="hidden items-center gap-1 rounded px-1.5 py-0.5 text-[9px] text-slate-600 md:flex">
+            <Move className="size-3" /> drag &amp; fling to roll
+          </span>
+          <span className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[9px] text-slate-600 md:hidden">
+            <Vibrate className="size-3" /> shake to roll
+          </span>
+          {motionState === "unknown" && (
+            <button
+              type="button"
+              onClick={requestMotion}
+              className="rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[9px] font-bold text-amber-300 transition-colors hover:bg-amber-500/20"
+            >
+              Enable shake-to-roll
+            </button>
+          )}
           <button
             type="button"
             onClick={() => onReroll()}
@@ -186,9 +296,6 @@ export default function DiceCard({ result, onReroll }: Props) {
           >
             <RefreshCw className="size-3" /> Roll again
           </button>
-          <span className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[9px] text-slate-600 sm:hidden">
-            <Vibrate className="size-3" /> shake to reroll
-          </span>
         </div>
       )}
     </div>
