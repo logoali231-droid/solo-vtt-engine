@@ -1,6 +1,6 @@
 import { action } from "./_generated/server.js";
 import { v } from "convex/values";
-import { dndRulesContext } from "../lib/rpg/data/adventure-samples";
+import { dndRulesContext, pf2eRulesContext } from "../lib/rpg/data/adventure-samples";
 
 // Live Game Master completion endpoint — multi-provider router.
 //   - "openai" (default): OpenAI chat completions. The key lives server-side:
@@ -146,7 +146,9 @@ export const generate = action({
             : "Always respond in English.",
           args.system === "dnd5e"
             ? `\n\nD&D 5E RULES REFERENCE (grounds every narration in the real rules):\n${dndRulesContext()}`
-            : null,
+            : args.system === "pf2e"
+              ? `\n\nPATHFINDER 2E RULES & REFERENCE CORPUS (grounds every narration in the real rules):\n${pf2eRulesContext()}`
+              : null,
         ]
           .filter((x): x is string => !!x)
           .join(" ");

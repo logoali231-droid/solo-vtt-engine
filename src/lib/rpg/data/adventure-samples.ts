@@ -623,4 +623,27 @@ export const pf2eDataset = [
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           }
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           ];
 
+/**
+ * Format the Pathfinder 2e reference corpus (Foundry PF2e module data) into a
+ * compact prompt block. Feed this to the AI GM whenever the adventure runs
+ * Pathfinder 2e, so stat blocks, hazards, actions (with action costs),
+ * conditions, deities, ancestries and class features stay faithful to the
+ * real rules — mirroring how dndRulesContext() grounds D&D 5e narration.
+ */
+export function pf2eRulesContext(): string {
+  const lines: string[] = [
+    "PATHFINDER 2E RULES & REFERENCE CORPUS (golden reference from the Foundry PF2e module data).",
+    "The engine rolls the dice and resolves outcomes — you only narrate. Use these reference entries to ground narration: NPC stat blocks, hazards, items, actions (each with its action cost and traits), conditions, deities, ancestries and class features.",
+    "Pay special attention to the action costs (1/2/3 actions), the four degrees of success, and condition values (e.g. Assustado 1).",
+    "The corpus is in Portuguese — match the player's language, not the corpus's.",
+  ];
+  pf2eDataset.forEach((entry, i) => {
+    const out =
+      typeof entry.output === "string" ? entry.output : JSON.stringify(entry.output);
+    lines.push(`${i + 1}. ${entry.instruction}`);
+    lines.push(`   → ${out}`);
+  });
+  return lines.join("\n");
+}
+
 export default dndTestCases;
