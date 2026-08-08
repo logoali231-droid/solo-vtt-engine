@@ -49,7 +49,11 @@ const DND_RULES: SkillRule[] = [
   { skill: "athletics", ability: "str", label: "Athletics", re: /\bclimb\b|\bjump\b|\bswim\b|\blift\b|\bpush\b|\bpull\b|break (down|open)|force (open|the door)|grapple|\bshove\b|\bdrag\b/ },
   { skill: "acrobatics", ability: "dex", label: "Acrobatics", re: /\bbalance\b|\btumble\b|\bdodge\b|somersault|squeeze through/ },
   { skill: "persuasion", ability: "cha", label: "Persuasion", re: /persuad|convinc|negotiat|barter|\bcharm\b|sweet-?talk|talk (down|into)|bargain/ },
-  { skill: "intimidation", ability: "cha", label: "Intimidation", re: /intimidat|threaten|\bscare\b|frighten|menace|browbeat/ },
+  // Animal Handling sits BEFORE Intimidation: "calm the frightened horse" is
+  // handling the animal, not intimidating it. It needs a handling ACTION plus
+  // an animal, so "recall knowledge about this beast" still routes to Nature.
+  { skill: "animal-handling", ability: "wis", label: "Animal Handling", re: /\b(calm|soothe|ride|handle|train|feed|groom|mount|lead|pet|tame|coax)\b.*\b(animal|beast|horse|creature)\b|\b(animal|beast|horse|creature)\b.*\b(calm|soothe|ride|handle|train|feed|groom|mount|lead|pet|tame|coax)\b/ },
+  { skill: "intimidation", ability: "cha", label: "Intimidation", re: /intimidat|threaten|\bscare\b|\bfrighten\b|menace|browbeat/ },
   { skill: "deception", ability: "cha", label: "Deception", re: /\blie\b|\bbluff\b|deceiv|mislead|disguise|pretend|feign/ },
   { skill: "insight", ability: "wis", label: "Insight", re: /\binsight\b|read (him|her|them|the room)|gauge|sense (his|her|their)/ },
   { skill: "survival", ability: "wis", label: "Survival", re: /\btrack\b|\bforage\b|\bhunt\b|navigat|follow (the )?trail|find (food|water|shelter)/ },
@@ -59,7 +63,6 @@ const DND_RULES: SkillRule[] = [
   { skill: "history", ability: "int", label: "History", re: /recall (knowledge|lore)|\bhistory\b|\blore\b|recall|ancient|kingdom|noble/ },
   { skill: "medicine", ability: "wis", label: "Medicine", re: /\bmedicine\b|\bheal\b|\btreat\b|diagnos|poison|wound|bandage|stabiliz/ },
   { skill: "performance", ability: "cha", label: "Performance", re: /\bperform|\bplay\b|\bsing\b|\bact\b|entertain|instrument/ },
-  { skill: "animal-handling", ability: "wis", label: "Animal Handling", re: /animal|\bhorse\b|beast|calm (the )?(animal|beast|horse)|\bride\b/ },
 ];
 
 // ---------------------------------------------------------------------------
@@ -73,7 +76,10 @@ const PF2E_RULES: SkillRule[] = [
   { skill: "athletics", ability: "str", label: "Athletics", re: /\bclimb\b|\bjump\b|\bswim\b|\blift\b|\bpush\b|\bpull\b|break (down|open)|force (open|the door)|grapple|\bshove\b|\bdrag\b/ },
   { skill: "acrobatics", ability: "dex", label: "Acrobatics", re: /\bbalance\b|\btumble\b|\bdodge\b|somersault|squeeze through/ },
   { skill: "diplomacy", ability: "cha", label: "Diplomacy", re: /persuad|convinc|negotiat|barter|\bcharm\b|sweet-?talk|talk (down|into)|bargain/ },
-  { skill: "intimidation", ability: "cha", label: "Intimidation", re: /intimidat|threaten|\bscare\b|frighten|menace|browbeat/ },
+  // PF2e folds animal handling into Nature (Handle an Animal) — before
+  // Intimidation so "calm the frightened horse" is Nature, not Intimidation.
+  { skill: "nature", ability: "wis", label: "Nature (Handle an Animal)", re: /\b(calm|soothe|ride|handle|train|feed|groom|mount|lead|pet|tame|coax)\b.*\b(animal|beast|horse|creature)\b|\b(animal|beast|horse|creature)\b.*\b(calm|soothe|ride|handle|train|feed|groom|mount|lead|pet|tame|coax)\b/ },
+  { skill: "intimidation", ability: "cha", label: "Intimidation", re: /intimidat|threaten|\bscare\b|\bfrighten\b|menace|browbeat/ },
   { skill: "deception", ability: "cha", label: "Deception", re: /\blie\b|\bbluff\b|deceiv|mislead|disguise|pretend|feign/ },
   { skill: "survival", ability: "wis", label: "Survival", re: /\btrack\b|\bforage\b|\bhunt\b|navigat|follow (the )?trail|find (food|water|shelter)/ },
   { skill: "arcana", ability: "int", label: "Arcana", re: /recall (knowledge|lore).*(magic|arcane|spell|eldritch)|\barcan|magic|magical|arcane|identify (the )?spell|eldritch/ },
@@ -109,7 +115,8 @@ const GURPS_RULES: GurpsRule[] = [
   { skill: "tactics", ability: "iq", label: "Tactics", re: /ambush|tactic|plan (an|the)|strateg/ },
   { skill: "", ability: "iq", label: "IQ Roll (Investigate)", re: /investigat|examin|inspect|\bdeduc|figure out|\bclues?\b|search (the|a|this|for)|scour|recall|remember/ },
   { skill: "", ability: "iq", label: "IQ Roll (Persuade)", re: /persuad|convinc|negotiat|barter|\bcharm\b|sweet-?talk|bargain|fast-?talk/ },
-  { skill: "", ability: "iq", label: "IQ Roll (Intimidate)", re: /intimidat|threaten|\bscare\b|frighten|menace|browbeat/ },
+  { skill: "", ability: "iq", label: "IQ Roll (Animal Handling)", re: /\b(calm|soothe|ride|handle|train|feed|groom|mount|lead|pet|tame|coax)\b.*\b(animal|beast|horse|creature)\b|\b(animal|beast|horse|creature)\b.*\b(calm|soothe|ride|handle|train|feed|groom|mount|lead|pet|tame|coax)\b/ },
+  { skill: "", ability: "iq", label: "IQ Roll (Intimidate)", re: /intimidat|threaten|\bscare\b|\bfrighten\b|menace|browbeat/ },
   { skill: "", ability: "iq", label: "IQ Roll (Deceive)", re: /\blie\b|\bbluff\b|deceiv|mislead|disguise|pretend|feign/ },
   { skill: "", ability: "iq", label: "IQ Roll (Insight)", re: /\binsight\b|read (him|her|them|the room)|gauge|sense (his|her|their)/ },
   { skill: "", ability: "st", label: "ST Roll (Force)", re: /\blift\b|\bpush\b|break (down|open)|force (open|the door)|grapple|\bshove\b|\bdrag\b|bend/ },
@@ -119,7 +126,7 @@ const GURPS_RULES: GurpsRule[] = [
 
 /** Commands with dedicated flows — never hijack these into skill rolls. */
 const EXCLUDE =
-  /(rest|sleep|camp|meditat|\bheal\b|cast |spell|oracle|npc|status|inventory|recap|companion|attack|fight|strike|shoot|charge|engage|help|who am i|where am i)/i;
+  /(rest|sleep|camp|meditat|heal (up|me|myself)|cast |spell|oracle|npc|status|inventory|recap|companion|attack|fight|strike|shoot|charge|engage|help|who am i|where am i)/i;
 
 function matchRule<T extends { re: RegExp }>(rules: T[], text: string): T | null {
   return rules.find((r) => r.re.test(text)) ?? null;
