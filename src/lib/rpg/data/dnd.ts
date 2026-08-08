@@ -1500,10 +1500,28 @@ export function attackAbilityFor(
     return "int";
   }
   if (weapon.finesse) {
-    return c.baseScores.dex + (RACE_MAP[c.raceId].asi.dex ?? 0) >=
-      c.baseScores.str + (RACE_MAP[c.raceId].asi.str ?? 0)
-      ? "dex"
-      : "str";
+    // Pick the higher EFFECTIVE score (Tasha's custom origin, variant-human
+    // +1/+1 and feat ASIs all feed the real final scores — mirroring
+    // character.ts finalScores()).
+    const effective = (a: AbilityId): number => {
+      let score = c.baseScores[a];
+      if (c.customOrigin) {
+        if (c.originFirst === a) score += 2;
+        if (c.originSecond === a) score += 1;
+      } else if (c.subraceId === "human-variant") {
+        if (c.originFirst === a) score += 1;
+        if (c.originSecond === a) score += 1;
+      } else {
+        const asi = raceTotalAsi(c.raceId, c.subraceId);
+        score += asi[a] ?? 0;
+      }
+      for (const featId of c.feats) {
+        const featAsi = FEAT_MAP[featId]?.effects?.asi;
+        if (featAsi) score += featAsi[a] ?? 0;
+      }
+      return score;
+    };
+    return effective("dex") >= effective("str") ? "dex" : "str";
   }
   return weapon.ability;
 }

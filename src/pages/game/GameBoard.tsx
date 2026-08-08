@@ -1753,6 +1753,9 @@ export default function GameBoard({
   const toggleCondition = useCallback(
     (id: string) => {
       const def = CONDITIONS.find((cd) => cd.id === id);
+      // Read the PRE-toggle state from the ref — updateChar is async, so
+      // reading the ref after the update would invert the log message below.
+      const wasOn = (adventureRef.current.character as { state: { conditions: string[] } }).state.conditions.includes(id);
       updateChar((ch) => {
         const conditions = ch.state.conditions;
         const next = conditions.includes(id) ? conditions.filter((x) => x !== id) : [...conditions, id];
@@ -1761,8 +1764,7 @@ export default function GameBoard({
         return { ...ch, state: { ...ch.state, conditions: next } };
       });
       if (def) {
-        const nowOn = (adventureRef.current.character as { state: { conditions: string[] } }).state.conditions.includes(id);
-        pushLog("system", nowOn ? `${def.name} applied — penalties now active in the dice engine.` : `${def.name} removed.`);
+        pushLog("system", wasOn ? `${def.name} removed.` : `${def.name} applied — penalties now active in the dice engine.`);
       }
     },
     [updateChar, pushLog],
