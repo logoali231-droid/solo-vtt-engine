@@ -43,6 +43,7 @@ import {
   summarizeConversation,
 } from "@/lib/rpg/gm/providers";
 import { compileLorebook } from "@/lib/rpg/lorebook";
+import { playDiceRoll } from "@/lib/rpg/sfx";
 import { detectSkillCheck } from "@/lib/rpg/skillDetect";
 import type {
   AdventureState,
@@ -375,6 +376,12 @@ export default function GameBoard({
   // -------------------------------------------------------------------------
   const pushLog = useCallback(
     (kind: LogEntry["kind"], text: string, dice?: AdventureState["diceLog"][number]) => {
+      // Dice sounds fire at the single choke point every roll flows through
+      // (skills, attacks, saves, spells, healing, rerolls) — but never on load,
+      // since loading history doesn't call pushLog.
+      if (kind === "dice" && dice) {
+        playDiceRoll({ outcome: dice.outcome, count: dice.rolls.length });
+      }
       setAdventure((prev) => ({
         ...prev,
         logs: [...prev.logs, { id: uid(), kind, text, dice, timestamp: Date.now() }],

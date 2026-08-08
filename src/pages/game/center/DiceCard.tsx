@@ -1,8 +1,9 @@
 import { cn } from "@/lib/utils";
 import type { DiceResult } from "@/lib/rpg/types";
 import { formatMod } from "@/lib/rpg/dice";
-import { Move, RefreshCw, Vibrate } from "lucide-react";
+import { Move, RefreshCw, Vibrate, Volume2, VolumeX } from "lucide-react";
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { isSfxMuted, toggleSfxMuted } from "@/lib/rpg/sfx";
 
 const OUTCOME_STYLES: Record<DiceResult["outcome"], { label: string; cls: string }> = {
   "critical-success": { label: "CRITICAL SUCCESS", cls: "bg-emerald-500/15 text-emerald-300 border-emerald-500/40" },
@@ -75,6 +76,9 @@ export default function DiceCard({ result, onReroll }: Props) {
   // -------------------------------------------------------------------------
   // Physical dice: motion permission (iOS) + gyro tilt + shake + fling
   // -------------------------------------------------------------------------
+
+  // Sound on/off — persisted across sessions (see sfx.ts).
+  const [muted, setMuted] = useState(isSfxMuted);
 
   const [motionState, setMotionState] = useState<"unknown" | "granted" | "denied">(() =>
     needsMotionPermission() ? "unknown" : "granted",
@@ -289,6 +293,18 @@ export default function DiceCard({ result, onReroll }: Props) {
               Enable shake-to-roll
             </button>
           )}
+          <button
+            type="button"
+            onClick={() => setMuted(toggleSfxMuted())}
+            title={muted ? "Unmute dice sounds" : "Mute dice sounds"}
+            className={cn(
+              "flex items-center gap-1 rounded px-1.5 py-0.5 text-[9px] font-semibold transition-colors",
+              muted ? "text-slate-600 hover:text-slate-400" : "text-slate-400 hover:text-slate-200",
+            )}
+          >
+            {muted ? <VolumeX className="size-3" /> : <Volume2 className="size-3" />}
+            <span className="hidden sm:inline">{muted ? "sound off" : "sound on"}</span>
+          </button>
           <button
             type="button"
             onClick={() => onReroll()}
