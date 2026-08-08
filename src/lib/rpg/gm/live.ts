@@ -149,7 +149,7 @@ export function useGmClient(settings: GmSettings) {
     adventure: AdventureState,
     onDelta: (text: string) => void,
   ): Promise<GmReply> {
-    if (settings.provider === "builtin") {
+    if (settings.provider === "builtin" || settings.provider === "horde") {
       const payload = payloadToJson(serializeAdventure(adventure));
       const brief = campaignBriefing(prefsOf(adventure.character.adventurePrefs));
       const res = await generate({
@@ -158,6 +158,8 @@ export function useGmClient(settings: GmSettings) {
         model: settings.model || undefined,
         language: settings.language,
         system: adventure.system,
+        provider: settings.provider === "horde" ? "horde" : "auto",
+        apiKey: settings.apiKey || undefined,
         opening: true,
       });
       if (res.ok && res.text) {
@@ -197,13 +199,15 @@ export function useGmClient(settings: GmSettings) {
     const payload = payloadToJson(serializeAdventure(adventure));
     const history = buildHistory(adventure);
     try {
-      if (settings.provider === "builtin") {
+      if (settings.provider === "builtin" || settings.provider === "horde") {
         const res = await generate({
           payload,
           history,
           model: settings.model || undefined,
           language: settings.language,
           system: adventure.system,
+          provider: settings.provider === "horde" ? "horde" : "auto",
+          apiKey: settings.apiKey || undefined,
         });
         if (res.ok && res.text) {
           onDelta(res.text);

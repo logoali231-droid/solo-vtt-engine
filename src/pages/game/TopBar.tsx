@@ -66,7 +66,7 @@ export default function TopBar({
   const testConnection = async () => {
     if (settings.provider === "builtin") {
       toast.info(
-        "The built-in provider uses the platform OPENAI_API_KEY (set in Keys). Switch to Live and send a message to verify.",
+        "The built-in provider routes through the platform backend — OpenAI (OPENAI_API_KEY in Keys) or a free AI Horde fallback when no key is set. Switch to Live and send a message to verify.",
       );
       return;
     }
@@ -436,10 +436,12 @@ export default function TopBar({
             </div>
 
             <p className="rounded-lg border border-slate-800 bg-slate-950 p-2.5 text-[10px] leading-relaxed text-slate-500">
-              The built-in provider uses the platform's <code className="text-amber-300/80">OPENAI_API_KEY</code>{" "}
-              (set in Keys). Client providers (Groq, Gemini, HuggingFace, OpenRouter, Ollama) call their APIs
-              directly from your browser using the key above — nothing is stored server-side. If a live call
-              fails, the offline local narrator takes over automatically.
+              The built-in provider routes through the platform backend: OpenAI when an{" "}
+              <code className="text-amber-300/80">OPENAI_API_KEY</code> is set (Keys), otherwise it falls back
+              to free AI Horde — no key, no cost. AI Horde also runs through the backend, so it works with zero
+              accounts and no browser CORS. Client providers (Groq, Gemini, HuggingFace, OpenRouter, Ollama) call
+              their APIs directly from your browser using the key above — nothing is stored server-side. If a live
+              call fails, the offline local narrator takes over automatically.
             </p>
           </div>
         </DialogContent>

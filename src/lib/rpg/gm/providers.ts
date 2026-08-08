@@ -22,7 +22,7 @@ export const GM_PROVIDERS: GmProviderDef[] = [
   {
     id: "builtin",
     name: "Oraculum Built-in",
-    tagline: "OpenAI model via the platform backend — zero client config.",
+    tagline: "Platform backend router — OpenAI (platform key) or free AI Horde fallback. Zero client config.",
     tier: "builtin",
     needsKey: false,
     models: ["gpt-4o-mini"],
