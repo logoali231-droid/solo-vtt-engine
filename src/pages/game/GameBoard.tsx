@@ -44,6 +44,7 @@ import {
 } from "@/lib/rpg/gm/providers";
 import { compileLorebook } from "@/lib/rpg/lorebook";
 import { playDiceRoll } from "@/lib/rpg/sfx";
+import { speak, speakDice, useA11yApplied } from "@/lib/rpg/a11y";
 import { detectSkillCheck } from "@/lib/rpg/skillDetect";
 import type {
   AdventureState,
@@ -243,6 +244,9 @@ export default function GameBoard({
   onSignOut,
   onBackToHub,
 }: Props) {
+  // Applies high-contrast / large-text mode and keeps it synced with the OS
+  // (auto mode) and the TopBar dialog while the board is mounted.
+  useA11yApplied();
   const [settings, setSettings] = useState<GmSettings>(() => loadGmSettings());
   const [ads, setAds] = useState<AdsSettings>(() => loadAdsSettings());
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -335,6 +339,7 @@ export default function GameBoard({
           }));
         });
         if (!reply.usedFallback && reply.text) {
+          speak(reply.text, settingsRef.current.language === "pt-BR" ? "pt-BR" : "en-US");
           setAdventure((prev) => ({
             ...prev,
             logs: prev.logs.map((l) =>
@@ -386,11 +391,13 @@ export default function GameBoard({
   // -------------------------------------------------------------------------
   const pushLog = useCallback(
     (kind: LogEntry["kind"], text: string, dice?: AdventureState["diceLog"][number]) => {
-      // Dice sounds fire at the single choke point every roll flows through
-      // (skills, attacks, saves, spells, healing, rerolls) — but never on load,
-      // since loading history doesn't call pushLog.
+      // Dice sounds + read-aloud fire at the single choke point every roll
+      // flows through (skills, attacks, saves, spells, healing, rerolls) — but
+      // never on load, since loading history doesn't call pushLog.
       if (kind === "dice" && dice) {
         playDiceRoll({ outcome: dice.outcome, count: dice.rolls.length });
+        const lang = settingsRef.current.language === "pt-BR" ? "pt-BR" : "en-US";
+        speakDice(dice, lang);
       }
       setAdventure((prev) => ({
         ...prev,
@@ -430,10 +437,14 @@ export default function GameBoard({
             }));
           },
         );
+        const finalText = reply.text || adventureRef.current.logs.find((l) => l.id === entryId)?.text || "";
+        if (finalText) {
+          speak(finalText, settingsRef.current.language === "pt-BR" ? "pt-BR" : "en-US");
+        }
         setAdventure((prev) => ({
           ...prev,
           logs: prev.logs.map((l) =>
-            l.id === entryId ? { ...l, text: reply.text || l.text } : l,
+            l.id === entryId ? { ...l, text: finalText } : l,
           ),
           updatedAt: Date.now(),
         }));

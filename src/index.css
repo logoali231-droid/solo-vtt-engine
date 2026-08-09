@@ -213,3 +213,62 @@ html {
 ::selection {
   background-color: rgb(245 158 11 / 0.4);
 }
+
+/* ---------------------------------------------------------------------------
+ * High-contrast mode — html.oraculum-hc (toggled by the Accessibility dialog)
+ * Unlayered rules beat Tailwind's layered utilities, so these always win.
+ * --------------------------------------------------------------------------- */
+html.oraculum-hc {
+  color-scheme: dark;
+}
+
+/* Deepen every surface toward pure black for maximum separation */
+html.oraculum-hc .bg-slate-950 { background-color: #000; }
+html.oraculum-hc .bg-slate-950\/95 { background-color: rgb(0 0 0 / 0.97); }
+html.oraculum-hc .bg-slate-900 { background-color: #0a0f1c; }
+html.oraculum-hc .bg-slate-900\/60 { background-color: rgb(10 15 28 / 0.92); }
+html.oraculum-hc .bg-slate-800 { background-color: #17203a; }
+
+/* Brighten muted text so every label clears WCAG AA on black */
+html.oraculum-hc .text-slate-600 { color: #b6c2d9; }
+html.oraculum-hc .text-slate-500 { color: #d3dcec; }
+html.oraculum-hc .text-slate-400 { color: #e6edf9; }
+html.oraculum-hc .text-slate-300 { color: #f2f6fc; }
+html.oraculum-hc .text-slate-200 { color: #f8fafd; }
+html.oraculum-hc .text-slate-100 { color: #ffffff; }
+html.oraculum-hc .text-slate-700 { color: #c6d1e6; }
+
+/* Accents get a brighter, fully-saturated push */
+html.oraculum-hc .text-amber-300 { color: #fcd34d; }
+html.oraculum-hc .text-amber-200 { color: #fde68a; }
+html.oraculum-hc .text-amber-400 { color: #fbbf24; }
+html.oraculum-hc .text-emerald-300 { color: #6ee7b7; }
+html.oraculum-hc .text-teal-300 { color: #5eead4; }
+
+/* Buttons with dark text on amber/emerald fills stay readable (keep dark glyphs) */
+html.oraculum-hc .text-slate-950 { color: #000; }
+html.oraculum-hc .bg-amber-500 .text-slate-950 { color: #000; }
+
+/* Visible, high-contrast borders */
+html.oraculum-hc .border-slate-800 { border-color: #45567d; }
+html.oraculum-hc .border-slate-700 { border-color: #5c71a0; }
+html.oraculum-hc .border-slate-600 { border-color: #7288ba; }
+html.oraculum-hc .border-slate-900 { border-color: #33415e; }
+
+/* Placeholders need to be readable too */
+html.oraculum-hc .placeholder\:text-slate-600::placeholder { color: #a9b7d0; }
+
+/* A stronger focus ring on top of the normal one */
+html.oraculum-hc :focus-visible {
+  outline-color: #fcd34d;
+  outline-width: 3px;
+  box-shadow: 0 0 0 4px rgb(252 211 77 / 0.35);
+}
+
+/* ---------------------------------------------------------------------------
+ * Large-text mode — html.oraculum-large (Accessibility dialog).
+ * Tailwind sizes are rem-based, so bumping the root font-size scales the
+ * entire UI proportionally.
+ * --------------------------------------------------------------------------- */
+html.oraculum-large-115 { font-size: 115%; }
+html.oraculum-large-130 { font-size: 130%; }

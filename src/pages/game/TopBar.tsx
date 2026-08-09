@@ -4,10 +4,12 @@ import type { AdventureState, AdsSettings, GmLanguage, GmSettings } from "@/lib/
 import { chatWithProvider, GM_PROVIDERS, providerOf } from "@/lib/rpg/gm/providers";
 import { estimatedRevenue, readAdsStats, type AdsStats } from "./AdSlot";
 import {
+  Accessibility,
   BadgeDollarSign,
   BookmarkPlus,
   Dices,
   Download,
+  Eye,
   Home,
   Loader2,
   LogOut,
@@ -17,8 +19,16 @@ import {
   Plus,
   Settings2,
   Upload,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import { InstallApp } from "@/components/InstallApp";
+import {
+  getVoices,
+  speak,
+  subscribeVoices,
+  useA11ySettings,
+} from "@/lib/rpg/a11y";
 import { useEffect, useRef, useState } from "react";
 import {
   Dialog,
@@ -63,8 +73,17 @@ export default function TopBar({
   const fileRef = useRef<HTMLInputElement>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [adsOpen, setAdsOpen] = useState(false);
+  const [a11yOpen, setA11yOpen] = useState(false);
   const [adsStats, setAdsStats] = useState<AdsStats>(() => readAdsStats());
   const [testing, setTesting] = useState(false);
+  const [a11y, setA11y] = useA11ySettings();
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>(() => getVoices());
+  const [testingVoice, setTestingVoice] = useState(false);
+
+  // Refresh the voice list when the browser finishes loading voices.
+  useEffect(() => subscribeVoices(() => setVoices(getVoices())), []);
+
+  const patchA11y = (p: Partial<typeof a11y>) => setA11y({ ...a11y, ...p });
 
   const testConnection = async () => {
     if (settings.provider === "builtin") {
@@ -164,6 +183,21 @@ export default function TopBar({
           >
             <Settings2 className="size-4" />
             <span className="hidden sm:inline">AI</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setA11yOpen(true)}
+            title="Accessibility — high contrast, large text & read-aloud"
+            aria-label="Accessibility settings"
+            aria-pressed={a11y.hc !== "off" || a11y.large !== "normal" || a11y.reader}
+            className={cn(
+              "flex size-8 items-center justify-center rounded-lg border transition-colors",
+              a11y.hc !== "off" || a11y.large !== "normal" || a11y.reader
+                ? "border-amber-500/50 bg-amber-500/10 text-amber-300 hover:border-amber-400 hover:text-amber-200"
+                : "border-slate-800 text-slate-500 hover:border-slate-600 hover:text-slate-300",
+            )}
+          >
+            <Accessibility className="size-4" />
           </button>
           <InstallApp variant="icon" />
           <button
@@ -672,6 +706,208 @@ export default function TopBar({
                 of 1 — enough volume to fund the free AI providers in GM Settings.
               </p>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Accessibility — high contrast, large text & read-aloud */}
+      <Dialog open={a11yOpen} onOpenChange={setA11yOpen}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto border-slate-800 bg-slate-900 text-slate-100 sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base font-semibold">
+              <Accessibility className="size-4 text-amber-400" />
+              Accessibility
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-5">
+            {/* High contrast */}
+            <div>
+              <div className="mb-1.5 flex items-center justify-between">
+                <p className="text-xs font-bold text-slate-100">High-contrast mode</p>
+                <Eye className="size-3.5 text-amber-300" />
+              </div>
+              <div className="flex rounded-lg border border-slate-800 bg-slate-950 p-0.5">
+                {(
+                  [
+                    { id: "auto" as const, label: "Auto" },
+                    { id: "on" as const, label: "On" },
+                    { id: "off" as const, label: "Off" },
+                  ]
+                ).map((o) => (
+                  <button
+                    key={o.id}
+                    type="button"
+                    aria-pressed={a11y.hc === o.id}
+                    onClick={() => patchA11y({ hc: o.id })}
+                    className={cn(
+                      "flex-1 rounded-md py-1.5 text-xs font-bold transition-colors",
+                      a11y.hc === o.id
+                        ? "bg-amber-500 text-slate-950"
+                        : "text-slate-500 hover:text-slate-300",
+                    )}
+                  >
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-1.5 text-[10px] leading-relaxed text-slate-500">
+                Auto follows your device's "increase contrast" setting. On deepens every surface to
+                black, brightens text and borders, and thickens the focus ring.
+              </p>
+            </div>
+
+            {/* Text scale */}
+            <div>
+              <p className="mb-1.5 text-xs font-bold text-slate-100">Larger text</p>
+              <div className="flex rounded-lg border border-slate-800 bg-slate-950 p-0.5">
+                {(
+                  [
+                    { id: "normal" as const, label: "100%" },
+                    { id: "115" as const, label: "115%" },
+                    { id: "130" as const, label: "130%" },
+                  ]
+                ).map((o) => (
+                  <button
+                    key={o.id}
+                    type="button"
+                    aria-pressed={a11y.large === o.id}
+                    onClick={() => patchA11y({ large: o.id })}
+                    className={cn(
+                      "flex-1 rounded-md py-1.5 text-xs font-bold transition-colors",
+                      a11y.large === o.id
+                        ? "bg-amber-500 text-slate-950"
+                        : "text-slate-500 hover:text-slate-300",
+                    )}
+                  >
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-1.5 text-[10px] leading-relaxed text-slate-500">
+                Scales the whole interface — panels, sheets and dice — proportionally.
+              </p>
+            </div>
+
+            {/* Read aloud */}
+            <div className="rounded-xl border border-slate-800 bg-slate-950 p-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-bold text-slate-100">Read game text aloud</p>
+                  <p className="mt-0.5 text-[10px] leading-snug text-slate-500">
+                    GM narration and dice results are spoken as they land — no extra apps needed.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={a11y.reader}
+                  aria-label="Toggle read-aloud screen reader"
+                  onClick={() => patchA11y({ reader: !a11y.reader })}
+                  className={cn(
+                    "relative h-6 w-11 shrink-0 rounded-full transition-colors",
+                    a11y.reader ? "bg-amber-500" : "bg-slate-700",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "absolute top-0.5 size-5 rounded-full bg-white shadow transition-all",
+                      a11y.reader ? "left-[22px]" : "left-0.5",
+                    )}
+                  />
+                </button>
+              </div>
+
+              {a11y.reader && (
+                <div className="mt-3 flex flex-col gap-3">
+                  <div className="flex items-center gap-2">
+                    <Volume2 className="size-3.5 shrink-0 text-amber-300" />
+                    <select
+                      aria-label="Reader voice"
+                      value={a11y.voiceURI ?? ""}
+                      onChange={(e) => patchA11y({ voiceURI: e.target.value || null })}
+                      className="h-8 min-w-0 flex-1 rounded-lg border border-slate-700 bg-slate-900 px-2 text-xs text-slate-100 outline-none focus:border-amber-500/60"
+                    >
+                      <option value="">Auto — best for the GM language</option>
+                      {voices.map((v) => (
+                        <option key={v.voiceURI} value={v.voiceURI}>
+                          {v.name} ({v.lang})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <div className="mb-1 flex items-center justify-between">
+                      <label htmlFor="a11y-rate" className="text-[10px] font-semibold text-slate-400">
+                        Speed
+                      </label>
+                      <span className="font-mono text-[10px] text-amber-300">
+                        {a11y.rate.toFixed(1)}×
+                      </span>
+                    </div>
+                    <input
+                      id="a11y-rate"
+                      type="range"
+                      min={0.5}
+                      max={1.5}
+                      step={0.1}
+                      value={a11y.rate}
+                      aria-label="Reading speed"
+                      onChange={(e) => patchA11y({ rate: Number(e.target.value) })}
+                      className="h-1.5 w-full cursor-pointer accent-amber-500"
+                    />
+                  </div>
+
+                  <div>
+                    <div className="mb-1 flex items-center justify-between">
+                      <label htmlFor="a11y-pitch" className="text-[10px] font-semibold text-slate-400">
+                        Pitch
+                      </label>
+                      <span className="font-mono text-[10px] text-amber-300">
+                        {a11y.pitch.toFixed(1)}×
+                      </span>
+                    </div>
+                    <input
+                      id="a11y-pitch"
+                      type="range"
+                      min={0.5}
+                      max={1.5}
+                      step={0.1}
+                      value={a11y.pitch}
+                      aria-label="Voice pitch"
+                      onChange={(e) => patchA11y({ pitch: Number(e.target.value) })}
+                      className="h-1.5 w-full cursor-pointer accent-amber-500"
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTestingVoice(true);
+                      speak(
+                        "The candlelight flickers as you step into the ruined hall. Your move, adventurer.",
+                        lang === "pt-BR" ? "pt-BR" : "en-US",
+                      );
+                      window.setTimeout(() => setTestingVoice(false), 600);
+                    }}
+                    className="flex items-center justify-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs font-bold text-amber-300 transition-colors hover:bg-amber-500/20"
+                  >
+                    {testingVoice ? (
+                      <Loader2 className="size-3.5 animate-spin" />
+                    ) : (
+                      <VolumeX className="size-3.5" />
+                    )}
+                    Test voice
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <p className="rounded-lg border border-slate-800 bg-slate-950 p-2.5 text-[10px] leading-relaxed text-slate-500">
+              The read-aloud feature uses your browser's built-in speech engine — everything stays
+              on-device, works offline, and respects your device's text-to-speech settings. All
+              choices here are saved to this browser and apply to every adventure.
+            </p>
           </div>
         </DialogContent>
       </Dialog>
