@@ -52,7 +52,11 @@ function getCtx(): AudioContext | null {
     (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
   if (!AC) return null;
   if (!ctx) {
-    ctx = new AC();
+    try {
+      ctx = new AC();
+    } catch {
+      return null;
+    }
     // Some browsers keep the context suspended until the user has gestured
     // once. Unlock on the first pointer/key interaction anywhere in the app.
     const unlock = () => {
@@ -155,6 +159,16 @@ export function playDiceRoll({ outcome, count = 1 }: DiceSfxOptions): void {
   const c = getCtx();
   if (!c) return;
 
+  // Sound is decorative — an audio hiccup must never break game logic
+  // (this is called from the dice-log critical path in GameBoard).
+  try {
+    void synthRoll(c, outcome, count);
+  } catch {
+    /* ignore */
+  }
+}
+
+function synthRoll(c: AudioContext, outcome: DiceResult["outcome"], count: number): void {
   const t0 = c.currentTime + 0.02;
   const master = c.createGain();
   master.gain.value = 0.35;

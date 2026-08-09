@@ -8,6 +8,7 @@ import {
 } from "@/lib/rpg/storage";
 import type { AdventureRecord, AdventureState, Character, SavedCharacterRecord } from "@/lib/rpg/types";
 import {
+  Bug,
   Compass,
   Dices,
   LogOut,
@@ -24,9 +25,10 @@ import { useNavigate } from "react-router";
 import { cn } from "@/lib/utils";
 import Wizard from "@/components/creation/Wizard";
 import SettingsPanel from "@/components/dashboard/SettingsPanel";
+import BugReportPanel from "@/components/dashboard/BugReportPanel";
 import GameBoard from "@/pages/game/GameBoard";
 
-type Tab = "adventures" | "characters" | "settings";
+type Tab = "adventures" | "characters" | "settings" | "bugreport";
 
 function SystemBadge({ system }: { system: SavedCharacterRecord["system"] | AdventureRecord["system"] }) {
   const map: Record<string, string> = {
@@ -159,6 +161,7 @@ export default function Dashboard() {
     { id: "adventures", label: "Adventures", icon: <Swords className="size-4" /> },
     { id: "characters", label: "Characters", icon: <Users className="size-4" /> },
     { id: "settings", label: "Settings", icon: <Settings2 className="size-4" /> },
+    { id: "bugreport", label: "Bug report", icon: <Bug className="size-4" /> },
   ];
 
   return (
@@ -377,6 +380,22 @@ export default function Dashboard() {
               <Sparkles className="size-4 shrink-0 text-amber-500" />
               Settings are stored only in this browser. The built-in provider falls back to free AI
               Horde when no platform OpenAI key is configured, so Live mode works with zero accounts.
+            </div>
+          </div>
+        )}
+
+        {/* ---------------------------------------------------------------- */}
+        {/* BUG REPORT TAB                                                   */}
+        {/* ---------------------------------------------------------------- */}
+        {tab === "bugreport" && (
+          <div>
+            <h1 className="font-display text-2xl font-bold tracking-tight">Bug report</h1>
+            <p className="mt-1 text-sm text-stone-500">
+              Found something off? Describe it in detail and export a clean report — attach a saved
+              session so the bug can be reproduced exactly.
+            </p>
+            <div className="mt-6">
+              <BugReportPanel />
             </div>
           </div>
         )}
