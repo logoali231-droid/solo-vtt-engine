@@ -15,8 +15,26 @@ export default function NarrativeHub({ logs, onReroll }: Props) {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [logs.length]);
 
+  // Fresh table — nothing has happened yet. Give the player a clear starting point.
+  if (logs.length === 0) {
+    return (
+      <div className="oracle-scroll min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-5 sm:py-5">
+        <div className="flex h-full min-h-[45vh] flex-col items-center justify-center gap-3 text-center">
+          <span className="die3d flex size-14 items-center justify-center rounded-xl border border-amber-500/40 bg-amber-500/10 font-mono text-xl font-bold text-amber-300">
+            20
+          </span>
+          <p className="text-sm font-bold tracking-tight text-slate-200">The table is quiet</p>
+          <p className="max-w-xs text-[11px] leading-relaxed text-slate-500">
+            Describe your hero's next move below — say what you do, and the dice, the world, and the
+            Game Master will answer.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:px-5 sm:py-5">
+    <div className="oracle-scroll min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:px-5 sm:py-5">
       {logs.map((entry) => {
         if (entry.kind === "dice" && entry.dice) {
           return (

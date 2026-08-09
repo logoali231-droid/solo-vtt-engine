@@ -196,3 +196,20 @@ html {
     animation: none;
   }
 }
+
+/* ---------------------------------------------------------------------------
+ * Accessibility & polish
+ * --------------------------------------------------------------------------- */
+
+/* Visible keyboard focus everywhere — amber ring matching the UI accent.
+   Text inputs mostly style their own focus (border/ring), so this targets
+   buttons, links and other interactive controls. */
+:where(a, button, [role="button"], [tabindex], summary, [contenteditable="true"]):focus-visible {
+  outline: 2px solid #f59e0b;
+  outline-offset: 2px;
+}
+
+/* Amber-tinted text selection inside the VTT. */
+::selection {
+  background-color: rgb(245 158 11 / 0.4);
+}

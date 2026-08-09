@@ -262,7 +262,17 @@ export default function GameBoard({
     return createAdventure(character, settings.language, settings);
   });
   const [gmBusy, setGmBusy] = useState(false);
-  const [rollPrefs, setRollPrefs] = useState({ dc: 13 });
+  // The DC preference is the only manual roll preference — persist it so a
+  // player's choice survives reloads (clamped to the same 5–30 range the UI uses).
+  const [rollPrefs, setRollPrefs] = useState<{ dc: number }>(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem("oraculum.rollprefs") ?? "null") as { dc?: unknown } | null;
+      const dc = typeof saved?.dc === "number" ? saved.dc : NaN;
+      return { dc: Number.isFinite(dc) && dc >= 5 && dc <= 30 ? dc : 13 };
+    } catch {
+      return { dc: 13 };
+    }
+  });
   const [featurePicker, setFeaturePicker] = useState(false);
   const [saveDialog, setSaveDialog] = useState(false);
   const [saveLabel, setSaveLabel] = useState("");
@@ -2097,7 +2107,14 @@ export default function GameBoard({
               onRoll={roll}
               busy={gmBusy}
               rollPrefs={rollPrefs}
-              setRollPrefs={setRollPrefs}
+              setRollPrefs={(p) => {
+                setRollPrefs(p);
+                try {
+                  localStorage.setItem("oraculum.rollprefs", JSON.stringify(p));
+                } catch {
+                  /* storage unavailable — in-memory only */
+                }
+              }}
               pendingCount={
                 c.system === "dnd5e" ? (c as DnDCharacter).state.pending.length + (c as DnDCharacter).state.damagePending.length : 0
               }
