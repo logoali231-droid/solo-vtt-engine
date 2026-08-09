@@ -14,6 +14,7 @@ import type {
   Pf2eCharacter,
 } from "./types";
 import { identityOf, prefsOf } from "./types";
+import { PF2E_FEAT_MAP } from "./data/pf2e";
 import {
   getDndDerived,
   getGurpsDerived,
@@ -197,6 +198,7 @@ function serializePf2e(c: Pf2eCharacter): Record<string, unknown> {
     saveRanks: c.saveRanks,
     perceptionRank: c.perceptionRank,
     armorId: c.armorId,
+    feats: (c.feats ?? []).map((id) => PF2E_FEAT_MAP[id]?.name ?? id),
     actionsRemaining: c.state.actions,
   };
 }

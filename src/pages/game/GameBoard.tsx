@@ -1916,6 +1916,12 @@ export default function GameBoard({
           ? { ...ch, perceptionRank: rank }
           : ch,
       ),
+    onPfSetArmor: (id) =>
+      updateChar((ch) =>
+        ch.system === "pf2e"
+          ? { ...ch, armorId: id }
+          : ch,
+      ),
     onPfSpendAction: (n) =>
       updateChar((ch) =>
         ch.system === "pf2e"

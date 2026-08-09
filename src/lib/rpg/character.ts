@@ -331,7 +331,8 @@ export function getPf2eDerived(c: Pf2eCharacter): Pf2eDerived {
   const hpMax = ancestry.hp + klass.hp + mods.con;
   const armor = PF2E_ARMOR_MAP[c.armorId];
   const armorRank: PfRank = c.saveRanks.str === "untrained" && c.armorId !== "none" ? "trained" : c.saveRanks.str; // reuse a rank slot heuristically
-  const ac = 10 + mods.dex + pfTierBonus(armorRank, level) + armor.acBonus;
+  const dexToAc = Math.min(mods.dex, armor.dexCap ?? 99);
+  const ac = 10 + dexToAc + pfTierBonus(armorRank, level) + armor.acBonus;
   const perception = pfTierBonus(c.perceptionRank, level) + mods.wis;
   const classDC = 10 + pfTierBonus("trained", level) + mods[klass.keyAbility];
 

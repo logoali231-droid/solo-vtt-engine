@@ -7,7 +7,7 @@ import {
 } from "@/lib/rpg/types";
 import type { Pf2eDerived } from "@/lib/rpg/character";
 import { formatMod, pfTierBonus } from "@/lib/rpg/dice";
-import { PF2E_SKILLS } from "@/lib/rpg/data/pf2e";
+import { PF2E_FEAT_MAP, PF2E_SKILLS } from "@/lib/rpg/data/pf2e";
 import IdentityChips from "./IdentityChips";
 import type { SheetProps } from "../../types";
 
@@ -173,6 +173,28 @@ export default function Pf2eSheet({ character: c, derived: d, onRoll, actions }:
           })}
         </div>
       </div>
+
+      {/* Feats */}
+      {c.feats && c.feats.length > 0 && (
+        <div className="border-t border-slate-800 px-4 py-3">
+          <p className="mb-2 font-mono text-[9px] font-bold uppercase tracking-widest text-slate-500">Feats</p>
+          <div className="flex flex-col gap-1.5">
+            {c.feats.map((id) => {
+              const f = PF2E_FEAT_MAP[id];
+              if (!f) return null;
+              return (
+                <div key={id} className="rounded border border-slate-800 bg-slate-950 px-2 py-1.5">
+                  <p className="font-mono text-[10px] font-bold text-teal-300">
+                    {f.name}
+                    <span className="ml-1.5 text-[8px] font-medium uppercase text-slate-500">{f.traits.join(" · ")}</span>
+                  </p>
+                  <p className="mt-0.5 font-mono text-[9px] leading-relaxed text-slate-400">{f.summary}</p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Skills */}
       <div className="px-4 py-3">

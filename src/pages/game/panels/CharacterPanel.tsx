@@ -17,6 +17,7 @@ import CampaignPanel from "./CampaignPanel";
 import CompanionPanel from "./CompanionPanel";
 import ConditionsPanel from "./ConditionsPanel";
 import GearPanel, { InventoryEditor } from "./GearPanel";
+import Pf2eGearPanel from "./Pf2eGearPanel";
 import LorebookPanel from "./LorebookPanel";
 import DndSheet from "./sheets/DndSheet";
 import GurpsSheet from "./sheets/GurpsSheet";
@@ -63,6 +64,7 @@ export interface PanelActions {
   onPfSetSkillRank: (skill: string, rank: PfRank) => void;
   onPfSetSaveRank: (ability: string, rank: PfRank) => void;
   onPfSetPerceptionRank: (rank: PfRank) => void;
+  onPfSetArmor: (id: string) => void;
   onPfSpendAction: (n: number) => void;
   onPfResetActions: () => void;
   onPfDamage: (n: number) => void;
@@ -194,15 +196,25 @@ export default function CharacterPanel({
             />
           ) : (
             <div className="flex flex-col gap-4">
-              <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 text-xs leading-relaxed text-slate-400">
-                {system === "pf2e"
-                  ? "Pathfinder equipment is tracked through the action economy — equip weapons and gear from the sheet. Track your carried loot below."
-                  : "GURPS gear is budgeted with character points; your DR shows on the sheet. Track your carried loot below."}
-              </div>
-              <InventoryEditor
-                inventory={inventory}
-                onChange={(items) => onInventoryChange?.(items)}
-              />
+              {system === "pf2e" ? (
+                <Pf2eGearPanel
+                  character={character as Pf2eCharacter}
+                  derived={derived as Pf2eDerived}
+                  inventory={inventory}
+                  onInventoryChange={(items) => onInventoryChange?.(items)}
+                  onSetArmor={actions.onPfSetArmor}
+                />
+              ) : (
+                <>
+                  <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 text-xs leading-relaxed text-slate-400">
+                    GURPS gear is budgeted with character points; your DR shows on the sheet. Track your carried loot below.
+                  </div>
+                  <InventoryEditor
+                    inventory={inventory}
+                    onChange={(items) => onInventoryChange?.(items)}
+                  />
+                </>
+              )}
             </div>
           ))}
         {tab === "conditions" && (

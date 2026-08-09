@@ -9,8 +9,11 @@ import {
   PF2E_ANCESTRIES,
   PF2E_BACKGROUNDS,
   PF2E_CLASSES,
+  PF2E_FEATS,
+  PF2E_FEAT_MAP,
   PF2E_HERITAGES,
 } from "@/lib/rpg/data/pf2e";
+import type { Pf2eFeatDef } from "@/lib/rpg/types";
 import { ChoiceGrid, SectionLabel, StepShell } from "../ui";
 import { dndMod } from "./AbilityScoresStep";
 
@@ -32,7 +35,7 @@ export function AncestryStep({
           id: a.id,
           title: a.name,
           subtitle: `+2 ${a.boosts.map((b) => ABILITY_LABELS[b]).join(", ")} · ${a.hp} HP · ${a.speed} ft`,
-          badge: `${a.size} · ${a.traits.slice(0, 2).join(", ")}`,
+          badge: `${a.size} · ${a.traits.slice(0, 2).join(", ")}${a.languages ? ` · ${a.languages.slice(0, 2).join(", ")}` : ""}`,
         }))}
         selected={ancestryId}
         onSelect={setAncestryId}
@@ -125,6 +128,107 @@ export function PfBackgroundStep({
         selected={backgroundId}
         onSelect={setBackgroundId}
       />
+    </StepShell>
+  );
+}
+
+export interface PfFeatsDraft {
+  ancestry: string;
+  general: string;
+  skill: string;
+}
+
+function FeatPicker({
+  label,
+  hint,
+  feats,
+  selected,
+  onSelect,
+}: {
+  label: string;
+  hint?: string;
+  feats: Pf2eFeatDef[];
+  selected: string;
+  onSelect: (id: string) => void;
+}) {
+  return (
+    <div className="rounded-xl border border-stone-200 bg-white p-4">
+      <SectionLabel>{label}</SectionLabel>
+      {hint && <p className="mb-2 text-xs text-stone-400">{hint}</p>}
+      <div className="flex flex-col gap-1.5">
+        {feats.map((f) => {
+          const active = f.id === selected;
+          return (
+            <button
+              key={f.id}
+              type="button"
+              onClick={() => onSelect(f.id)}
+              className={cn(
+                "rounded-lg border px-3 py-2 text-left transition-all",
+                active
+                  ? "border-teal-500 bg-teal-50 shadow-[0_0_0_1px_rgba(20,184,166,0.25)]"
+                  : "border-stone-200 bg-white hover:border-teal-300",
+              )}
+            >
+              <span className="flex items-center justify-between gap-2">
+                <span className={cn("text-xs font-semibold", active ? "text-teal-900" : "text-stone-800")}>
+                  {f.name}
+                </span>
+                <span className="shrink-0 rounded-full bg-stone-100 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-stone-500">
+                  {f.traits.join(" · ")}
+                </span>
+              </span>
+              <span className={cn("mt-0.5 block text-[11px] leading-relaxed", active ? "text-teal-800/80" : "text-stone-500")}>
+                {f.summary}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+export function PfFeatsStep({
+  ancestryId,
+  feats,
+  setFeats,
+}: {
+  ancestryId: string;
+  feats: PfFeatsDraft;
+  setFeats: (v: PfFeatsDraft) => void;
+}) {
+  const ancestryFeats = PF2E_FEATS.filter((f) => f.kind === "ancestry" && f.ancestryId === ancestryId);
+  const generalFeats = PF2E_FEATS.filter((f) => f.kind === "general");
+  const skillFeats = PF2E_FEATS.filter((f) => f.kind === "skill");
+  return (
+    <StepShell
+      title="Feats"
+      subtitle="Every 1st-level Pathfinder hero begins with an ancestry feat, a general feat and a skill feat. They shape who you are before the first dice fall."
+    >
+      <div className="grid gap-4 lg:grid-cols-3">
+        <FeatPicker
+          label="Ancestry feat"
+          hint={`Available to ${PF2E_ANCESTRIES.find((a) => a.id === ancestryId)?.name ?? ancestryId}.`}
+          feats={ancestryFeats}
+          selected={feats.ancestry}
+          onSelect={(id) => setFeats({ ...feats, ancestry: id })}
+        />
+        <FeatPicker
+          label="General feat"
+          hint="Broad training available to any hero."
+          feats={generalFeats}
+          selected={feats.general}
+          onSelect={(id) => setFeats({ ...feats, general: id })}
+        />
+        <FeatPicker
+          label="Skill feat"
+          hint="Specialized techniques for your trained skills."
+          feats={skillFeats}
+          selected={feats.skill}
+          onSelect={(id) => setFeats({ ...feats, skill: id })}
+        />
+      </div>
     </StepShell>
   );
 }
@@ -227,6 +331,7 @@ export function PfReviewCard({
   classId,
   backgroundId,
   boosts,
+  feats,
 }: {
   system: GameSystem;
   name: string;
@@ -235,6 +340,7 @@ export function PfReviewCard({
   classId: string;
   backgroundId: string;
   boosts: AbilityId[];
+  feats: string[];
 }) {
   const ancestry = PF2E_ANCESTRIES.find((a) => a.id === ancestryId)!;
   const klass = PF2E_CLASSES.find((c) => c.id === classId)!;
@@ -276,6 +382,21 @@ export function PfReviewCard({
         <div className="mt-2 rounded-lg bg-stone-50 p-3 text-xs text-stone-600">
           <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">Starting kit</p>
           <p className="mt-1 leading-relaxed">{klass.startingItems!.join(" · ")}</p>
+        </div>
+      )}
+      {feats.length > 0 && (
+        <div className="mt-2 rounded-lg bg-stone-50 p-3 text-xs text-stone-600">
+          <p className="text-[10px] font-bold uppercase tracking-wide text-stone-400">Feats</p>
+          <div className="mt-1 flex flex-wrap gap-1.5">
+            {feats.map((id) => {
+              const f = PF2E_FEAT_MAP[id];
+              return (
+                <span key={id} className="rounded-full bg-teal-50 px-2.5 py-1 text-xs font-medium text-teal-700">
+                  {f?.name ?? id}
+                </span>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>

@@ -661,6 +661,10 @@ export interface Pf2eAncestryDef {
   speed: number;
   traits: string[];
   blurb: string;
+  /** Spoken languages at character creation. */
+  languages?: string[];
+  /** Level-1 ancestry feat ids available to this ancestry. */
+  feats?: string[];
 }
 
 export interface Pf2eClassDef {
@@ -683,6 +687,44 @@ export interface Pf2eBackgroundDef {
   feature: string;
 }
 
+export type Pf2eFeatKind = "ancestry" | "general" | "skill";
+
+export interface Pf2eFeatDef {
+  id: string;
+  name: string;
+  kind: Pf2eFeatKind;
+  /** Minimum level (1 for every 1st-level feat here). */
+  level: number;
+  traits: string[];
+  summary: string;
+  /** For ancestry feats — the ancestry it belongs to. */
+  ancestryId?: string;
+}
+
+export interface Pf2eWeaponDef {
+  id: string;
+  name: string;
+  category: "simple" | "martial";
+  hands: 1 | 2;
+  /** Damage dice, e.g. "1d6". */
+  damageDice: string;
+  damageType: "P" | "S" | "B";
+  traits: string[];
+  /** Price in silver pieces. */
+  price: number;
+  bulk: string;
+}
+
+export interface Pf2eGearDef {
+  id: string;
+  name: string;
+  category: "weapon" | "armor" | "adventuring" | "tool" | "consumable";
+  /** Price in silver pieces. */
+  price: number;
+  bulk: string;
+  summary: string;
+}
+
 export interface Pf2eCharacter {
   system: "pf2e";
   name: string;
@@ -697,6 +739,8 @@ export interface Pf2eCharacter {
   saveRanks: Record<AbilityId, PfRank>;
   perceptionRank: PfRank;
   armorId: string;
+  /** Chosen feat ids (ancestry + general + skill) at level 1. */
+  feats?: string[];
   /** Player Core: every 1st-level hero starts with 15 gp + the class kit. */
   startingGold?: number;
   startingInventory?: InventoryItem[];

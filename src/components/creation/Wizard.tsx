@@ -33,6 +33,7 @@ import {
   PF2E_ANCESTRIES,
   PF2E_BACKGROUNDS,
   PF2E_CLASSES,
+  PF2E_FEATS,
 } from "@/lib/rpg/data/pf2e";
 import { Coins, Dices, Flame, ScrollText, Shield, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -43,7 +44,9 @@ import {
   HeritageStep,
   PfBackgroundStep,
   PfClassStep,
+  PfFeatsStep,
   PfReviewCard,
+  type PfFeatsDraft,
 } from "./steps/Pf2eSteps";
 import {
   AdvantagesStep,
@@ -116,7 +119,7 @@ function dndSteps() {
   return ["System", "Identity", "Adventure", "Race", "Subrace", "Class", "Subclass", "Background", "Abilities", "Talents & Feats", "Skills & Expertise", "Starting Gear & Gold", "Review & Lock"];
 }
 function pf2eSteps() {
-  return ["System", "Identity", "Adventure", "Ancestry", "Heritage", "Class", "Background", "Ability Boosts", "Review & Lock"];
+  return ["System", "Identity", "Adventure", "Ancestry", "Heritage", "Class", "Background", "Feats", "Ability Boosts", "Review & Lock"];
 }
 function gurpsSteps() {
   return ["System", "Identity", "Adventure", "Attributes", "Advantages", "Disadvantages", "Skills", "Protection", "Review & Lock"];
@@ -161,7 +164,15 @@ export default function Wizard({ onLock, initial }: WizardProps) {
     classId: string | null;
     backgroundId: string | null;
     boosts: AbilityId[];
-  }>({ ancestryId: null, heritageId: "standard", classId: null, backgroundId: null, boosts: [] });
+    feats: PfFeatsDraft;
+  }>({
+    ancestryId: null,
+    heritageId: "standard",
+    classId: null,
+    backgroundId: null,
+    boosts: [],
+    feats: { ancestry: "", general: "fleet", skill: "assurance" },
+  });
 
   // GURPS draft
   const [gurps, setGurps] = useState<{
@@ -226,8 +237,9 @@ export default function Wizard({ onLock, initial }: WizardProps) {
       if (step === 4) return true;
       if (step === 5) return !!pf2e.classId;
       if (step === 6) return !!pf2e.backgroundId;
-      if (step === 7) return pf2e.boosts.length === 4;
-      if (step === 8) return true;
+      if (step === 7) return !!pf2e.feats.ancestry;
+      if (step === 8) return pf2e.boosts.length === 4;
+      if (step === 9) return true;
     }
     if (system === "gurps") {
       const attrsCost =
@@ -346,6 +358,7 @@ export default function Wizard({ onLock, initial }: WizardProps) {
       backgroundId: pf2e.backgroundId!,
       scores,
       freeBoosts: pf2e.boosts,
+      feats: Object.values(pf2e.feats).filter(Boolean),
       skillRanks,
       saveRanks,
       perceptionRank: "trained" as PfRank,
@@ -963,7 +976,8 @@ export default function Wizard({ onLock, initial }: WizardProps) {
           <AncestryStep
             ancestryId={pf2e.ancestryId}
             setAncestryId={(v) => {
-              setPf2e((p) => ({ ...p, ancestryId: v, heritageId: "standard" }));
+              const firstFeat = PF2E_FEATS.find((f) => f.kind === "ancestry" && f.ancestryId === v)?.id ?? "";
+              setPf2e((p) => ({ ...p, ancestryId: v, heritageId: "standard", feats: { ...p.feats, ancestry: firstFeat } }));
             }}
           />
         );
@@ -979,7 +993,16 @@ export default function Wizard({ onLock, initial }: WizardProps) {
       }
       if (step === 5) return <PfClassStep classId={pf2e.classId} setClassId={(v) => setPf2e((p) => ({ ...p, classId: v }))} />;
       if (step === 6) return <PfBackgroundStep backgroundId={pf2e.backgroundId} setBackgroundId={(v) => setPf2e((p) => ({ ...p, backgroundId: v }))} />;
-      if (step === 7 && pf2e.ancestryId && pf2e.classId && pf2e.backgroundId) {
+      if (step === 7 && pf2e.ancestryId) {
+        return (
+          <PfFeatsStep
+            ancestryId={pf2e.ancestryId}
+            feats={pf2e.feats}
+            setFeats={(v) => setPf2e((p) => ({ ...p, feats: v }))}
+          />
+        );
+      }
+      if (step === 8 && pf2e.ancestryId && pf2e.classId && pf2e.backgroundId) {
         return (
           <BoostsStep
             ancestryId={pf2e.ancestryId}
@@ -991,7 +1014,7 @@ export default function Wizard({ onLock, initial }: WizardProps) {
           />
         );
       }
-      if (step === 8 && pf2e.ancestryId && pf2e.classId && pf2e.backgroundId) {
+      if (step === 9 && pf2e.ancestryId && pf2e.classId && pf2e.backgroundId) {
         return (
           <StepShell title="Review & Lock" subtitle="Lock in your Pathfinder hero and begin your adventure.">
             <PrefsSummaryChips prefs={prefs} />
@@ -1003,6 +1026,7 @@ export default function Wizard({ onLock, initial }: WizardProps) {
               classId={pf2e.classId}
               backgroundId={pf2e.backgroundId}
               boosts={pf2e.boosts}
+              feats={Object.values(pf2e.feats).filter(Boolean)}
             />
           </StepShell>
         );
