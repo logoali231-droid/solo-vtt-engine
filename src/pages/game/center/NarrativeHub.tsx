@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 import type { LogEntry } from "@/lib/rpg/types";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import DiceCard from "./DiceCard";
 
 interface Props {
@@ -14,6 +14,17 @@ export default function NarrativeHub({ logs, onReroll }: Props) {
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [logs.length]);
+
+  // Only the most recent dice entry is the "live" card — it alone is
+  // gesture-interactive (shake / fling / gyro). Older cards stay read-only so
+  // a single shake doesn't reroll the whole log and history stops adding
+  // sensor listeners as it grows.
+  const lastDiceId = useMemo(() => {
+    for (let i = logs.length - 1; i >= 0; i--) {
+      if (logs[i].kind === "dice") return logs[i].id;
+    }
+    return null;
+  }, [logs]);
 
   // Fresh table — nothing has happened yet. Give the player a clear starting point.
   if (logs.length === 0) {
@@ -44,7 +55,7 @@ export default function NarrativeHub({ logs, onReroll }: Props) {
         if (entry.kind === "dice" && entry.dice) {
           return (
             <div key={entry.id} className="max-w-xl">
-              <DiceCard result={entry.dice} onReroll={() => onReroll(entry.id)} />
+              <DiceCard result={entry.dice} live={entry.id === lastDiceId} onReroll={() => onReroll(entry.id)} />
             </div>
           );
         }

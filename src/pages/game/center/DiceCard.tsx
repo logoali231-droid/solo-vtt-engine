@@ -34,6 +34,10 @@ const ADV_CHIP: Record<"adv" | "dis" | "both", { label: string; cls: string }> =
 interface Props {
   result: DiceResult;
   onReroll?: () => void;
+  /** Only the most recent dice card is gesture-interactive. History cards are
+   *  read-only: without this, every card would attach gyro/shake listeners and
+   *  a single shake would reroll the entire log at once. */
+  live?: boolean;
 }
 
 /** iOS 13+ requires a one-time user gesture before `devicemotion` /
@@ -51,7 +55,7 @@ function needsMotionPermission() {
 const FLING_SPEED = 0.9;
 const FLING_DISTANCE = 12;
 
-export default function DiceCard({ result, onReroll }: Props) {
+export default function DiceCard({ result, onReroll, live = false }: Props) {
   const style = OUTCOME_STYLES[result.outcome];
   const total = result.total;
   const advChip =
@@ -96,7 +100,7 @@ export default function DiceCard({ result, onReroll }: Props) {
   // Gyroscope tilt (mobile) — gentle 3D lean of the dice
   const [tilt, setTilt] = useState({ x: 0, y: 0 });
   useEffect(() => {
-    if (motionState !== "granted") return;
+    if (!live || motionState !== "granted") return;
     if (typeof window === "undefined" || !("DeviceOrientationEvent" in window)) return;
     const handler = (e: DeviceOrientationEvent) => {
       if (e.beta == null || e.gamma == null) return;
@@ -107,13 +111,13 @@ export default function DiceCard({ result, onReroll }: Props) {
     };
     window.addEventListener("deviceorientation", handler);
     return () => window.removeEventListener("deviceorientation", handler);
-  }, [motionState]);
+  }, [motionState, live]);
 
   // Shake-to-roll (mobile accelerometer — the same sensor family as a
   // speedometer: it measures proper acceleration along X/Y/Z)
   const lastShake = useRef(0);
   useEffect(() => {
-    if (!onReroll || motionState !== "granted") return;
+    if (!live || !onReroll || motionState !== "granted") return;
     if (typeof window === "undefined" || !("DeviceMotionEvent" in window)) return;
     const handler = (e: DeviceMotionEvent) => {
       const a = e.accelerationIncludingGravity;
@@ -128,7 +132,7 @@ export default function DiceCard({ result, onReroll }: Props) {
     };
     window.addEventListener("devicemotion", handler);
     return () => window.removeEventListener("devicemotion", handler);
-  }, [onReroll, motionState]);
+  }, [onReroll, motionState, live]);
 
   // Fling-to-roll (mouse + touch) — grab the dice, drag, and release with
   // enough speed to "throw" them. Works on desktop, where there is no
@@ -137,7 +141,7 @@ export default function DiceCard({ result, onReroll }: Props) {
   const [throwPos, setThrowPos] = useState({ x: 0, y: 0, dragging: false });
 
   const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
-    if (!onReroll) return;
+    if (!live || !onReroll) return;
     e.currentTarget.setPointerCapture(e.pointerId);
     const now = performance.now();
     dragRef.current = {
@@ -227,7 +231,7 @@ export default function DiceCard({ result, onReroll }: Props) {
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerCancel}
-          title={onReroll ? "Drag and fling the dice to roll" : undefined}
+          title={live && onReroll ? "Drag and fling the dice to roll" : undefined}
         >
           {(result.advantage || result.disadvantage) && result.rolls.length > 1 ? (
             <>
@@ -281,13 +285,17 @@ export default function DiceCard({ result, onReroll }: Props) {
       {onReroll && (
         <div className="flex flex-wrap items-center gap-1.5 border-t border-slate-800 px-3 py-1.5">
           <span className="text-[9px] text-slate-600">Advantage / disadvantage follow the situation automatically.</span>
-          <span className="hidden items-center gap-1 rounded px-1.5 py-0.5 text-[9px] text-slate-600 md:flex">
-            <Move className="size-3" /> drag &amp; fling to roll
-          </span>
-          <span className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[9px] text-slate-600 md:hidden">
-            <Vibrate className="size-3" /> shake to roll
-          </span>
-          {motionState === "unknown" && (
+          {live && (
+            <span className="hidden items-center gap-1 rounded px-1.5 py-0.5 text-[9px] text-slate-600 md:flex">
+              <Move className="size-3" /> drag &amp; fling to roll
+            </span>
+          )}
+          {live && (
+            <span className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[9px] text-slate-600 md:hidden">
+              <Vibrate className="size-3" /> shake to roll
+            </span>
+          )}
+          {live && motionState === "unknown" && (
             <button
               type="button"
               onClick={requestMotion}
