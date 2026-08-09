@@ -52,12 +52,14 @@ export default function LorebookPanel({ entries, onChange }: Props) {
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
+          aria-label="Entry name"
           placeholder="Name — e.g. The Sunken Cathedral"
           className="mb-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-100 outline-none transition-colors placeholder:text-slate-600 focus:border-amber-500/60"
         />
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
+          aria-label="Entry description"
           placeholder="Description — facts the GM should know…"
           rows={3}
           className="mb-2 w-full resize-none rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-100 outline-none transition-colors placeholder:text-slate-600 focus:border-amber-500/60"
@@ -66,6 +68,7 @@ export default function LorebookPanel({ entries, onChange }: Props) {
           value={keywords}
           onChange={(e) => setKeywords(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && add()}
+          aria-label="Keywords"
           placeholder="Keywords — cathedral, sunken, bell (comma separated)"
           className="mb-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-100 outline-none transition-colors placeholder:text-slate-600 focus:border-amber-500/60"
         />
@@ -93,6 +96,7 @@ export default function LorebookPanel({ entries, onChange }: Props) {
                 type="button"
                 onClick={() => remove(e.id)}
                 title="Delete entry"
+                aria-label="Delete entry"
                 className="flex size-6 shrink-0 items-center justify-center rounded-md text-slate-600 transition-colors hover:bg-red-500/10 hover:text-red-400"
               >
                 <Trash2 className="size-3.5" />

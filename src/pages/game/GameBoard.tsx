@@ -1999,6 +1999,13 @@ export default function GameBoard({
 
   return (
     <div className="flex h-screen flex-col bg-slate-950 text-slate-100 supports-[height:100dvh]:h-dvh">
+
+    <a
+      href="#oracle-main"
+      className="sr-only focus:not-sr-only focus:absolute focus:left-3 focus:top-3 focus:z-50 focus:rounded-lg focus:border focus:border-amber-500/60 focus:bg-slate-900 focus:px-3 focus:py-2 focus:text-xs focus:font-bold focus:text-amber-300"
+    >
+      Skip to game content
+    </a>
       <TopBar
         adventure={adventure}
         hpText={hpText}
@@ -2097,7 +2104,7 @@ export default function GameBoard({
             }}
           />
         </aside>
-        <main className="flex min-w-0 flex-1 flex-col">
+        <main id="oracle-main" className="flex min-w-0 flex-1 flex-col">
           <div className="flex min-h-0 flex-1 flex-col">
             <NarrativeHub logs={adventure.logs} onReroll={rerollDice} />
             <CommandCenter
@@ -2266,6 +2273,7 @@ export default function GameBoard({
             <input
               value={saveLabel}
               onChange={(e) => setSaveLabel(e.target.value)}
+              aria-label="Library label"
               placeholder="Library label"
               className="h-10 rounded-lg border border-slate-700 bg-slate-950 px-3 text-sm text-slate-100 outline-none transition-colors placeholder:text-slate-600 focus:border-amber-500/60"
             />

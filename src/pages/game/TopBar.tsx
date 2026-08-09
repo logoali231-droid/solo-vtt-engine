@@ -109,6 +109,7 @@ export default function TopBar({
           type="button"
           onClick={onOpenSheet}
           title="Character sheet"
+          aria-label="Open character sheet"
           className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-slate-800 text-slate-300 transition-colors hover:border-amber-500/50 hover:text-amber-300 lg:hidden"
         >
           <Menu className="size-4" />
@@ -140,6 +141,7 @@ export default function TopBar({
                 key={m}
                 type="button"
                 onClick={() => onGmMode(m)}
+                aria-pressed={adventure.gmMode === m}
                 className={cn(
                   "rounded-md px-2 py-1 text-[10px] font-bold uppercase tracking-wide transition-colors sm:px-2.5",
                   adventure.gmMode === m
@@ -157,6 +159,7 @@ export default function TopBar({
             type="button"
             onClick={() => setSettingsOpen(true)}
             title="AI model, provider & API key"
+            aria-label="AI model, provider and API key"
             className="flex items-center gap-1.5 rounded-lg border border-slate-800 px-2.5 py-1.5 text-[11px] font-semibold text-slate-400 transition-colors hover:border-teal-500/50 hover:text-teal-300"
           >
             <Settings2 className="size-4" />
@@ -167,6 +170,7 @@ export default function TopBar({
             type="button"
             onClick={() => setAdsOpen(true)}
             title="Ads — screen-time sponsor slot & revenue"
+            aria-label="Ads settings"
             className={cn(
               "flex size-8 items-center justify-center rounded-lg border transition-colors",
               ads.enabled
@@ -180,6 +184,7 @@ export default function TopBar({
             type="button"
             onClick={onSaveToLibrary}
             title="Save to character library"
+            aria-label="Save to character library"
             className="hidden size-8 items-center justify-center rounded-lg border border-slate-800 text-slate-400 transition-colors hover:border-amber-500/50 hover:text-amber-300 sm:flex"
           >
             <BookmarkPlus className="size-4" />
@@ -188,6 +193,7 @@ export default function TopBar({
             type="button"
             onClick={onExport}
             title="Export JSON"
+            aria-label="Export adventure as JSON"
             className="hidden size-8 items-center justify-center rounded-lg border border-slate-800 text-slate-400 transition-colors hover:text-slate-200 sm:flex"
           >
             <Download className="size-4" />
@@ -196,6 +202,7 @@ export default function TopBar({
             type="button"
             onClick={() => fileRef.current?.click()}
             title="Import JSON"
+            aria-label="Import adventure from JSON"
             className="hidden size-8 items-center justify-center rounded-lg border border-slate-800 text-slate-400 transition-colors hover:text-slate-200 sm:flex"
           >
             <Upload className="size-4" />
@@ -216,6 +223,7 @@ export default function TopBar({
               type="button"
               onClick={onBackToHub}
               title="Back to the hub (adventures, characters, settings)"
+              aria-label="Back to the hub"
               className="flex items-center gap-1 rounded-lg border border-slate-800 px-2 py-1.5 text-[11px] font-semibold text-slate-400 transition-colors hover:border-teal-500/50 hover:text-teal-300"
             >
               <Home className="size-3.5" />
@@ -226,6 +234,7 @@ export default function TopBar({
             type="button"
             onClick={onNewCharacter}
             title="New character (back to Phase 1)"
+            aria-label="Create a new character"
             className="flex items-center gap-1 rounded-lg border border-slate-800 px-2 py-1.5 text-[11px] font-semibold text-slate-400 transition-colors hover:border-amber-500/50 hover:text-amber-300"
           >
             <Plus className="size-3.5" />
@@ -235,6 +244,7 @@ export default function TopBar({
             type="button"
             onClick={onSignOut}
             title="Sign out"
+            aria-label="Sign out"
             className="flex size-8 items-center justify-center rounded-lg border border-slate-800 text-slate-400 transition-colors hover:text-slate-200"
           >
             <LogOut className="size-4" />
@@ -363,6 +373,7 @@ export default function TopBar({
               </div>
               <input
                 list="gm-model-options"
+                aria-label="Model ID"
                 value={settings.model}
                 onChange={(e) => patch({ model: e.target.value })}
                 placeholder={provider.models[0] ?? "model id…"}
@@ -399,6 +410,7 @@ export default function TopBar({
                 </p>
                 <input
                   value={settings.baseUrl}
+                  aria-label="Base URL"
                   onChange={(e) => patch({ baseUrl: e.target.value })}
                   placeholder="http://localhost:11434"
                   className="h-9 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 font-mono text-xs text-slate-100 outline-none focus:border-teal-500/60"
@@ -413,6 +425,7 @@ export default function TopBar({
                 </p>
                 <input
                   type="password"
+                  aria-label="API key"
                   value={settings.apiKey}
                   onChange={(e) => patch({ apiKey: e.target.value })}
                   placeholder={provider.keyPlaceholder ?? "sk-…"}
@@ -566,6 +579,7 @@ export default function TopBar({
                   </p>
                   <input
                     value={ads.adsenseClient}
+                    aria-label="AdSense client ID"
                     onChange={(e) => patchAds({ adsenseClient: e.target.value })}
                     placeholder="ca-pub-1234567890"
                     className="h-9 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 font-mono text-xs text-slate-100 outline-none focus:border-amber-500/60"
@@ -577,6 +591,7 @@ export default function TopBar({
                   </p>
                   <input
                     value={ads.adsenseSlot}
+                    aria-label="AdSense slot ID"
                     onChange={(e) => patchAds({ adsenseSlot: e.target.value })}
                     placeholder="1234567890"
                     className="h-9 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 font-mono text-xs text-slate-100 outline-none focus:border-amber-500/60"
@@ -598,6 +613,7 @@ export default function TopBar({
                 </p>
                 <textarea
                   value={ads.adScript}
+                  aria-label="Ad network script tag"
                   onChange={(e) => patchAds({ adScript: e.target.value })}
                   placeholder={'<script async src="https://…"></script>'}
                   rows={4}
@@ -621,6 +637,7 @@ export default function TopBar({
                 </p>
                 <input
                   value={ads.iframeUrl}
+                  aria-label="Ad network display URL"
                   onChange={(e) => patchAds({ iframeUrl: e.target.value })}
                   placeholder="https://… (PropellerAds / Venatus / Setupad iframe tag)"
                   className="h-9 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 font-mono text-xs text-slate-100 outline-none focus:border-amber-500/60"

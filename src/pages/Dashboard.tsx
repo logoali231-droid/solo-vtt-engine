@@ -166,6 +166,13 @@ export default function Dashboard() {
 
   return (
     <div className="flex min-h-screen flex-col bg-[#f7f5f0] text-stone-900 supports-[height:100dvh]:min-h-dvh">
+
+    <a
+      href="#dashboard-main"
+      className="sr-only focus:not-sr-only focus:absolute focus:left-3 focus:top-3 focus:z-50 focus:rounded-lg focus:border focus:border-stone-300 focus:bg-white focus:px-3 focus:py-2 focus:text-xs focus:font-bold focus:text-stone-900"
+    >
+      Skip to main content
+    </a>
       <header className="border-b border-stone-200/80 bg-white/70 backdrop-blur">
         <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <div className="flex items-center gap-3">
@@ -211,7 +218,7 @@ export default function Dashboard() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8 sm:px-6">
+      <main id="dashboard-main" className="mx-auto w-full max-w-5xl flex-1 px-4 py-8 sm:px-6">
         {/* ---------------------------------------------------------------- */}
         {/* ADVENTURES TAB */}
         {/* ---------------------------------------------------------------- */}
@@ -280,6 +287,7 @@ export default function Dashboard() {
                         type="button"
                         onClick={() => removeAdventure(r.id)}
                         title="Delete adventure"
+                        aria-label="Delete adventure"
                         className="flex size-8 items-center justify-center rounded-lg border border-stone-200 text-stone-400 transition-colors hover:border-red-200 hover:text-red-500"
                       >
                         <Trash2 className="size-3.5" />
@@ -352,6 +360,7 @@ export default function Dashboard() {
                         type="button"
                         onClick={() => removePrefab(r.id)}
                         title="Delete from library"
+                        aria-label="Delete character from library"
                         className="flex size-8 items-center justify-center rounded-lg border border-stone-200 text-stone-400 transition-colors hover:border-red-200 hover:text-red-500"
                       >
                         <Trash2 className="size-3.5" />

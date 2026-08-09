@@ -34,7 +34,12 @@ export default function NarrativeHub({ logs, onReroll }: Props) {
   }
 
   return (
-    <div className="oracle-scroll min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:px-5 sm:py-5">
+    <div
+      role="log"
+      aria-live="polite"
+      aria-relevant="additions"
+      className="oracle-scroll min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:px-5 sm:py-5"
+    >
       {logs.map((entry) => {
         if (entry.kind === "dice" && entry.dice) {
           return (

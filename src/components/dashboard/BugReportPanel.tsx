@@ -646,6 +646,7 @@ export default function BugReportPanel() {
                       type="button"
                       onClick={() => removeReport(r.id)}
                       title="Delete report"
+                      aria-label="Delete report"
                       className="flex size-7 items-center justify-center rounded-md text-stone-400 transition-colors hover:bg-red-50 hover:text-red-500"
                     >
                       <Trash2 className="size-3.5" />

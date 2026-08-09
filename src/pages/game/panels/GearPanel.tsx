@@ -169,6 +169,7 @@ export function InventoryEditor({
           value={name}
           onChange={(e) => setName(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && add()}
+          aria-label="Item name"
           placeholder="Item — rope, potion, key…"
           className="h-9 min-w-0 flex-1 rounded-lg border border-slate-800 bg-slate-950 px-3 text-xs text-slate-100 outline-none transition-colors placeholder:text-slate-600 focus:border-amber-500/60"
         />
@@ -176,6 +177,7 @@ export function InventoryEditor({
           value={qty}
           onChange={(e) => setQty(Math.max(1, Number(e.target.value) || 1))}
           type="number"
+          aria-label="Quantity"
           min={1}
           className="h-9 w-14 rounded-lg border border-slate-800 bg-slate-950 px-2 text-center text-xs text-slate-100 outline-none focus:border-amber-500/60"
         />

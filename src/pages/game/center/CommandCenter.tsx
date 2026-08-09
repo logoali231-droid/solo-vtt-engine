@@ -105,6 +105,7 @@ export default function CommandCenter({
                   key={id}
                   type="button"
                   onClick={() => onEnemyConditionToggle(id)}
+                  aria-pressed={on}
                   className={cn(
                     "rounded px-1.5 py-0.5 text-[9px] font-bold capitalize transition-colors",
                     on
@@ -121,10 +122,10 @@ export default function CommandCenter({
         )}
         <div className="flex items-center gap-1">
           <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">DC</span>
-          <button type="button" onClick={() => setRollPrefs({ ...rollPrefs, dc: Math.max(5, rollPrefs.dc - 1) })}
+          <button type="button" aria-label="Decrease DC" onClick={() => setRollPrefs({ ...rollPrefs, dc: Math.max(5, rollPrefs.dc - 1) })}
             className="rounded bg-slate-900 px-2 py-1 text-[10px] font-bold text-slate-400 hover:text-slate-200">−</button>
           <span className="w-8 text-center font-mono text-xs font-bold text-slate-200">{rollPrefs.dc}</span>
-          <button type="button" onClick={() => setRollPrefs({ ...rollPrefs, dc: Math.min(30, rollPrefs.dc + 1) })}
+          <button type="button" aria-label="Increase DC" onClick={() => setRollPrefs({ ...rollPrefs, dc: Math.min(30, rollPrefs.dc + 1) })}
             className="rounded bg-slate-900 px-2 py-1 text-[10px] font-bold text-slate-400 hover:text-slate-200">+</button>
         </div>
         {pendingCount > 0 && (
@@ -151,6 +152,7 @@ export default function CommandCenter({
       <div className="flex items-center gap-2">
         <input
           ref={inputRef}
+          aria-label="Describe your next action"
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && submit()}
@@ -167,6 +169,7 @@ export default function CommandCenter({
           type="button"
           onClick={submit}
           disabled={busy || !text.trim()}
+          aria-busy={busy}
           className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-amber-500 text-slate-950 transition-all hover:bg-amber-400 disabled:opacity-40"
         >
           {busy ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}

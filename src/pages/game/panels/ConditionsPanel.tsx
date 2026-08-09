@@ -25,6 +25,7 @@ export default function ConditionsPanel({
               key={cd.id}
               type="button"
               onClick={() => onToggle(cd.id)}
+              aria-pressed={on}
               className={cn(
                 "flex items-start gap-3 rounded-xl border p-3 text-left transition-all",
                 on

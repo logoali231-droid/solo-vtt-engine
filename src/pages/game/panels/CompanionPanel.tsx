@@ -261,6 +261,7 @@ export default function CompanionPanel({ system, companions, onChange, onAttack 
                   type="button"
                   onClick={() => openEdit(c)}
                   title="Edit companion"
+                  aria-label="Edit companion"
                   className="flex size-7 items-center justify-center rounded-lg border border-slate-800 text-slate-400 transition-colors hover:text-slate-200"
                 >
                   <Pencil className="size-3" />
@@ -269,6 +270,7 @@ export default function CompanionPanel({ system, companions, onChange, onAttack 
                   type="button"
                   onClick={() => remove(c.id)}
                   title="Dismiss companion"
+                  aria-label="Dismiss companion"
                   className="flex size-7 items-center justify-center rounded-lg border border-slate-800 text-slate-500 transition-colors hover:border-red-500/40 hover:text-red-400"
                 >
                   <Trash2 className="size-3" />

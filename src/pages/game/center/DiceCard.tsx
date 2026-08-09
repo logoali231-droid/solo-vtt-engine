@@ -180,6 +180,9 @@ export default function DiceCard({ result, onReroll }: Props) {
 
   return (
     <div className="overflow-hidden rounded-xl border border-slate-700/80 bg-slate-900/80 shadow-lg">
+      <span className="sr-only">
+        {result.label} — {result.diceNotation} — total {total} — {style.label}
+      </span>
       <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 border-b border-slate-800 px-3 py-2">
         <p className="min-w-0 truncate text-xs font-semibold text-slate-200">{result.label}</p>
         <span className="flex flex-wrap items-center gap-1.5">
@@ -297,6 +300,8 @@ export default function DiceCard({ result, onReroll }: Props) {
             type="button"
             onClick={() => setMuted(toggleSfxMuted())}
             title={muted ? "Unmute dice sounds" : "Mute dice sounds"}
+            aria-label={muted ? "Unmute dice sounds" : "Mute dice sounds"}
+            aria-pressed={muted}
             className={cn(
               "flex items-center gap-1 rounded px-1.5 py-0.5 text-[9px] font-semibold transition-colors",
               muted ? "text-slate-600 hover:text-slate-400" : "text-slate-400 hover:text-slate-200",

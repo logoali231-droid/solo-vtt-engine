@@ -74,12 +74,14 @@ export default function CampaignPanel({
         <input
           value={sceneTitle}
           onChange={(e) => onScene(e.target.value, location)}
+          aria-label={pt ? "Título da cena" : "Scene title"}
           placeholder={pt ? "Título da cena" : "Scene title"}
           className="mb-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-100 outline-none transition-colors placeholder:text-slate-600 focus:border-amber-500/60"
         />
         <input
           value={location}
           onChange={(e) => onScene(sceneTitle, e.target.value)}
+          aria-label={pt ? "Local" : "Location"}
           placeholder={pt ? "Local" : "Location"}
           className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-100 outline-none transition-colors placeholder:text-slate-600 focus:border-amber-500/60"
         />
@@ -100,6 +102,7 @@ export default function CampaignPanel({
                 setQuestInput("");
               }
             }}
+            aria-label={pt ? "Nova missão…" : "New quest…"}
             placeholder={pt ? "Nova missão…" : "New quest…"}
             className="h-9 min-w-0 flex-1 rounded-lg border border-slate-700 bg-slate-950 px-3 text-xs text-slate-100 outline-none transition-colors placeholder:text-slate-600 focus:border-amber-500/60"
           />
