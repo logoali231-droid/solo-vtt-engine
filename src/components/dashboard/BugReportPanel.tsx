@@ -11,11 +11,17 @@ import {
   FileWarning,
   History,
   Loader2,
+  Mail,
   RotateCcw,
   Send,
   Trash2,
 } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useAction } from "convex/react";
+import { api } from "@/convex/_generated/api";
+
+/** Where emailed reports land. */
+const DEV_INBOX = "logoali231@gmail.com";
 
 /* ------------------------------------------------------------------------- */
 /* Constants — the pick lists for each field                                 */
@@ -198,6 +204,32 @@ export default function BugReportPanel() {
   const [history, setHistory] = useState<Report[]>(() => loadHistory());
   const [saving, setSaving] = useState(false);
 
+  // Email bridge — sends the report to the developer inbox via Resend
+  // (see src/convex/bugmail.ts; key: RESEND_API_KEY in Keys/API keys).
+  const sendEmail = useAction(api.bugmail.sendBugReport);
+  const [emailState, setEmailState] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const [emailDetail, setEmailDetail] = useState("");
+
+  const emailReport = async (text: string) => {
+    setEmailState("sending");
+    try {
+      const res = await sendEmail({ report: text });
+      if (res.ok) {
+        setEmailState("sent");
+        toast.success(`Bug report emailed to ${DEV_INBOX}.`);
+      } else {
+        setEmailState("error");
+        setEmailDetail(res.detail);
+        toast.error(res.detail);
+      }
+    } catch (err) {
+      setEmailState("error");
+      const msg = err instanceof Error ? err.message.slice(0, 200) : "Could not send email.";
+      setEmailDetail(msg);
+      toast.error(msg);
+    }
+  };
+
   const session = adventures.find((a) => a.id === sessionId) ?? undefined;
 
   const resetForm = () => {
@@ -213,6 +245,8 @@ export default function BugReportPanel() {
     setError("");
     setPreview(null);
     setCopied(false);
+    setEmailState("idle");
+    setEmailDetail("");
   };
 
   const handleSubmit = () => {
@@ -257,6 +291,8 @@ export default function BugReportPanel() {
       setPreview(report);
       setSaving(false);
       toast.success("Bug report saved to this browser.");
+      // Automatically email the report to the developer inbox.
+      void emailReport(report);
     }, 350);
   };
 
@@ -481,6 +517,9 @@ export default function BugReportPanel() {
             <RotateCcw className="size-3.5" />
             Clear
           </button>
+          <p className="w-full text-[11px] text-stone-400 sm:w-auto sm:max-w-sm">
+            Submitting also emails the report to {DEV_INBOX} automatically.
+          </p>
         </div>
       </div>
 
@@ -492,7 +531,29 @@ export default function BugReportPanel() {
           <div className="flex flex-col gap-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Generated report</p>
-              <div className="flex gap-1.5">
+              <div className="flex flex-wrap gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => preview && emailReport(preview)}
+                  disabled={emailState === "sending"}
+                  className={cn(
+                    "inline-flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold transition-colors disabled:opacity-50",
+                    emailState === "sent"
+                      ? "border-emerald-300 bg-emerald-50 text-emerald-700"
+                      : emailState === "error"
+                        ? "border-red-300 bg-red-50 text-red-600"
+                        : "border-stone-200 bg-white text-stone-600 hover:border-stone-300 hover:text-stone-900",
+                  )}
+                >
+                  {emailState === "sending" ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : emailState === "sent" ? (
+                    <Check className="size-3.5" />
+                  ) : (
+                    <Mail className="size-3.5" />
+                  )}
+                  {emailState === "sending" ? "Sending…" : emailState === "sent" ? "Emailed" : "Email to developer"}
+                </button>
                 <button
                   type="button"
                   onClick={copyPreview}
@@ -511,6 +572,18 @@ export default function BugReportPanel() {
                 </button>
               </div>
             </div>
+            {emailState === "sent" && (
+              <p className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-600">
+                <Check className="size-3.5" />
+                Report emailed to {DEV_INBOX}.
+              </p>
+            )}
+            {emailState === "error" && emailDetail && (
+              <p className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[11px] font-medium leading-relaxed text-red-600">
+                <FileWarning className="mt-0.5 size-3.5 shrink-0" />
+                <span>{emailDetail}</span>
+              </p>
+            )}
             <pre className="max-h-[28rem] overflow-auto whitespace-pre-wrap rounded-2xl border border-stone-200 bg-stone-50 p-4 font-mono text-[11px] leading-relaxed text-stone-700">
               {preview}
             </pre>
