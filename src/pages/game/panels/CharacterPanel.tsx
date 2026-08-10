@@ -11,12 +11,13 @@ import type {
   LorebookEntry,
   Pf2eCharacter,
   PfRank,
+  Wallet,
 } from "@/lib/rpg/types";
 import type { DndDerived, GurpsDerived, Pf2eDerived } from "@/lib/rpg/character";
 import CampaignPanel from "./CampaignPanel";
 import CompanionPanel from "./CompanionPanel";
 import ConditionsPanel from "./ConditionsPanel";
-import GearPanel, { InventoryEditor } from "./GearPanel";
+import GearPanel, { InventoryEditor, WalletEditor } from "./GearPanel";
 import Pf2eGearPanel from "./Pf2eGearPanel";
 import LorebookPanel from "./LorebookPanel";
 import DndSheet from "./sheets/DndSheet";
@@ -85,6 +86,8 @@ interface Props {
   onLorebookChange?: (entries: LorebookEntry[]) => void;
   inventory?: InventoryItem[];
   onInventoryChange?: (items: InventoryItem[]) => void;
+  wallet?: Wallet;
+  onWalletChange?: (w: Wallet) => void;
   companions?: Companion[];
   onCompanionChange?: (companions: Companion[]) => void;
   onCompanionAttack?: (id: string) => void;
@@ -101,6 +104,8 @@ export default function CharacterPanel({
   onLorebookChange,
   inventory = [],
   onInventoryChange,
+  wallet,
+  onWalletChange,
   companions = [],
   onCompanionChange,
   onCompanionAttack,
@@ -193,6 +198,8 @@ export default function CharacterPanel({
               onSetArmor={actions.onSetArmor}
               onToggleShield={actions.onToggleShield}
               onAttack={actions.onAttack}
+              wallet={wallet}
+              onWalletChange={onWalletChange}
             />
           ) : (
             <div className="flex flex-col gap-4">
@@ -203,12 +210,15 @@ export default function CharacterPanel({
                   inventory={inventory}
                   onInventoryChange={(items) => onInventoryChange?.(items)}
                   onSetArmor={actions.onPfSetArmor}
+                  wallet={wallet}
+                  onWalletChange={onWalletChange}
                 />
               ) : (
                 <>
                   <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 text-xs leading-relaxed text-slate-400">
                     GURPS gear is budgeted with character points; your DR shows on the sheet. Track your carried loot below.
                   </div>
+                  {wallet && onWalletChange && <WalletEditor wallet={wallet} onChange={onWalletChange} />}
                   <InventoryEditor
                     inventory={inventory}
                     onChange={(items) => onInventoryChange?.(items)}

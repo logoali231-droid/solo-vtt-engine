@@ -1,10 +1,11 @@
 import { cn } from "@/lib/utils";
-import type { InventoryItem, Pf2eCharacter, Pf2eGearDef, Pf2eWeaponDef } from "@/lib/rpg/types";
-import { uid } from "@/lib/rpg/types";
+import type { InventoryItem, Pf2eCharacter, Pf2eGearDef, Pf2eWeaponDef, Wallet } from "@/lib/rpg/types";
+import { spToWallet, uid, walletToSp } from "@/lib/rpg/types";
 import type { Pf2eDerived } from "@/lib/rpg/character";
 import { PF2E_ARMORS, PF2E_GEAR, PF2E_WEAPONS } from "@/lib/rpg/data/pf2e";
 import { Backpack, Coins, Plus, Shield, Sword } from "lucide-react";
-import { InventoryEditor } from "./GearPanel";
+import { toast } from "sonner";
+import { InventoryEditor, WalletEditor } from "./GearPanel";
 
 function spPrice(sp: number): string {
   if (sp <= 0) return "—";
@@ -20,6 +21,7 @@ function ShopItem({
   tags,
   summary,
   onAdd,
+  disabled = false,
 }: {
   name: string;
   price: string;
@@ -27,6 +29,7 @@ function ShopItem({
   tags: string[];
   summary?: string;
   onAdd: () => void;
+  disabled?: boolean;
 }) {
   return (
     <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-800 bg-slate-950 px-3 py-2">
@@ -43,8 +46,9 @@ function ShopItem({
       <button
         type="button"
         onClick={onAdd}
-        className="flex size-6 shrink-0 items-center justify-center rounded border border-teal-500/50 text-teal-300 transition-colors hover:bg-teal-500/20"
-        aria-label={`Add ${name} to inventory`}
+        disabled={disabled}
+        className="flex size-6 shrink-0 items-center justify-center rounded border border-teal-500/50 text-teal-300 transition-colors hover:bg-teal-500/20 disabled:cursor-not-allowed disabled:border-slate-800 disabled:text-slate-700"
+        aria-label={`Buy ${name}${price !== "—" ? ` for ${price}` : ""}`}
       >
         <Plus className="size-3.5" />
       </button>
@@ -58,17 +62,55 @@ export default function Pf2eGearPanel({
   inventory,
   onInventoryChange,
   onSetArmor,
+  wallet,
+  onWalletChange,
 }: {
   character: Pf2eCharacter;
   derived: Pf2eDerived;
   inventory: InventoryItem[];
   onInventoryChange: (items: InventoryItem[]) => void;
   onSetArmor: (id: string) => void;
+  wallet?: Wallet;
+  onWalletChange?: (w: Wallet) => void;
 }) {
   const armor = PF2E_ARMORS.find((a) => a.id === c.armorId) ?? PF2E_ARMORS[0];
 
-  const addItem = (name: string, qty = 1) =>
-    onInventoryChange([...inventory, { id: uid(), name, qty }]);
+  const canBuy = (price: number) => (wallet ? walletToSp(wallet) >= price : true);
+
+  /** Equip a new armor — charges its price unless you already own/use it. */
+  const equipArmor = (id: string) => {
+    const def = PF2E_ARMORS.find((a) => a.id === id);
+    if (!def) return;
+    if (id === c.armorId) return;
+    if (def.price > 0) {
+      if (!wallet || !onWalletChange) {
+        onSetArmor(id);
+        return;
+      }
+      if (!canBuy(def.price)) {
+        toast(`Not enough coin — ${spPrice(def.price)} needed for ${def.name}.`);
+        return;
+      }
+      onWalletChange(spToWallet(walletToSp(wallet) - def.price));
+      toast(`Purchased ${def.name} for ${spPrice(def.price)}.`);
+    }
+    onSetArmor(id);
+  };
+
+  /** Buy an item from the catalog: deduct its sp price from the purse, then add it. */
+  const buyItem = (name: string, price: number) => {
+    if (!wallet || !onWalletChange) {
+      onInventoryChange([...inventory, { id: uid(), name, qty: 1 }]);
+      return;
+    }
+    if (!canBuy(price)) {
+      toast(`Not enough coin — ${spPrice(price)} needed.`);
+      return;
+    }
+    onWalletChange(spToWallet(walletToSp(wallet) - price));
+    onInventoryChange([...inventory, { id: uid(), name, qty: 1 }]);
+    toast(`Purchased ${name} for ${spPrice(price)}.`);
+  };
 
   const weaponGroups: { label: string; items: Pf2eWeaponDef[] }[] = [
     { label: "Simple weapons", items: PF2E_WEAPONS.filter((w) => w.category === "simple") },
@@ -82,6 +124,8 @@ export default function Pf2eGearPanel({
 
   return (
     <div className="flex flex-col gap-4">
+      {wallet && onWalletChange && <WalletEditor wallet={wallet} onChange={onWalletChange} compact />}
+
       {/* Armor */}
       <div>
         <p className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-slate-400">
@@ -94,12 +138,15 @@ export default function Pf2eGearPanel({
               <button
                 key={a.id}
                 type="button"
-                onClick={() => onSetArmor(a.id)}
+                onClick={() => equipArmor(a.id)}
+                disabled={a.price > 0 && !canBuy(a.price) && a.id !== c.armorId}
                 className={cn(
                   "rounded-lg border px-2.5 py-2 text-left transition-colors",
                   active
                     ? "border-teal-400 bg-teal-400/15"
                     : "border-slate-800 bg-slate-950 hover:border-slate-600",
+                  a.price > 0 && !canBuy(a.price) && a.id !== c.armorId &&
+                    "cursor-not-allowed opacity-40 hover:border-slate-800",
                 )}
               >
                 <p className={cn("text-[11px] font-semibold", active ? "text-teal-200" : "text-slate-300")}>{a.name}</p>
@@ -133,7 +180,8 @@ export default function Pf2eGearPanel({
                   price={spPrice(w.price)}
                   bulk={w.bulk}
                   tags={[`${w.damageDice} ${w.damageType}`, w.hands === 2 ? "Two-handed" : "One-handed", ...w.traits]}
-                  onAdd={() => addItem(w.name)}
+                  onAdd={() => buyItem(w.name, w.price)}
+                  disabled={!canBuy(w.price)}
                 />
               ))}
             </div>
@@ -158,7 +206,8 @@ export default function Pf2eGearPanel({
                   bulk={g.bulk}
                   tags={[g.category]}
                   summary={g.summary}
-                  onAdd={() => addItem(g.name)}
+                  onAdd={() => buyItem(g.name, g.price)}
+                  disabled={!canBuy(g.price)}
                 />
               ))}
             </div>

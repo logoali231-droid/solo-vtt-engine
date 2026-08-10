@@ -66,7 +66,14 @@ import type {
   PendingBonus,
   RollModifierLine,
 } from "@/lib/rpg/types";
-import { ABILITY_LABELS, adventureScene, campaignBriefing, prefsOf, uid } from "@/lib/rpg/types";
+import {
+  ABILITY_LABELS,
+  adventureScene,
+  campaignBriefing,
+  EMPTY_WALLET,
+  prefsOf,
+  uid,
+} from "@/lib/rpg/types";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import AdSlot from "./AdSlot";
 import CharacterPanel, { type PanelActions } from "./panels/CharacterPanel";
@@ -121,11 +128,21 @@ function createAdventure(
     gmMode: liveByDefault ? "live" : "local",
     aiIntroPending: true,
     xp: 0,
-    // Seed class starting wealth + equipment chosen in the wizard.
+    // Seed class starting wealth + equipment chosen in the wizard. The wallet
+    // is the mechanical purse (gp/sp/cp) the shop spends from; gold is the
+    // story-facing campaign number.
     gold:
       "startingGold" in character
         ? ((character as { startingGold?: number }).startingGold ?? 0)
         : 0,
+    wallet: {
+      gp:
+        "startingGold" in character
+          ? ((character as { startingGold?: number }).startingGold ?? 0)
+          : 0,
+      sp: 0,
+      cp: 0,
+    },
     inventory:
       "startingInventory" in character
         ? ((character as { startingInventory?: InventoryItem[] }).startingInventory ?? [])
@@ -261,6 +278,11 @@ export default function GameBoard({
     }
     const saved = loadAdventure();
     if (saved && fingerprint(saved.character) === fingerprint(character)) {
+      // Old saves predate the mechanical wallet — backfill it from the story
+      // gold so the shop keeps working after an update.
+      if (!saved.wallet) {
+        saved.wallet = { gp: saved.gold ?? 0, sp: 0, cp: 0 };
+      }
       return saved;
     }
     return createAdventure(character, settings.language, settings);
@@ -651,8 +673,12 @@ export default function GameBoard({
           diceLog: [...prev.diceLog.slice(-19), dice],
           updatedAt: Date.now(),
         }));
+        // Every roll result is handed to the GM automatically — the AI sees the
+        // outcome and narrates it (crits included). suppressCritNarrate is set
+        // only by the free-text skill detector, which already sends the dice
+        // together with the player's words to avoid a double narration.
         if (request.kind === "attack") void attackDamageFlow(dice, charNext);
-        else if (!request.suppressCritNarrate && (res.outcome === "critical-success" || res.outcome === "critical-failure")) {
+        else if (!request.suppressCritNarrate) {
           void gmRespond({ dice });
         }
         return dice;
@@ -704,7 +730,7 @@ export default function GameBoard({
           };
         });
         if (request.kind === "attack") void attackDamageFlow(dice, char);
-        else if (!request.suppressCritNarrate && (res.outcome === "critical-success" || res.outcome === "critical-failure")) void gmRespond({ dice });
+        else if (!request.suppressCritNarrate) void gmRespond({ dice });
         return dice;
       }
 
@@ -734,7 +760,7 @@ export default function GameBoard({
         updatedAt: Date.now(),
       }));
       if (request.kind === "attack") void attackDamageFlow(dice, char);
-      else if (!request.suppressCritNarrate && (res.outcome === "critical-success" || res.outcome === "critical-failure")) void gmRespond({ dice });
+      else if (!request.suppressCritNarrate) void gmRespond({ dice });
       return dice;
   }
 
@@ -759,6 +785,7 @@ export default function GameBoard({
       let character = prev.character;
       let xp = prev.xp ?? 0;
       let goldNext = prev.gold ?? 0;
+      let walletNext = prev.wallet ?? EMPTY_WALLET;
       let inventory = prev.inventory ?? [];
 
       if (isGurps) {
@@ -790,6 +817,7 @@ export default function GameBoard({
       }
 
       goldNext = goldNext + gold;
+      walletNext = { ...walletNext, gp: walletNext.gp + gold };
       for (const item of loot) {
         const existing = inventory.find((i) => i.name === item);
         if (existing) {
@@ -812,6 +840,7 @@ export default function GameBoard({
         character,
         xp,
         gold: goldNext,
+        wallet: walletNext,
         inventory,
         logs: [...prev.logs, ...logs],
         updatedAt: Date.now(),
@@ -1726,6 +1755,7 @@ export default function GameBoard({
           breakdown: res.breakdown,
         });
         pushLog("dice", "", dice);
+        void gmRespond({ dice });
         return;
       }
       // A reroll preserves the ORIGINAL automatic context — advantage and
@@ -1771,8 +1801,9 @@ export default function GameBoard({
         breakdown: `${kept} + ${flat} = ${total} vs DC ${dc} → ${outcome.replace("-", " ").toUpperCase()}`,
       });
       pushLog("dice", "", dice);
+      void gmRespond({ dice });
     },
-    [pushLog, rollPrefs.dc],
+    [pushLog, gmRespond, rollPrefs.dc],
   );
 
   // -------------------------------------------------------------------------
@@ -2008,6 +2039,7 @@ export default function GameBoard({
     importAdventureJSON(file)
       .then((adv) => {
         if (adv.system !== system) throw new Error("Imported file is for a different ruleset");
+        if (!adv.wallet) adv.wallet = { gp: adv.gold ?? 0, sp: 0, cp: 0 };
         setAdventure(adv);
         toast.success("Adventure imported.");
       })
@@ -2056,6 +2088,14 @@ export default function GameBoard({
               setAdventure((prev) => ({
                 ...prev,
                 inventory: items,
+                updatedAt: Date.now(),
+              }))
+            }
+            wallet={adventure.wallet}
+            onWalletChange={(wallet) =>
+              setAdventure((prev) => ({
+                ...prev,
+                wallet,
                 updatedAt: Date.now(),
               }))
             }
@@ -2208,6 +2248,14 @@ export default function GameBoard({
                   setAdventure((prev) => ({
                     ...prev,
                     inventory: items,
+                    updatedAt: Date.now(),
+                  }))
+                }
+                wallet={adventure.wallet}
+                onWalletChange={(wallet) =>
+                  setAdventure((prev) => ({
+                    ...prev,
+                    wallet,
                     updatedAt: Date.now(),
                   }))
                 }

@@ -811,6 +811,42 @@ export interface InventoryItem {
 }
 
 // ---------------------------------------------------------------------------
+// Currency — a mechanical wallet tracked independently of the story's gold.
+// 1 gp = 10 sp = 100 cp (D&D 5e / PF2e standard). The Pf2e shop stores item
+// prices in sp using the app's display convention (100 sp = 1 gp), so the
+// helpers below keep wallet math consistent with the price tags the player
+// sees.
+// ---------------------------------------------------------------------------
+
+export interface Wallet {
+  gp: number;
+  sp: number;
+  cp: number;
+}
+
+export const EMPTY_WALLET: Wallet = { gp: 0, sp: 0, cp: 0 };
+
+/** Total value of the wallet expressed in silver pieces (app display unit). */
+export function walletToSp(w: Wallet): number {
+  return w.gp * 100 + w.sp + Math.floor(w.cp / 10);
+}
+
+/** Convert a raw sp amount (app display unit) back into a normalized wallet. */
+export function spToWallet(sp: number): Wallet {
+  const safe = Math.max(0, Math.floor(sp));
+  return { gp: Math.floor(safe / 100), sp: safe % 100, cp: 0 };
+}
+
+/** Human-readable wallet, e.g. "12 gp, 5 sp, 3 cp" (or "0 gp" when empty). */
+export function fmtWallet(w: Wallet): string {
+  const parts: string[] = [];
+  if (w.gp > 0) parts.push(`${w.gp} gp`);
+  if (w.sp > 0) parts.push(`${w.sp} sp`);
+  if (w.cp > 0) parts.push(`${w.cp} cp`);
+  return parts.length > 0 ? parts.join(", ") : "0 gp";
+}
+
+// ---------------------------------------------------------------------------
 // D&D 5e spellbook (curated; see data/dnd.ts for the full list)
 // ---------------------------------------------------------------------------
 
@@ -857,7 +893,8 @@ export interface AdventureState {
   gmMode: "local" | "live";
   aiIntroPending?: boolean; // true while the AI opening scene has not been generated yet
   xp?: number;
-  gold?: number;
+  gold?: number; // story/campaign gold (display + narrative); wallet is the mechanical purse
+  wallet?: Wallet; // mechanical currency used by the shop, independent of story context
   inventory?: InventoryItem[];
   memory?: string; // auto-generated session summary injected into the GM context
   createdAt: number;

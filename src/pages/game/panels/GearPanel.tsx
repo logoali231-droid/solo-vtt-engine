@@ -1,10 +1,10 @@
 import { cn } from "@/lib/utils";
-import type { DnDCharacter, InventoryItem } from "@/lib/rpg/types";
-import { uid } from "@/lib/rpg/types";
+import type { DnDCharacter, InventoryItem, Wallet } from "@/lib/rpg/types";
+import { fmtWallet, spToWallet, uid, walletToSp } from "@/lib/rpg/types";
 import type { DndDerived } from "@/lib/rpg/character";
 import { formatMod } from "@/lib/rpg/dice";
 import { ARMORS, ARMOR_MAP, WEAPONS } from "@/lib/rpg/data/dnd";
-import { Backpack, Minus, Plus, Shield, Sword, Trash2 } from "lucide-react";
+import { Backpack, Coins, Minus, Plus, Shield, Sword, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 interface Props {
@@ -16,13 +16,17 @@ interface Props {
   onSetArmor: (id: string) => void;
   onToggleShield: () => void;
   onAttack: (attackId: string) => void;
+  wallet?: Wallet;
+  onWalletChange?: (w: Wallet) => void;
 }
 
-export default function GearPanel({ character: c, derived: d, inventory, onInventoryChange, onSetWeapon, onSetArmor, onToggleShield, onAttack }: Props) {
+export default function GearPanel({ character: c, derived: d, inventory, onInventoryChange, onSetWeapon, onSetArmor, onToggleShield, onAttack, wallet, onWalletChange }: Props) {
   const armor = ARMOR_MAP[c.armorId];
 
   return (
     <div className="flex flex-col gap-4">
+      {wallet && onWalletChange && <WalletEditor wallet={wallet} onChange={onWalletChange} />}
+
       {/* Attack cards */}
       <div>
         <p className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-slate-400">
@@ -120,6 +124,82 @@ export default function GearPanel({ character: c, derived: d, inventory, onInven
       </div>
 
       <InventoryEditor inventory={inventory} onChange={onInventoryChange} />
+    </div>
+  );
+}
+
+/**
+ * Mechanical purse editor — gp/sp/cp steppers, independent of the story's gold.
+ * Also exposes a read-only balance helper for the shop panels.
+ */
+export function WalletEditor({
+  wallet,
+  onChange,
+  compact = false,
+}: {
+  wallet: Wallet;
+  onChange: (w: Wallet) => void;
+  compact?: boolean;
+}) {
+  const totalSp = walletToSp(wallet);
+  const adjust = (key: keyof Wallet, delta: number) => {
+    const next = { ...wallet, [key]: Math.max(0, wallet[key] + delta) };
+    // Normalize upward: carry overflow into the next denomination so the
+    // purse never drifts (e.g. 12 sp → 1 gp 2 sp).
+    onChange(spToWallet(walletToSp(next)));
+  };
+
+  const rows: { key: keyof Wallet; label: string; unit: string }[] = [
+    { key: "gp", label: "Gold", unit: "gp" },
+    { key: "sp", label: "Silver", unit: "sp" },
+    { key: "cp", label: "Copper", unit: "cp" },
+  ];
+
+  return (
+    <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3">
+      <p className="mb-2 flex items-center justify-between gap-2 text-xs font-bold uppercase tracking-widest text-slate-400">
+        <span className="flex items-center gap-1.5">
+          <Coins className="size-3.5" /> Purse
+        </span>
+        <span className="font-mono text-[11px] font-semibold text-amber-300">{fmtWallet(wallet)}</span>
+      </p>
+      {!compact && (
+        <p className="mb-2 text-[10px] text-slate-500">
+          Your wallet is tracked mechanically — spend it in shops, add loot the GM hands over. It is
+          independent of the story's campaign gold.
+        </p>
+      )}
+      <div className="flex flex-col gap-1.5">
+        {rows.map((r) => (
+          <div key={r.key} className="flex items-center justify-between gap-2">
+            <span className="w-14 text-[11px] font-medium text-slate-300">{r.label}</span>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => adjust(r.key, -1)}
+                className="flex size-6 items-center justify-center rounded border border-slate-700 text-slate-400 transition-colors hover:border-slate-500 hover:text-slate-200"
+                aria-label={`Decrease ${r.label} by 1`}
+              >
+                <Minus className="size-3" />
+              </button>
+              <span className="w-14 text-center font-mono text-sm font-bold text-slate-100">
+                {wallet[r.key]} {r.unit}
+              </span>
+              <button
+                type="button"
+                onClick={() => adjust(r.key, 1)}
+                className="flex size-6 items-center justify-center rounded border border-slate-700 text-slate-400 transition-colors hover:border-slate-500 hover:text-slate-200"
+                aria-label={`Increase ${r.label} by 1`}
+              >
+                <Plus className="size-3" />
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+      {!compact && (
+        <p className="mt-2 text-[10px] text-slate-600">Total value: {totalSp} sp</p>
+      )}
     </div>
   );
 }

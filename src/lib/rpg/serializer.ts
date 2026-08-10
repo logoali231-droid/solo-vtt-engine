@@ -66,6 +66,7 @@ export interface LLMPayload {
     hp: { current: number; max: number };
     xp: number;
     gold: number;
+    wallet: { gp: number; sp: number; cp: number };
     inventory: { name: string; qty: number }[];
     memory: string | null;
     prefs: AdventurePrefs;
@@ -295,6 +296,7 @@ export function serializeAdventure(adventure: AdventureState): LLMPayload {
       hp,
       xp: adventure.xp ?? 0,
       gold: adventure.gold ?? 0,
+      wallet: adventure.wallet ?? { gp: 0, sp: 0, cp: 0 },
       inventory: (adventure.inventory ?? []).map((i) => ({ name: i.name, qty: i.qty })),
       memory: adventure.memory ?? null,
       prefs: prefsOf(c.adventurePrefs),
