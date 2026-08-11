@@ -6,6 +6,7 @@ import { campaignBriefing, gurpsLifeModeOf, prefsOf } from "../types";
 import { payloadToJson, serializeAdventure } from "../serializer";
 import { dndRulesContext, pf2eRulesContext } from "../data/adventure-samples";
 import { gurpsRulesContext } from "../data/gurps-extensions";
+import { territoriesContext } from "../data/territory";
 import { GM_AUTHORITY_RULES } from "../cheatGuard";
 import { MAX_RECENT_MESSAGES, streamChatWithProvider, type ChatMessage } from "./providers";
 import { localRespond } from "./local";
@@ -51,6 +52,9 @@ function buildSystemPrompt(
     "",
     lorebook
       ? `WORLD LOREBOOK (facts about this campaign — use them when relevant):\n${lorebook}`
+      : "",
+    adventure.territories?.length
+      ? territoriesContext(adventure.territories, settings.language)
       : "",
     "",
     "RECENT HISTORY (the story so far):",
@@ -115,6 +119,9 @@ function buildOpeningMessages(
     "",
     "CAMPAIGN BRIEFING (from the player's Adventure Setup — honor every choice):",
     brief,
+    ...(adventure.territories?.length
+      ? ["", territoriesContext(adventure.territories, settings.language)]
+      : []),
     "",
     "Write the opening scene of this campaign: 2-4 vivid second-person paragraphs that place the hero at the edge of the story, introduce the setting and the first thread, and end with the immediate scene in motion. No question, no summary, no dice.",
   ].join("\n");

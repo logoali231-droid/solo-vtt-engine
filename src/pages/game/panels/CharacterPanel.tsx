@@ -14,6 +14,7 @@ import type {
   LorebookEntry,
   Pf2eCharacter,
   PfRank,
+  Territory,
   Wallet,
 } from "@/lib/rpg/types";
 import type { DndDerived, GurpsDerived, Pf2eDerived } from "@/lib/rpg/character";
@@ -24,6 +25,7 @@ import GearPanel, { InventoryEditor, WalletEditor } from "./GearPanel";
 import Pf2eGearPanel from "./Pf2eGearPanel";
 import GurpsExtensionsPanel from "./GurpsExtensionsPanel";
 import LorebookPanel from "./LorebookPanel";
+import TerritoryPanel from "./TerritoryPanel";
 import DndSheet from "./sheets/DndSheet";
 import GurpsSheet from "./sheets/GurpsSheet";
 import Pf2eSheet from "./sheets/Pf2eSheet";
@@ -100,6 +102,9 @@ interface Props {
   companions?: Companion[];
   onCompanionChange?: (companions: Companion[]) => void;
   onCompanionAttack?: (id: string) => void;
+  territories?: Territory[];
+  onTerritoriesChange?: (territories: Territory[]) => void;
+  lifeMode?: string;
   campaign?: CampaignPanelData;
   gmLanguage?: GmLanguage;
 }
@@ -118,10 +123,14 @@ export default function CharacterPanel({
   companions = [],
   onCompanionChange,
   onCompanionAttack,
+  territories = [],
+  onTerritoriesChange,
+  lifeMode,
   campaign,
   gmLanguage = "en",
 }: Props) {
-  const [tab, setTab] = useState<"sheet" | "party" | "gear" | "conditions" | "lorebook" | "campaign" | "life">("sheet");
+  const pt = gmLanguage === "pt-BR";
+  const [tab, setTab] = useState<"sheet" | "party" | "gear" | "conditions" | "lorebook" | "campaign" | "life" | "world">("sheet");
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -134,6 +143,7 @@ export default function CharacterPanel({
             ["conditions", "Conditions"],
             ["lorebook", "Lorebook"],
             ["campaign", "Campaign"],
+            ["world", pt ? "Mundo" : "World"],
             ...(system === "gurps" ? ([["life", "Life"]] as const) : []),
           ] as const
         ).map(([id, label]) => (
@@ -259,6 +269,15 @@ export default function CharacterPanel({
         )}
         {tab === "lorebook" && onLorebookChange && (
           <LorebookPanel entries={lorebook} onChange={onLorebookChange} />
+        )}
+        {tab === "world" && onTerritoriesChange && (
+          <TerritoryPanel
+            system={system}
+            territories={territories}
+            onChange={onTerritoriesChange}
+            language={gmLanguage}
+            lifeMode={lifeMode}
+          />
         )}
         {tab === "party" &&
           (onCompanionChange && onCompanionAttack ? (

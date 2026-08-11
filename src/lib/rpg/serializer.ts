@@ -12,6 +12,7 @@ import type {
   GameSystem,
   GurpsCharacter,
   Pf2eCharacter,
+  Territory,
 } from "./types";
 import { gurpsLifeModeOf, identityOf, prefsOf } from "./types";
 import { PF2E_FEAT_MAP } from "./data/pf2e";
@@ -80,6 +81,7 @@ export interface LLMPayload {
       attackBonus: number;
       damage: string;
     }[];
+    territories: Territory[];
     conditions: SerializedCondition[];
     hp: { current: number; max: number };
     xp: number;
@@ -339,6 +341,7 @@ export function serializeAdventure(adventure: AdventureState): LLMPayload {
         attackBonus: cp.attackBonus,
         damage: cp.damage,
       })),
+      territories: adventure.territories ?? [],
       conditions: CONDITIONS.map((cd) => ({
         id: cd.id,
         name: cd.name,

@@ -2173,6 +2173,15 @@ export default function GameBoard({
               }))
             }
             onCompanionAttack={companionAttack}
+            territories={adventure.territories ?? []}
+            onTerritoriesChange={(items) =>
+              setAdventure((prev) => ({
+                ...prev,
+                territories: items,
+                updatedAt: Date.now(),
+              }))
+            }
+            lifeMode={prefsOf(c.adventurePrefs).lifeMode}
             gmLanguage={settings.language}
             campaign={{
               sceneTitle: adventure.sceneTitle,
@@ -2333,6 +2342,15 @@ export default function GameBoard({
                   }))
                 }
                 onCompanionAttack={companionAttack}
+                territories={adventure.territories ?? []}
+                onTerritoriesChange={(items) =>
+                  setAdventure((prev) => ({
+                    ...prev,
+                    territories: items,
+                    updatedAt: Date.now(),
+                  }))
+                }
+                lifeMode={prefsOf(c.adventurePrefs).lifeMode}
                 gmLanguage={settings.language}
                 campaign={{
                   sceneTitle: adventure.sceneTitle,

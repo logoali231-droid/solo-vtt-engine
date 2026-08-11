@@ -992,6 +992,50 @@ export interface LogEntry {
   timestamp: number;
 }
 
+// ---------------------------------------------------------------------------
+// Territory generator (kingdoms, countries, companies, societies - built with
+// the Territory Generator in the game's World tab and fed to the GM)
+// ---------------------------------------------------------------------------
+
+export type TerritoryKind =
+  | "kingdom"
+  | "country"
+  | "city"
+  | "company"
+  | "society"
+  | "guild"
+  | "faction"
+  | "cult"
+  | "house"
+  | "tribe";
+
+/** Which flavor of content a territory draws from. Fantasy for D&D 5e and
+ *  PF2e; GURPS follows the Life Mode tag (medieval -> fantasy, modern -> modern,
+ *  cyber -> cyber, all -> random per territory). */
+export type TerritoryEra = "fantasy" | "modern" | "cyber";
+
+export interface Territory {
+  id: string;
+  kind: TerritoryKind;
+  era: TerritoryEra;
+  name: string;
+  ruler: string;
+  government: string;
+  scale: string;
+  economy: string;
+  military: string;
+  trait: string;
+  culture: string;
+  magicTech: string;
+  factions: string[];
+  conflict: string;
+  secret: string;
+  relations: string;
+  note: string;
+  lang: "en" | "pt-BR";
+  updatedAt: number;
+}
+
 export interface AdventureState {
   id?: string; // stable id used by the Adventures library (backfilled on save if missing)
   system: GameSystem;
@@ -1003,6 +1047,7 @@ export interface AdventureState {
   quest: string[];
   enemies: EnemyState[];
   companions?: Companion[]; // party members, rolled with the same dice engine
+  territories?: Territory[]; // generated kingdoms/countries/companies/societies
   gmMode: "local" | "live";
   aiIntroPending?: boolean; // true while the AI opening scene has not been generated yet
   xp?: number;
