@@ -43,7 +43,9 @@ export const GURPS_SKILL_MAP = Object.fromEntries(
 export const GURPS_ARMORS: { id: string; name: string; dr: number; note?: string }[] = [
   { id: "none", name: "No Armor", dr: 0 },
   { id: "leather-jacket", name: "Leather Jacket", dr: 1, note: "Torso, arms" },
+  { id: "light-kevlar", name: "Concealable Vest", dr: 2, note: "Torso (modern/cyber)" },
   { id: "chainmail", name: "Chainmail Hauberk", dr: 3, note: "Torso" },
+  { id: "heavy-kevlar", name: "Tactical Kevlar", dr: 4, note: "Torso, arms (cyber)" },
   { id: "plate", name: "Plate Cuirass", dr: 5, note: "Torso" },
   { id: "knight", name: "Full Plate", dr: 6, note: "Whole body" },
 ];

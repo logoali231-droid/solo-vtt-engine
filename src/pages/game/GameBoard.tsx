@@ -48,6 +48,7 @@ import { playDiceRoll } from "@/lib/rpg/sfx";
 import { speak, speakDice, useA11yApplied } from "@/lib/rpg/a11y";
 import { detectSkillCheck } from "@/lib/rpg/skillDetect";
 import { guardCommand } from "@/lib/rpg/cheatGuard";
+import { gurpsStartingWallet } from "@/lib/rpg/data/gurps-shop";
 import {
   resolveLifeCommand,
   walletDelta,
@@ -146,7 +147,9 @@ function createAdventure(
       gp:
         "startingGold" in character
           ? ((character as { startingGold?: number }).startingGold ?? 0)
-          : 0,
+          : character.system === "gurps"
+            ? gurpsStartingWallet(character as GurpsCharacter).gp
+            : 0,
       sp: 0,
       cp: 0,
     },
@@ -2011,6 +2014,12 @@ export default function GameBoard({
       updateChar((ch) =>
         ch.system === "pf2e"
           ? { ...ch, state: { ...ch.state, hpDamage: Math.max(0, ch.state.hpDamage - n) } }
+          : ch,
+      ),
+    onGurpsSetArmor: (id) =>
+      updateChar((ch) =>
+        ch.system === "gurps"
+          ? { ...ch, armorId: id }
           : ch,
       ),
     onGurpsDamage: (n) =>

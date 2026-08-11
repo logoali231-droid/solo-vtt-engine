@@ -21,8 +21,9 @@ import type { DndDerived, GurpsDerived, Pf2eDerived } from "@/lib/rpg/character"
 import CampaignPanel from "./CampaignPanel";
 import CompanionPanel from "./CompanionPanel";
 import ConditionsPanel from "./ConditionsPanel";
-import GearPanel, { InventoryEditor, WalletEditor } from "./GearPanel";
+import GearPanel from "./GearPanel";
 import Pf2eGearPanel from "./Pf2eGearPanel";
+import GurpsGearPanel from "./GurpsGearPanel";
 import GurpsExtensionsPanel from "./GurpsExtensionsPanel";
 import LorebookPanel from "./LorebookPanel";
 import TerritoryPanel from "./TerritoryPanel";
@@ -85,6 +86,8 @@ export interface PanelActions {
   onGurpsHeal: (n: number) => void;
   onGurpsFatigue: (n: number) => void;
   onGurpsRecover: (n: number) => void;
+  /** Equip GURPS armor from the shop — sets the slot, feeds the DR engine. */
+  onGurpsSetArmor: (id: string) => void;
   /** Life & Livelihood extension — persists a slice of ext state. */
   onGurpsExt?: (patch: Partial<GurpsExtensionState>) => void;
   /** Life Mode tag — re-frames the whole GURPS life-sim (set at Adventure Setup). */
@@ -239,16 +242,15 @@ export default function CharacterPanel({
                   onWalletChange={onWalletChange}
                 />
               ) : (
-                <>
-                  <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 text-xs leading-relaxed text-slate-400">
-                    GURPS gear is budgeted with character points; your DR shows on the sheet. Track your carried loot below.
-                  </div>
-                  {wallet && onWalletChange && <WalletEditor wallet={wallet} onChange={onWalletChange} />}
-                  <InventoryEditor
-                    inventory={inventory}
-                    onChange={(items) => onInventoryChange?.(items)}
-                  />
-                </>
+                <GurpsGearPanel
+                  character={character as GurpsCharacter}
+                  derived={derived as GurpsDerived}
+                  inventory={inventory}
+                  onInventoryChange={(items) => onInventoryChange?.(items)}
+                  onSetArmor={actions.onGurpsSetArmor}
+                  wallet={wallet}
+                  onWalletChange={onWalletChange}
+                />
               )}
             </div>
           ))}
