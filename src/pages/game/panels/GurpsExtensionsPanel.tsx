@@ -75,6 +75,7 @@ import {
   Cpu,
   Crown,
   GraduationCap,
+  Hammer,
   Heart,
   Landmark,
   Minus,
@@ -86,7 +87,36 @@ import {
   Trophy,
   Users,
   Zap,
+  FlaskConical,
 } from "lucide-react";
+import {
+  GURPS_CYBER_GEAR,
+  GURPS_GEAR_KIND_LABELS,
+  GURPS_GEAR_MAP,
+  GURPS_NETRUN_MAP,
+  GURPS_NETRUNS,
+  gurpsHackingLevel,
+  gurpsNetrunResult,
+} from "@/lib/rpg/data/gurps-cyber";
+import {
+  GURPS_ALCHEMY_MAP,
+  GURPS_ALCHEMY_RECIPES,
+  GURPS_FORGE_MAP,
+  GURPS_FORGE_RECIPES,
+  GURPS_MAGIC_COLLEGE_MAP,
+  GURPS_MAGIC_COLLEGES,
+  GURPS_REAGENT_MAP,
+  GURPS_REAGENTS,
+  GURPS_SPELL_MAP,
+  GURPS_SPELLS,
+  gurpsAlchemyLevel,
+  gurpsMaxFp,
+  gurpsSmithLevel,
+  gurpsSpellMishap,
+  gurpsSpellSkillLevel,
+} from "@/lib/rpg/data/gurps-fantasy";
+import type { GurpsSpellDef, GurpsAlchemyRecipeDef, GurpsForgeRecipeDef } from "@/lib/rpg/data/gurps-fantasy";
+import type { GurpsGearDef, GurpsNetrunDef } from "@/lib/rpg/data/gurps-cyber";
 import { useState } from "react";
 
 interface Props {
@@ -98,6 +128,8 @@ interface Props {
   onExt: (patch: Partial<GurpsExtensionState>) => void;
   /** Change the Life Mode tag (the world frame of the whole life-sim). */
   onSetLifeMode?: (m: GurpsLifeMode) => void;
+  /** Spend fatigue points (FP) — magic casting, netrun backlash, forced marches. */
+  onFpSpend?: (n: number) => void;
   wallet?: Wallet;
   onWalletChange?: (w: Wallet) => void;
   gmLanguage?: GmLanguage;
@@ -183,6 +215,11 @@ const EMPTY_EXT: GurpsExtensionState = {
   netdeckId: undefined,
   programs: [],
   corpPositionId: undefined,
+  spells: [],
+  reagents: [],
+  potions: [],
+  crafted: [],
+  gear: [],
 };
 
 export default function GurpsExtensionsPanel({
@@ -191,6 +228,7 @@ export default function GurpsExtensionsPanel({
   onRoll,
   onExt,
   onSetLifeMode,
+  onFpSpend,
   wallet,
   onWalletChange,
 }: Props) {
@@ -349,6 +387,117 @@ export default function GurpsExtensionsPanel({
     } else {
       report(`A lean season — the holding yields nothing this cycle. ${dice.breakdown}`);
     }
+  };
+
+  // --- Arcana & Crafting (original GURPS-style magic, alchemy, smithing) ---
+  const fpAvailable = gurpsMaxFp(c);
+  const learnSpell = (spell: GurpsSpellDef) => {
+    const college = GURPS_MAGIC_COLLEGE_MAP[spell.college];
+    if (!debit(college.trainingCost)) {
+      report(`Learning ${spell.name} costs ${college.trainingCost} gp — beyond your purse.`);
+      return;
+    }
+    onExt({ spells: [...ext.spells, spell.id] });
+    report(`${spell.name} learned from a ${college.name} master (${college.trainingCost} gp). Say \"cast ${spell.name}\" in chat to use it.`);
+  };
+  const castSpell = (spell: GurpsSpellDef) => {
+    if (spell.energy > fpAvailable) {
+      report(`Not enough FP — ${spell.name} needs ${spell.energy} FP (you have ${fpAvailable}).`);
+      return;
+    }
+    const target = gurpsSpellSkillLevel(c, spell.college);
+    const dice = onRoll({
+      label: `Cast: ${spell.name} (${GURPS_MAGIC_COLLEGE_MAP[spell.college].name} ${target})`,
+      kind: "check",
+      gurpsTarget: target,
+    });
+    if (!dice) return;
+    if (dice.outcome === "critical-failure") {
+      const mishap = gurpsSpellMishap();
+      onFpSpend?.(spell.energy + mishap.extraFp);
+      report(`${spell.name} goes catastrophically wrong — ${mishap.label}: ${mishap.effect} ${dice.breakdown}`);
+    } else if (dice.outcome === "failure") {
+      onFpSpend?.(spell.energy);
+      report(`${spell.name} fizzles — the energy is spent. ${dice.breakdown}`);
+    } else {
+      onFpSpend?.(spell.energy);
+      const strong = (dice.margin ?? 0) >= 5 || dice.outcome === "critical-success";
+      report(`${strong ? "A masterful cast — " : ""}${spell.name}: ${spell.effect} ${dice.breakdown}`);
+    }
+  };
+  const buyReagent = (rg: (typeof GURPS_REAGENTS)[number]) => {
+    if (!debit(rg.cost)) {
+      report(`${rg.name} costs ${rg.cost} gp — beyond your purse.`);
+      return;
+    }
+    onExt({ reagents: [...ext.reagents, rg.id] });
+    report(`${rg.name} added to your pouch (${rg.cost} gp).`);
+  };
+  const brewPotion = (rec: GurpsAlchemyRecipeDef) => {
+    const missing = rec.reagents.filter((rid) => !ext.reagents.includes(rid));
+    if (missing.length > 0) {
+      report(`Missing ${missing.map((rid) => GURPS_REAGENT_MAP[rid]?.name ?? rid).join(", ")} — buy reagents first.`);
+      return;
+    }
+    if (!debit(rec.cost)) {
+      report(`Brewing ${rec.name} needs ${rec.cost} gp of base materials.`);
+      return;
+    }
+    const target = gurpsAlchemyLevel(c);
+    const dice = onRoll({ label: `Brew: ${rec.name} (Alchemy ${target})`, kind: "check", gurpsTarget: target });
+    if (!dice) return;
+    const consumed = ext.reagents.filter((rid) => !rec.reagents.includes(rid));
+    if (dice.outcome === "success" || dice.outcome === "critical-success") {
+      onExt({ potions: [...ext.potions, rec.id], reagents: consumed });
+      report(`${rec.name} brewed — ${rec.effect} ${dice.breakdown}`);
+    } else {
+      onExt({ reagents: consumed });
+      report(`The brew fails — reagents and materials lost. ${dice.breakdown}`);
+    }
+  };
+  const forgeItem = (f: GurpsForgeRecipeDef) => {
+    if (ext.crafted.includes(f.id)) {
+      report(`You already forged ${f.name}.`);
+      return;
+    }
+    if (!debit(f.cost)) {
+      report(`Forging ${f.name} needs ${f.cost} gp of materials.`);
+      return;
+    }
+    const target = gurpsSmithLevel(c);
+    const dice = onRoll({ label: `Forge: ${f.name} (Smith ${target})`, kind: "check", gurpsTarget: target });
+    if (!dice) return;
+    if (dice.outcome === "success" || dice.outcome === "critical-success") {
+      onExt({ crafted: [...ext.crafted, f.id] });
+      report(`${f.name} finished — ${f.effect} ${dice.breakdown}`);
+    } else {
+      report(`The work fails — materials lost. ${dice.breakdown}`);
+    }
+  };
+
+  // --- Futuristic gear & netruns ---
+  const buyGear = (g: GurpsGearDef) => {
+    if (ext.gear.includes(g.id)) {
+      report(`${g.name} is already in your gear.`);
+      return;
+    }
+    if (!debit(g.cost)) {
+      report(`${g.name} costs ${g.cost} gp — beyond your purse.`);
+      return;
+    }
+    onExt({ gear: [...ext.gear, g.id] });
+    report(`${g.name} secured (${g.cost} gp).`);
+  };
+  const runNetrun = (run: GurpsNetrunDef) => {
+    const deckBonus = ext.netdeckId ? (GURPS_NETDECK_MAP[ext.netdeckId]?.hackBonus ?? 0) : 0;
+    const progBonus = gurpsHackBonus(ext.netdeckId, ext.programs);
+    const target = gurpsHackingLevel(c) + deckBonus + progBonus + run.penalty;
+    const dice = onRoll({ label: `Netrun: ${run.name} (Hacking ${target})`, kind: "check", gurpsTarget: target });
+    if (!dice) return;
+    const r = gurpsNetrunResult(dice.margin ?? 0, dice.outcome, run);
+    if (r.paydata > 0) credit(r.paydata);
+    if (r.fpDamage > 0) onFpSpend?.(r.fpDamage);
+    report(`${run.objective} ${r.note} ${dice.breakdown}`);
   };
 
   // --- Education ---
@@ -1230,6 +1379,142 @@ export default function GurpsExtensionsPanel({
               Serve the month at court
             </button>
           )}
+        </div>
+      </Section>
+      </>
+      )}
+
+      {gurpsMedievalLayer(mode) && (
+        <>
+      <Section
+        icon={<Sparkles className="size-4" />}
+        title="Arcana & Crafting"
+        subtitle={`FP available: ${fpAvailable} · spells, potions, and forge work`}
+      >
+        <div className="flex flex-col gap-3">
+          {GURPS_MAGIC_COLLEGES.map((college) => (
+            <div key={college.id}>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-amber-300">
+                {college.name}
+                <span className="ml-1 font-mono text-[8px] text-amber-600">{college.skillId} · training {college.trainingCost} gp</span>
+              </p>
+              <div className="mt-1 flex flex-col gap-1">
+                {GURPS_SPELLS.filter((s) => s.college === college.id).map((spell) => {
+                  const known = ext.spells.includes(spell.id);
+                  return (
+                    <div key={spell.id} className="flex items-center justify-between gap-2 rounded-lg border border-amber-900/40 bg-[#1a160d] px-2 py-1.5">
+                      <div className="min-w-0">
+                        <p className="truncate text-[10px] font-bold text-amber-100">{spell.name}<span className="ml-1.5 font-mono text-[8px] text-amber-500">{spell.energy} FP</span></p>
+                        <p className="truncate text-[8px] text-amber-600/70">{spell.summary}</p>
+                      </div>
+                      {known ? (
+                        <button type="button" onClick={() => castSpell(spell)} className="shrink-0 rounded-md bg-amber-500 px-2 py-1 text-[9px] font-bold text-slate-950 transition-colors hover:bg-amber-400">Cast</button>
+                      ) : (
+                        <button type="button" onClick={() => learnSpell(spell)} className="shrink-0 rounded-md border border-amber-700/50 px-2 py-1 text-[9px] font-bold text-amber-300 transition-colors hover:bg-amber-500/10">Learn</button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-amber-300">Reagents</p>
+            <p className="text-[8px] text-amber-600/70">Owned: {ext.reagents.length ? ext.reagents.map((r) => GURPS_REAGENT_MAP[r]?.name ?? r).join(", ") : "none"}</p>
+            <div className="mt-1 flex flex-wrap gap-1">
+              {GURPS_REAGENTS.map((rg) => (
+                <button key={rg.id} type="button" onClick={() => buyReagent(rg)} className="rounded-full border border-amber-800/50 bg-[#1a160d] px-2 py-0.5 text-[9px] text-amber-200 transition-colors hover:bg-amber-500/10">
+                  {rg.name} <span className="font-mono text-amber-500">{rg.cost} gp</span>
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-amber-300">Alchemy</p>
+            <div className="mt-1 flex flex-col gap-1">
+              {GURPS_ALCHEMY_RECIPES.map((rec) => {
+                const ready = rec.reagents.every((rid) => ext.reagents.includes(rid));
+                const made = ext.potions.includes(rec.id);
+                return (
+                  <div key={rec.id} className="flex items-center justify-between gap-2 rounded-lg border border-amber-900/40 bg-[#1a160d] px-2 py-1.5">
+                    <div className="min-w-0">
+                      <p className="truncate text-[10px] font-bold text-amber-100">{rec.name}</p>
+                      <p className="truncate text-[8px] text-amber-600/70">{rec.reagents.map((rid) => GURPS_REAGENT_MAP[rid]?.name ?? rid).join(" + ")} · {rec.cost} gp</p>
+                    </div>
+                    {made ? <Pill tone="emerald">Brewed</Pill> : (
+                      <button type="button" onClick={() => brewPotion(rec)} disabled={!ready} className="shrink-0 rounded-md bg-amber-500 px-2 py-1 text-[9px] font-bold text-slate-950 transition-colors hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-40">Brew</button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-amber-300">Forge</p>
+            <div className="mt-1 flex flex-col gap-1">
+              {GURPS_FORGE_RECIPES.map((f) => {
+                const made = ext.crafted.includes(f.id);
+                return (
+                  <div key={f.id} className="flex items-center justify-between gap-2 rounded-lg border border-amber-900/40 bg-[#1a160d] px-2 py-1.5">
+                    <div className="min-w-0">
+                      <p className="truncate text-[10px] font-bold text-amber-100">{f.name}</p>
+                      <p className="truncate text-[8px] text-amber-600/70">{f.summary} · {f.cost} gp · {f.time}</p>
+                    </div>
+                    {made ? <Pill tone="emerald">Forged</Pill> : (
+                      <button type="button" onClick={() => forgeItem(f)} className="shrink-0 rounded-md bg-amber-500 px-2 py-1 text-[9px] font-bold text-slate-950 transition-colors hover:bg-amber-400">Forge</button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </Section>
+      </>
+      )}
+
+      {gurpsCyberLayer(mode) && (
+        <>
+      <Section
+        icon={<Cpu className="size-4" />}
+        title="Gear & Netruns"
+        subtitle="Buy futuristic gear, then run the Grid"
+      >
+        <div className="flex flex-col gap-3">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-amber-300">Gear</p>
+            <p className="text-[8px] text-amber-600/70">Owned: {ext.gear.length ? ext.gear.map((g) => GURPS_GEAR_MAP[g]?.name ?? g).join(", ") : "none"}</p>
+            <div className="mt-1 grid grid-cols-1 gap-1">
+              {GURPS_CYBER_GEAR.map((g) => {
+                const owned = ext.gear.includes(g.id);
+                return (
+                  <div key={g.id} className="flex items-center justify-between gap-2 rounded-lg border border-amber-900/40 bg-[#1a160d] px-2 py-1.5">
+                    <div className="min-w-0">
+                      <p className="truncate text-[10px] font-bold text-amber-100">{g.name}<span className="ml-1.5 font-mono text-[8px] text-teal-400">{GURPS_GEAR_KIND_LABELS[g.kind]}</span></p>
+                      <p className="truncate text-[8px] text-amber-600/70">{g.summary} · {g.cost} gp</p>
+                    </div>
+                    {owned ? <Pill tone="emerald">Owned</Pill> : (
+                      <button type="button" onClick={() => buyGear(g)} className="shrink-0 rounded-md bg-amber-500 px-2 py-1 text-[9px] font-bold text-slate-950 transition-colors hover:bg-amber-400">Buy</button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-amber-300">Netruns</p>
+            <div className="mt-1 flex flex-col gap-1">
+              {GURPS_NETRUNS.map((run) => (
+                <div key={run.id} className="flex items-center justify-between gap-2 rounded-lg border border-amber-900/40 bg-[#1a160d] px-2 py-1.5">
+                  <div className="min-w-0">
+                    <p className="truncate text-[10px] font-bold text-amber-100">{run.name}<span className="ml-1.5 font-mono text-[8px] text-rose-400">{run.penalty}</span></p>
+                    <p className="truncate text-[8px] text-amber-600/70">{run.summary} · paydata {run.paydata} gp</p>
+                  </div>
+                  <button type="button" onClick={() => runNetrun(run)} className="shrink-0 rounded-md bg-amber-500 px-2 py-1 text-[9px] font-bold text-slate-950 transition-colors hover:bg-amber-400">Run</button>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </Section>
       </>

@@ -46,6 +46,8 @@ import {
   subraceOf,
 } from "./data/dnd";
 import { GURPS_ADVANTAGE_MAP } from "./data/gurps";
+import { GURPS_ALCHEMY_MAP, GURPS_FORGE_MAP, GURPS_REAGENT_MAP, GURPS_SPELL_MAP } from "./data/gurps-fantasy";
+import { GURPS_GEAR_MAP } from "./data/gurps-cyber";
 
 export interface SerializedCondition {
   id: string;
@@ -272,6 +274,13 @@ function serializeGurps(c: GurpsCharacter): Record<string, unknown> {
           netdeck: GURPS_NETDECK_MAP[c.ext.netdeckId ?? ""]?.name ?? c.ext.netdeckId ?? null,
           programs: (c.ext.programs ?? []).map((p) => GURPS_PROGRAM_MAP[p]?.name ?? p),
           corpRank: GURPS_CORP_RANK_MAP[c.ext.corpPositionId ?? ""]?.name ?? c.ext.corpPositionId ?? null,
+          // Fantasy / Arcana (original magic, alchemy, crafting)
+          spells: (c.ext.spells ?? []).map((s) => GURPS_SPELL_MAP[s]?.name ?? s),
+          reagents: (c.ext.reagents ?? []).map((r) => GURPS_REAGENT_MAP[r]?.name ?? r),
+          potions: (c.ext.potions ?? []).map((p) => GURPS_ALCHEMY_MAP[p]?.name ?? p),
+          crafted: (c.ext.crafted ?? []).map((f) => GURPS_FORGE_MAP[f]?.name ?? f),
+          // Cyber / Futuristic gear
+          gear: (c.ext.gear ?? []).map((g) => GURPS_GEAR_MAP[g]?.name ?? g),
         }
       : null,
   };

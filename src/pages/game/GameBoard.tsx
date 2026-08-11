@@ -1321,10 +1321,22 @@ export default function GameBoard({
                   cyberware: [],
                   contacts: [],
                   programs: [],
+                  spells: [],
+                  reagents: [],
+                  potions: [],
+                  crafted: [],
+                  gear: [],
                   ...ch.ext,
                   ...outcome.extPatch,
                 },
               }
+            : ch,
+        );
+      }
+      if (outcome.fpDelta) {
+        updateChar((ch) =>
+          ch.system === "gurps"
+            ? { ...ch, state: { ...ch.state, fpDamage: Math.max(0, ch.state.fpDamage + outcome.fpDelta!) } }
             : ch,
         );
       }
@@ -2034,6 +2046,11 @@ export default function GameBoard({
                 holdingId: undefined,
                 contacts: [],
                 programs: [],
+                spells: [],
+                reagents: [],
+                potions: [],
+                crafted: [],
+                gear: [],
                 ...ch.ext,
                 ...patch,
               },

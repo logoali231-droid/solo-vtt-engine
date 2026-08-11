@@ -148,6 +148,15 @@ const GURPS_RULES: GurpsRule[] = [
   { skill: "administration", ability: "iq", label: "Administration (Promotion)", re: /promotion|promot(e|ed)|climb (the|corporate) ladder|corporate ladder|raise (request|asking)|performance review/ },
   // --- Court service (original) ---
   { skill: "administration", ability: "iq", label: "Administration (Court)", re: /serve (at|the) court|court (duty|service)|chancellor|marshal|herald|royal (decree|proclamation)|the realm's paperwork/ },
+  // --- Arcana (original magic colleges) ---
+  { skill: "pyre-magic", ability: "iq", label: "Pyre Magic", re: /\b(ember lance|cinder ward|hearth pulse|flame lash)\b|pyre magic|fire magic|cast.*\b(fire|flame|ember)\b/ },
+  { skill: "frost-magic", ability: "iq", label: "Frost Magic", re: /\b(frost nail|rime shell|chilling grasp|glaze veil)\b|frost magic|ice magic|cast.*\b(ice|frost|chill)\b/ },
+  { skill: "gale-magic", ability: "iq", label: "Gale Magic", re: /\b(wind blade|sky leap|storm call|breeze whisper)\b|gale magic|wind magic|cast.*\b(wind|storm|thunder|gale)\b/ },
+  { skill: "verdant-magic", ability: "iq", label: "Verdant Magic", re: /\b(thorn snare|sap mend|beast speech|leaf cloak)\b|verdant magic|nature magic|cast.*\b(thorn|root|nature)\b/ },
+  { skill: "veil-magic", ability: "iq", label: "Veil Magic", re: /\b(glimmerstep|phantom shape|silence pall|veil of dusk)\b|veil magic|illusion magic|cast.*\b(illusion|phantom|shadow|blink)\b/ },
+  { skill: "spirit-magic", ability: "iq", label: "Spirit Magic", re: /\b(mind tap|iron resolve|wraith sight|soul cord)\b|spirit magic|mind magic|cast.*\b(mind|spirit|soul|will)\b/ },
+  { skill: "alchemy", ability: "iq", label: "Alchemy", re: /\bbrew\b|alchem|\bpotion\b|\breagent\b|concoct|distill|\bunguent\b|\btincture\b|\bdraught\b|\bsalve\b|\btonic\b/ },
+  { skill: "smith", ability: "iq", label: "Smith", re: /\bforge\b|\bsmith\b|\bhammersmith\b|\barmor (plate|smith)\b|metalwork|\banvil\b/ },
   { skill: "", ability: "iq", label: "IQ Roll (Investigate)", re: /investigat|examin|inspect|\bdeduc|figure out|\bclues?\b|search (the|a|this|for)|scour|recall|remember/ },
   { skill: "", ability: "iq", label: "IQ Roll (Persuade)", re: /persuad|convinc|negotiat|barter|\bcharm\b|sweet-?talk|bargain|fast-?talk/ },
   { skill: "", ability: "iq", label: "IQ Roll (Animal Handling)", re: /\b(calm|soothe|ride|handle|train|feed|groom|mount|lead|pet|tame|coax)\b.*\b(animal|beast|horse|creature)\b|\b(animal|beast|horse|creature)\b.*\b(calm|soothe|ride|handle|train|feed|groom|mount|lead|pet|tame|coax)\b/ },

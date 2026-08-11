@@ -881,6 +881,18 @@ export interface GurpsExtensionState {
   programs: string[];
   /** Current corp ladder rank id (see GURPS_CORP_LADDER). */
   corpPositionId?: string;
+  // --- Fantasy / Arcana (original magic, alchemy, crafting) ---
+  /** Learned spell ids (see GURPS_SPELLS). */
+  spells: string[];
+  /** Owned reagent ids (see GURPS_REAGENTS) — one entry per unit. */
+  reagents: string[];
+  /** Brewed potion ids (see GURPS_ALCHEMY_RECIPES). */
+  potions: string[];
+  /** Forged item ids (see GURPS_FORGE_RECIPES). */
+  crafted: string[];
+  // --- Cyber / Futuristic gear ---
+  /** Owned gear ids (see GURPS_CYBER_GEAR). */
+  gear: string[];
 }
 
 // ---------------------------------------------------------------------------

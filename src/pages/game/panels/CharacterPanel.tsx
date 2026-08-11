@@ -244,6 +244,7 @@ export default function CharacterPanel({
             onRoll={actions.onRoll}
             onExt={(patch) => actions.onGurpsExt?.(patch)}
             onSetLifeMode={actions.onSetLifeMode}
+            onFpSpend={(n) => actions.onGurpsFatigue(n)}
             wallet={wallet}
             onWalletChange={onWalletChange}
             gmLanguage={gmLanguage}

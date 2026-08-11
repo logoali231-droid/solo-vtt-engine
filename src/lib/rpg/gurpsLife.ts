@@ -61,12 +61,44 @@ import {
   gurpsTitleIncome,
   gurpsTraceDefense,
 } from "./data/gurps-extensions";
+import {
+  GURPS_ALCHEMY_MAP,
+  GURPS_ALCHEMY_RECIPES,
+  GURPS_FORGE_MAP,
+  GURPS_FORGE_RECIPES,
+  GURPS_MAGIC_COLLEGE_MAP,
+  GURPS_REAGENT_MAP,
+  GURPS_SPELL_MAP,
+  GURPS_SPELLS,
+  GURPS_TERRAIN_MAP,
+  GURPS_TERRAINS,
+  GURPS_WEATHER_MAP,
+  gurpsAlchemyLevel,
+  gurpsForageYield,
+  gurpsHuntYield,
+  gurpsMaxFp,
+  gurpsRandomWeather,
+  gurpsSmithLevel,
+  gurpsSpellMishap,
+  gurpsSpellSkillLevel,
+  gurpsTravelSpeed,
+} from "./data/gurps-fantasy";
+import {
+  GURPS_CYBER_GEAR,
+  GURPS_GEAR_MAP,
+  GURPS_NETRUN_MAP,
+  GURPS_NETRUNS,
+  gurpsHackingLevel,
+  gurpsNetrunResult,
+} from "./data/gurps-cyber";
 
 export interface LifeOutcome {
   /** Deterministic bilingual narration of the result. */
   narration: string;
   /** Mechanical wallet change in gp (positive = credit). */
   walletDelta?: number;
+  /** Mechanical fatigue change (positive = FP spent / lost). */
+  fpDelta?: number;
   /** Mechanical extension-state change. */
   extPatch?: Partial<GurpsExtensionState>;
 }
@@ -111,6 +143,11 @@ const EMPTY_EXT: GurpsExtensionState = {
   netdeckId: undefined,
   programs: [],
   corpPositionId: undefined,
+  spells: [],
+  reagents: [],
+  potions: [],
+  crafted: [],
+  gear: [],
 };
 
 function extOf(c: GurpsCharacter): GurpsExtensionState {
@@ -287,6 +324,72 @@ export function resolveLifeCommand(
             ),
             walletDelta: -p.cost,
             extPatch: { programs: [...ext.programs, p.id] },
+          },
+        };
+      }
+    }
+    // Reagents ("buy ember moss", "buy moon salt")
+    for (const rg of Object.values(GURPS_REAGENT_MAP)) {
+      if (t.includes(rg.name.toLowerCase()) && has(t, ["reagent", "buy ", "purchase ", "get ", "acquire "])) {
+        if (!gurpsMedievalLayer(mode)) return worldBlock(rg.name);
+        const afford = wallet && walletToSp(wallet) >= rg.cost * 100;
+        if (!afford) {
+          return {
+            kind: "flat",
+            outcome: {
+              narration: L(
+                `You cannot afford ${rg.name} — it costs ${rg.cost} gp per unit.`,
+                `Você não pode pagar ${rg.name} — custa ${rg.cost} gp por unidade.`,
+              ),
+            },
+          };
+        }
+        return {
+          kind: "flat",
+          outcome: {
+            narration: L(
+              `${rg.name} added to your pouch — ${fmtGp(-rg.cost)}.`,
+              `${rg.name} adicionado à sua bolsa — ${fmtGp(-rg.cost)}.`,
+            ),
+            walletDelta: -rg.cost,
+            extPatch: { reagents: [...ext.reagents, rg.id] },
+          },
+        };
+      }
+    }
+    // Futuristic gear ("buy an arc lance", "buy the hardsuit")
+    for (const g of Object.values(GURPS_GEAR_MAP)) {
+      if (t.includes(g.name.toLowerCase())) {
+        if (!gurpsCyberLayer(mode)) return worldBlock(g.name);
+        if (ext.gear.includes(g.id)) {
+          return {
+            kind: "flat",
+            outcome: {
+              narration: L(`${g.name} is already in your gear.`, `${g.name} já está no seu equipamento.`),
+            },
+          };
+        }
+        const afford = wallet && walletToSp(wallet) >= g.cost * 100;
+        if (!afford) {
+          return {
+            kind: "flat",
+            outcome: {
+              narration: L(
+                `You cannot afford ${g.name} — it costs ${g.cost} gp.`,
+                `Você não pode pagar ${g.name} — custa ${g.cost} gp.`,
+              ),
+            },
+          };
+        }
+        return {
+          kind: "flat",
+          outcome: {
+            narration: L(
+              `${g.name} secured — ${fmtGp(-g.cost)}.`,
+              `${g.name} adquirido — ${fmtGp(-g.cost)}.`,
+            ),
+            walletDelta: -g.cost,
+            extPatch: { gear: [...ext.gear, g.id] },
           },
         };
       }
@@ -782,6 +885,366 @@ export function resolveLifeCommand(
   }
 
   // -------------------------------------------------------------------------
+  // Arcana — learn a spell ("learn ember lance") or cast one ("cast ember
+  // lance", "hurl a flame lash"). Casting costs FP and rolls the college
+  // skill; a critical failure triggers the original mishap table.
+  // -------------------------------------------------------------------------
+  for (const spell of GURPS_SPELLS) {
+    const spellWord = spell.name.toLowerCase();
+    if (!t.includes(spellWord)) continue;
+    if (!gurpsMedievalLayer(mode)) return worldBlock(spell.name);
+    const learning = has(t, ["learn ", "teach", "study ", "pick up ", "train in ", "memorize "]);
+    if (learning) {
+      if (ext.spells.includes(spell.id)) {
+        return {
+          kind: "flat",
+          outcome: {
+            narration: L(
+              `You already know ${spell.name}.`,
+              `Você já conhece ${spell.name}.`,
+            ),
+          },
+        };
+      }
+      const college = GURPS_MAGIC_COLLEGE_MAP[spell.college];
+      const afford = wallet && walletToSp(wallet) >= college.trainingCost * 100;
+      if (!afford) {
+        return {
+          kind: "flat",
+          outcome: {
+            narration: L(
+              `Learning ${spell.name} costs ${college.trainingCost} gp in ${college.name} training — beyond your purse.`,
+              `Aprender ${spell.name} custa ${college.trainingCost} gp em treinamento de ${college.name} — além da sua bolsa.`,
+            ),
+          },
+        };
+      }
+      return {
+        kind: "flat",
+        outcome: {
+          narration: L(
+            `You study under a ${college.name} master and master ${spell.name} — ${fmtGp(-college.trainingCost)}. Say \"cast ${spell.name}\" to use it.`,
+            `Você estuda com um mestre de ${college.name} e domina ${spell.name} — ${fmtGp(-college.trainingCost)}. Diga \"cast ${spell.name}\" para usá-lo.`,
+          ),
+          walletDelta: -college.trainingCost,
+          extPatch: { spells: [...ext.spells, spell.id] },
+        },
+      };
+    }
+    const casting = has(t, ["cast ", "cast the ", "hurl ", "throw ", "unleash ", "use "]);
+    if (!casting) continue;
+    if (!ext.spells.includes(spell.id)) {
+      return {
+        kind: "flat",
+        outcome: {
+          narration: L(
+            `You don't know ${spell.name} — learn it first (\"learn ${spell.name}\").`,
+            `Você não conhece ${spell.name} — aprenda primeiro (\"learn ${spell.name}\").`,
+          ),
+        },
+      };
+    }
+    if (spell.energy > gurpsMaxFp(c)) {
+      return {
+        kind: "flat",
+        outcome: {
+          narration: L(
+            `You are too exhausted to cast ${spell.name} (needs ${spell.energy} FP).`,
+            `Você está exausto demais para lançar ${spell.name} (precisa de ${spell.energy} FP).`,
+          ),
+        },
+      };
+    }
+    const target = gurpsSpellSkillLevel(c, spell.college);
+    return {
+      kind: "rolled",
+      label: `Cast: ${spell.name} (${GURPS_MAGIC_COLLEGE_MAP[spell.college].name} ${target})`,
+      gurpsTarget: target,
+      resolve: (dice) => {
+        if (dice.outcome === "critical-failure") {
+          const mishap = gurpsSpellMishap();
+          return {
+            narration: L(
+              `${spell.name} goes catastrophically wrong — ${mishap.label}: ${mishap.effect} ${dice.breakdown}`,
+              `${spell.name} dá catastróficamente errado — ${mishap.label}: ${mishap.effect} ${dice.breakdown}`,
+            ),
+            fpDelta: spell.energy + mishap.extraFp,
+          };
+        }
+        if (dice.outcome === "failure") {
+          return {
+            narration: L(
+              `The power refuses to shape itself — ${spell.name} fizzles (${dice.breakdown}).`,
+              `O poder se recusa a se moldar — ${spell.name} falha (${dice.breakdown}).`,
+            ),
+            fpDelta: spell.energy,
+          };
+        }
+        const strong = (dice.margin ?? 0) >= 5 || dice.outcome === "critical-success";
+        return {
+          narration: L(
+            strong
+              ? `${spell.name} flares with power — ${spell.effect} A clean, masterful cast (${dice.breakdown}).`
+              : `${spell.name} succeeds — ${spell.effect} (${dice.breakdown}).`,
+            strong
+              ? `${spell.name} brilha com poder — ${spell.effect} Um lançamento limpo e magistral (${dice.breakdown}).`
+              : `${spell.name} funciona — ${spell.effect} (${dice.breakdown}).`,
+          ),
+          fpDelta: spell.energy,
+        };
+      },
+    };
+  }
+
+  // -------------------------------------------------------------------------
+  // Alchemy — brew a potion from reagents ("brew a healing draught").
+  // -------------------------------------------------------------------------
+  if (has(t, ["brew ", "brew a ", "brew an ", "mix a ", "prepare a ", "concoct ", "make a potion", "make the potion", "brew the "])) {
+    for (const rec of GURPS_ALCHEMY_RECIPES) {
+      if (!t.includes(rec.name.toLowerCase())) continue;
+      if (!gurpsMedievalLayer(mode)) return worldBlock(rec.name);
+      const missing = rec.reagents.filter((rid) => !ext.reagents.includes(rid));
+      if (missing.length > 0) {
+        const names = missing.map((rid) => GURPS_REAGENT_MAP[rid]?.name ?? rid).join(", ");
+        return {
+          kind: "flat",
+          outcome: {
+            narration: L(
+              `You need ${names} to brew ${rec.name} — buy reagents first (\"buy ${names.split(", ")[0]}\").`,
+              `Você precisa de ${names} para preparar ${rec.name} — compre reagentes primeiro (\"buy ${names.split(", ")[0]}\").`,
+            ),
+          },
+        };
+      }
+      const afford = wallet && walletToSp(wallet) >= rec.cost * 100;
+      if (!afford) {
+        return {
+          kind: "flat",
+          outcome: {
+            narration: L(
+              `Brewing ${rec.name} needs ${rec.cost} gp of base materials — beyond your purse.`,
+              `Preparar ${rec.name} precisa de ${rec.cost} gp em materiais — além da sua bolsa.`,
+            ),
+          },
+        };
+      }
+      const target = gurpsAlchemyLevel(c);
+      return {
+        kind: "rolled",
+        label: `Brew: ${rec.name} (Alchemy ${target})`,
+        gurpsTarget: target,
+        resolve: (dice) => {
+          const consumed = ext.reagents.filter((rid) => !rec.reagents.includes(rid));
+          if (dice.outcome === "success" || dice.outcome === "critical-success") {
+            return {
+              narration: L(
+                dice.outcome === "critical-success"
+                  ? `${rec.name} brewed to perfection — ${rec.effect} (${dice.breakdown}).`
+                  : `${rec.name} brewed — ${rec.effect} (${dice.breakdown}).`,
+                dice.outcome === "critical-success"
+                  ? `${rec.name} preparado à perfeição — ${rec.effect} (${dice.breakdown}).`
+                  : `${rec.name} preparado — ${rec.effect} (${dice.breakdown}).`,
+              ),
+              walletDelta: -rec.cost,
+              extPatch: { potions: [...ext.potions, rec.id], reagents: consumed },
+            };
+          }
+          return {
+            narration: L(
+              dice.outcome === "critical-failure"
+                ? `The batch curdles violently — the flask cracks and the reagents are lost (${dice.breakdown}).`
+                : `The brew fails — the reagents are spent and nothing usable remains (${dice.breakdown}).`,
+              dice.outcome === "critical-failure"
+                ? `O lote coalha violentamente — o frasco racha e os reagentes se perdem (${dice.breakdown}).`
+                : `O preparo falha — os reagentes se perdem e nada utilizável resta (${dice.breakdown}).`,
+            ),
+            walletDelta: -rec.cost,
+            extPatch: { reagents: consumed },
+          };
+        },
+      };
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Smithing — forge gear from raw materials ("forge a sword").
+  // -------------------------------------------------------------------------
+  if (has(t, ["forge ", "smith ", "smith a ", "smith an ", "craft a ", "craft an ", "craft ", "make a sword", "make an iron "])) {
+    const forgeAliases: [string, string[]][] = [
+      ["smithing-knife", ["knife"]],
+      ["forged-sword", ["sword", "blade"]],
+      ["hunting-bow", ["bow"]],
+      ["iron-shield", ["shield"]],
+      ["chain-repairs", ["chain"]],
+      ["armor-plate", ["armor", "plate"]],
+      ["travelers-kit", ["kit"]],
+      ["lock-trap-kit", ["lock", "trap"]],
+    ];
+    for (const [fid, words] of forgeAliases) {
+      const f = GURPS_FORGE_MAP[fid];
+      if (!f) continue;
+      if (!words.some((w) => t.includes(w))) continue;
+      if (!gurpsMedievalLayer(mode)) return worldBlock(f.name);
+      if (ext.crafted.includes(fid)) {
+        return {
+          kind: "flat",
+          outcome: {
+            narration: L(
+              `You already forged ${f.name}.`,
+              `Você já forjou ${f.name}.`,
+            ),
+          },
+        };
+      }
+      const afford = wallet && walletToSp(wallet) >= f.cost * 100;
+      if (!afford) {
+        return {
+          kind: "flat",
+          outcome: {
+            narration: L(
+              `Forging ${f.name} needs ${f.cost} gp of materials — beyond your purse.`,
+              `Forjar ${f.name} precisa de ${f.cost} gp em materiais — além da sua bolsa.`,
+            ),
+          },
+        };
+      }
+      const target = gurpsSmithLevel(c);
+      return {
+        kind: "rolled",
+        label: `Forge: ${f.name} (Smith ${target})`,
+        gurpsTarget: target,
+        resolve: (dice) => {
+          if (dice.outcome === "success" || dice.outcome === "critical-success") {
+            return {
+              narration: L(
+                `${f.name} finished — ${f.effect} (${dice.breakdown}).`,
+                `${f.name} finalizado — ${f.effect} (${dice.breakdown}).`,
+              ),
+              walletDelta: -f.cost,
+              extPatch: { crafted: [...ext.crafted, fid] },
+            };
+          }
+          return {
+            narration: L(
+              dice.outcome === "critical-failure"
+                ? `The work fails catastrophically — the metal is ruined and the materials lost (${dice.breakdown}).`
+                : `The piece comes out flawed — the materials are spent (${dice.breakdown}).`,
+              dice.outcome === "critical-failure"
+                ? `O trabalho falha catastróficamente — o metal fica arruinado e os materiais se perdem (${dice.breakdown}).`
+                : `A peça sai defeituosa — os materiais são gastos (${dice.breakdown}).`,
+            ),
+            walletDelta: -f.cost,
+          };
+        },
+      };
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Wilderness — forage, hunt, and travel through terrain (original tables).
+  // -------------------------------------------------------------------------
+  if (has(t, ["forage", "gather food", "gather berries", "find food", "look for food", "scavenge for food", "hunt for food", "hunt for game", "go hunting", "set a snare", "lay a snare"])) {
+    const target = skillLevel(c, "survival", "iq");
+    const hunting = has(t, ["hunt", "game", "snare"]);
+    return {
+      kind: "rolled",
+      label: hunting ? `Hunt for game (Survival ${target})` : `Forage (Survival ${target})`,
+      gurpsTarget: target,
+      resolve: (dice) => {
+        const margin = dice.margin ?? 0;
+        if (hunting) {
+          const y = gurpsHuntYield(margin, dice.outcome);
+          return {
+            narration: L(y.note, y.note),
+            walletDelta: y.gp,
+          };
+        }
+        const y = gurpsForageYield(margin, dice.outcome);
+        return {
+          narration: L(
+            `${y.note} Food for ${y.food} day${y.food === 1 ? "" : "s"} secured.`,
+            `${y.note} Comida para ${y.food} dia${y.food === 1 ? "" : "s"} garantida.`,
+          ),
+        };
+      },
+    };
+  }
+  const terrain = GURPS_TERRAINS.find((tr) =>
+    has(t, [`through the ${tr.name.toLowerCase()}`, `through ${tr.name.toLowerCase()}`, `across the ${tr.name.toLowerCase()}`, `cross the ${tr.name.toLowerCase()}`, `into the ${tr.name.toLowerCase()}`, `trek through the ${tr.name.toLowerCase()}`, `travel through ${tr.name.toLowerCase()}`]),
+  );
+  if (terrain && has(t, ["travel", "march", "trek", "journey", "ride", "walk", "cross", "set out", "head into", "head through"])) {
+    const weather = gurpsRandomWeather();
+    const speed = gurpsTravelSpeed(terrain.id, weather.id);
+    const target = skillLevel(c, "hiking", "ht");
+    return {
+      kind: "rolled",
+      label: `Travel: ${terrain.name} (Hiking ${target})`,
+      gurpsTarget: target,
+      resolve: (dice) => {
+        const margin = dice.margin ?? 0;
+        const miles = dice.outcome === "critical-failure" ? Math.max(1, speed - 4) : speed;
+        const fp = dice.outcome === "critical-failure" ? 2 : margin >= 5 ? 0 : 0;
+        return {
+          narration: L(
+            dice.outcome === "critical-failure"
+              ? `The ${weather.name.toLowerCase()} turns against you — you cover only ${miles} miles through ${terrain.name} and arrive exhausted (2 FP).`
+              : margin >= 0
+                ? `You cover ${miles} miles through ${terrain.name} under ${weather.name.toLowerCase()} skies — good time.`
+                : `The going is slow — ${miles} miles through ${terrain.name} under ${weather.name.toLowerCase()}, and you feel it in your legs.`,
+            dice.outcome === "critical-failure"
+              ? `O ${weather.name.toLowerCase()} se volta contra você — você cobre apenas ${miles} milhas por ${terrain.name} e chega exausto (2 FP).`
+              : margin >= 0
+                ? `Você cobre ${miles} milhas por ${terrain.name} sob céu ${weather.name.toLowerCase()} — bom tempo.`
+                : `O avanço é lento — ${miles} milhas por ${terrain.name} sob ${weather.name.toLowerCase()}, e suas pernas sentem.`,
+          ),
+          fpDelta: fp,
+        };
+      },
+    };
+  }
+
+  // -------------------------------------------------------------------------
+  // Netrunning — run a named mission ("run the corp archive vault"). The
+  // roll stacks Hacking + deck + programs vs the target's penalty; ICE
+  // reacts on failures, Black ICE on a critical failure.
+  // -------------------------------------------------------------------------
+  const netrunKeywords: [string, string[]][] = [
+    ["backroom", ["backroom", "data broker"]],
+    ["archive-vault", ["archive", "vault", "schematics"]],
+    ["security-mainframe", ["security firm", "mainframe", "daemon"]],
+    ["broadcast-core", ["broadcast", "media", "leak"]],
+    ["military-node", ["military", "satellite"]],
+    ["black-core", ["black ice", "black core", "black box"]],
+  ];
+  if (has(t, ["netrun", "run the ", "run a ", "run an ", "hack into ", "jack into ", "breach the ", "break into "])) {
+    for (const [nid, words] of netrunKeywords) {
+      const run = GURPS_NETRUN_MAP[nid];
+      if (!run) continue;
+      if (!words.some((w) => t.includes(w))) continue;
+      if (!gurpsCyberLayer(mode)) return worldBlock(run.name);
+      const deckBonus = ext.netdeckId ? (GURPS_NETDECK_MAP[ext.netdeckId]?.hackBonus ?? 0) : 0;
+      const progBonus = gurpsHackBonus(ext.netdeckId, ext.programs);
+      const target = gurpsHackingLevel(c) + deckBonus + progBonus + run.penalty;
+      return {
+        kind: "rolled",
+        label: `Netrun: ${run.name} (Hacking ${target})`,
+        gurpsTarget: target,
+        resolve: (dice) => {
+          const r = gurpsNetrunResult(dice.margin ?? 0, dice.outcome, run);
+          return {
+            narration: L(
+              `${run.objective} ${r.note} ${dice.breakdown}`,
+              `${run.objective} ${r.note} ${dice.breakdown}`,
+            ),
+            walletDelta: r.paydata,
+            fpDelta: r.fpDamage,
+          };
+        },
+      };
+    }
+  }
+
+  // -------------------------------------------------------------------------
   // Education — enroll, pick a degree, study, sit the exam.
   // -------------------------------------------------------------------------
   if (has(t, ["enroll", "matricul", "apply to", "go to university", "go to college", "attend university", "attend college", "sign up for"]) && !has(t, ["enroll in a degree", "enroll in the degree"])) {
@@ -1101,8 +1564,8 @@ export function resolveLifeCommand(
   // skill roll. (Specific handlers above already caught the named items; this
   // catches the generic phrasings: "hack the mainframe" in a medieval world…)
   // -------------------------------------------------------------------------
-  const worldCyberRe = /\b(hack|netrun|jack in|jack into|netdeck|mainframe|icebreaker|cyberware|datajack|neural link|corp drone|netrunner|fixer|ripperdoc|bounty hunter|chrome|promotion|executive|the grid)\b/i;
-  const worldMedievalRe = /\b(harvest|holding|manor|fief|demesne|knighthood|esquire|baronet|duke|herald|marshal|chancellor|spymaster|serve at court|serve the king|serve the queen|title of)\b/i;
+  const worldCyberRe = /\b(hack|netrun|jack in|jack into|netdeck|mainframe|icebreaker|cyberware|datajack|neural link|corp drone|netrunner|fixer|ripperdoc|bounty hunter|chrome|promotion|executive|the grid|drone|plasma|arc lance|hardsuit|weave suit|ballistic vest|pulse carbine|shredder|bio-?scanner|jammer|hoverbike|gridrunner|paydata)\b/i;
+  const worldMedievalRe = /\b(harvest|holding|manor|fief|demesne|knighthood|esquire|baronet|duke|herald|marshal|chancellor|spymaster|serve at court|serve the king|serve the queen|title of|spell|magic|alchem|potion|reagent|brew|forge|smith)\b|\b(cast|learn|study)\b.{0,40}\b(spell|magic|pyre|frost|gale|verdant|veil|spirit)\b/i;
   if (!gurpsCyberLayer(mode) && worldCyberRe.test(t)) {
     return worldBlock("Cyberpunk content");
   }

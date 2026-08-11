@@ -13,6 +13,8 @@
 
 import type { GurpsCharacter, GurpsLifeMode, GurpsSkillDef, Wallet } from "../types";
 import { gurpsLifeModeOf, walletToSp, spToWallet } from "../types";
+import { gurpsFantasyRulesContext } from "./gurps-fantasy";
+import { gurpsCyberRulesContext } from "./gurps-cyber";
 
 // ---------------------------------------------------------------------------
 // Extension skills — added to the GURPS skill list so the wizard can train
@@ -42,6 +44,15 @@ export const GURPS_EXTENSION_SKILLS: GurpsSkillDef[] = [
   { id: "hacking", name: "Hacking", stat: "iq", difficulty: "hard" },
   { id: "fast-talk", name: "Fast-Talk", stat: "iq", difficulty: "average" },
   { id: "professional-skill", name: "Professional Skill", stat: "iq", difficulty: "average" },
+  // --- Fantasy / Arcana skills (original magic colleges, alchemy, smithing) ---
+  { id: "pyre-magic", name: "Pyre Magic", stat: "iq", difficulty: "hard" },
+  { id: "frost-magic", name: "Frost Magic", stat: "iq", difficulty: "hard" },
+  { id: "gale-magic", name: "Gale Magic", stat: "iq", difficulty: "hard" },
+  { id: "verdant-magic", name: "Verdant Magic", stat: "iq", difficulty: "hard" },
+  { id: "veil-magic", name: "Veil Magic", stat: "iq", difficulty: "hard" },
+  { id: "spirit-magic", name: "Spirit Magic", stat: "iq", difficulty: "hard" },
+  { id: "alchemy", name: "Alchemy", stat: "iq", difficulty: "hard" },
+  { id: "smith", name: "Smith", stat: "iq", difficulty: "average" },
 ];
 
 export const GURPS_EXTENSION_SKILL_MAP = Object.fromEntries(
@@ -797,6 +808,8 @@ export function gurpsRulesContext(mode?: GurpsLifeMode): string {
     "MEDIEVAL: a holding pays seasonal income on a successful roll vs its skill. Noble titles add monthly income; court positions pay a salary on a monthly service roll.",
     "EDUCATION: universities charge tuition per semester (scholarships waive it). Studying rolls 3d6 vs the degree's study skill and fills exam progress (0–100); the final exam rolls vs the university's exam skill at the degree's target. Graduating grants the degree's skill bonus and unlocks its jobs.",
     "SOCIAL LIFE: reputation runs 0–100. Social circles cost entry and grant a reaction bonus; attending events (feast, ball, gala, rave…) rolls 3d6 vs the event's skill — successes raise reputation, critical failures are scandals that lower it.",
+    ...(gurpsModeHas("medieval", m) ? [gurpsFantasyRulesContext()] : []),
+    ...(gurpsModeHas("cyber", m) ? [gurpsCyberRulesContext()] : []),
     "Always honor the rolled margin: narrate success proportionally to how far the roll succeeded or failed, and never invent unrolled outcomes.",
   ];
   return lines.join("\n");

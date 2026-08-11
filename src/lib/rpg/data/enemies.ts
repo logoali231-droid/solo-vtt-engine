@@ -71,6 +71,19 @@ export const ENEMY_TABLES: Record<string, EnemyState[]> = {
     { id: "goblin", name: "Goblin", ac: 9, hp: 8, maxHp: 8, attackBonus: 11, damage: "1d6-1", xp: 1, gold: 4, loot: ["a crudely carved tooth"] },
     { id: "skeleton", name: "Skeleton", ac: 9, hp: 10, maxHp: 10, attackBonus: 11, damage: "1d6", xp: 1, gold: 2, loot: ["a brittle bone charm"] },
     { id: "veteran", name: "Veteran Soldier", ac: 10, hp: 14, maxHp: 14, attackBonus: 13, damage: "1d6+2", xp: 2, gold: 18, loot: ["a soldier's pay purse"] },
+    // --- Original fantasy beasts ---
+    { id: "dire-boar", name: "Dire Boar", ac: 10, hp: 18, maxHp: 18, attackBonus: 13, damage: "2d6", xp: 2, gold: 0, loot: ["a huge boar tusk", "tough hide"] },
+    { id: "grave-hound", name: "Grave Hound", ac: 9, hp: 13, maxHp: 13, attackBonus: 14, damage: "1d6+2", xp: 2, gold: 0, loot: ["a collar with a sigil that glows at night"] },
+    { id: "moss-stalker", name: "Moss Stalker", ac: 10, hp: 15, maxHp: 15, attackBonus: 14, damage: "1d6+2", xp: 2, gold: 0, loot: ["moss that never dries (a rare reagent)"] },
+    { id: "hill-wight", name: "Hill Wight", ac: 9, hp: 16, maxHp: 16, attackBonus: 13, damage: "1d6+3", xp: 2, gold: 10, loot: ["a rusted blade that whispers in dreams"] },
+    { id: "crown-wyrm", name: "Crown Wyrm", ac: 11, hp: 30, maxHp: 30, attackBonus: 15, damage: "2d6+3", xp: 5, gold: 60, loot: ["a crown-scale", "a hoard key"] },
+    { id: "bramble-fiend", name: "Bramble Fiend", ac: 10, hp: 14, maxHp: 14, attackBonus: 12, damage: "1d6+3", xp: 2, gold: 0, loot: ["a thorn that never rots"] },
+    // --- Original cyber foes ---
+    { id: "corp-guard", name: "Corp Security Guard", ac: 11, hp: 12, maxHp: 12, attackBonus: 12, damage: "2d6+1", xp: 2, gold: 20, loot: ["a corp badge", "a cred-stick"] },
+    { id: "security-drone", name: "Security Drone", ac: 10, hp: 8, maxHp: 8, attackBonus: 12, damage: "2d6", xp: 2, gold: 0, loot: ["a memory chip with patrol logs"] },
+    { id: "cyber-thug", name: "Chrome Thug", ac: 11, hp: 16, maxHp: 16, attackBonus: 13, damage: "2d6+1", xp: 2, gold: 25, loot: ["a hydraulic fist", "street cred"] },
+    { id: "net-courier", name: "Grid Courier", ac: 10, hp: 10, maxHp: 10, attackBonus: 11, damage: "1d6+2", xp: 1, gold: 30, loot: ["a sealed datachip (paydata)"] },
+    { id: "exo-brute", name: "Exo-Brute", ac: 12, hp: 24, maxHp: 24, attackBonus: 14, damage: "2d6+3", xp: 3, gold: 40, loot: ["an exo-frame power cell"] },
   ],
 };
 
