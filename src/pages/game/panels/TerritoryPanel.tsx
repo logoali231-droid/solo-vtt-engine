@@ -11,6 +11,7 @@ import {
   createTerritory,
   rebuildTerritory,
   rerollTerritoryField,
+  territoryEra,
   TERRITORY_ERA_LABEL,
   TERRITORY_KINDS,
   territorySummary,
@@ -39,6 +40,7 @@ const FIELDS: FieldDef[] = [
   { key: "scale", labelEn: "Scale", labelPt: "Tamanho" },
   { key: "economy", labelEn: "Economy", labelPt: "Economia" },
   { key: "military", labelEn: "Military", labelPt: "Militar" },
+  { key: "trait", labelEn: "Trait", labelPt: "Característica" },
   { key: "magicTech", labelEn: "Magic / Tech", labelPt: "Magia / Tecnologia" },
   { key: "culture", labelEn: "Culture", labelPt: "Cultura" },
   { key: "factions", labelEn: "Factions", labelPt: "Facções" },
@@ -70,7 +72,7 @@ export default function TerritoryPanel({
     pt ? TERRITORY_ERA_LABEL[t.era].pt : TERRITORY_ERA_LABEL[t.era].en;
 
   const add = () => {
-    const era = territoryEraFor(system, lifeMode);
+    const era = territoryEra(system, lifeMode);
     const t = createTerritory(kind, era, language);
     onChange([t, ...territories]);
   };
@@ -244,14 +246,4 @@ export default function TerritoryPanel({
       )}
     </div>
   );
-}
-
-/** Era for new rolls — fantasy for D&D/PF2e, GURPS follows the Life Mode tag. */
-function territoryEraFor(system: GameSystem, lifeMode?: string): TerritoryEra {
-  if (system === "dnd5e" || system === "pf2e") return "fantasy";
-  if (lifeMode === "medieval") return "fantasy";
-  if (lifeMode === "modern") return "modern";
-  if (lifeMode === "cyber") return "cyber";
-  const eras: TerritoryEra[] = ["fantasy", "modern", "cyber"];
-  return eras[Math.floor(Math.random() * eras.length)];
 }

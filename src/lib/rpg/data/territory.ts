@@ -609,10 +609,13 @@ export type TerritoryField =
 function genRuler(era: TerritoryEra, kind: TerritoryKind, lang: Lang): string {
   const title = loc(pick(TITLES[era][kind]), lang);
   const first = loc(pick(RULER_FIRST[era]), lang);
-  if (era === "fantasy" || kind === "house") {
-    return `${title} ${first} ${loc(pick(RULER_LAST[era]), lang)}`;
+  const last = loc(pick(RULER_LAST[era]), lang);
+  // A house reads better with the lineage front and center: "Matriarch Kai,
+  // of House Volkov" instead of the bare "Matriarch Kai Volkov".
+  if (kind === "house" && era !== "fantasy") {
+    return `${title} ${first}, of House ${last}`;
   }
-  return `${title} ${first} ${loc(pick(RULER_LAST[era]), lang)}`;
+  return `${title} ${first} ${last}`;
 }
 
 function genFactions(era: TerritoryEra, lang: Lang): string[] {
@@ -696,14 +699,28 @@ const KIND_WORD: Record<TerritoryKind, L> = {
   tribe: l("Tribe", "Tribo"),
 };
 
-/** One-line pitch: "The Kingdom of Valdoria is a realm where its towers are
- *  carved from living stone. Queen Elara of the Iron Keep rules..." */
+/** Indefinite article per kind, for Portuguese (gender-aware). */
+const PT_ARTICLE: Record<TerritoryKind, string> = {
+  kingdom: "um",
+  country: "um",
+  city: "uma",
+  company: "uma",
+  society: "uma",
+  guild: "uma",
+  faction: "uma",
+  cult: "uma",
+  house: "uma",
+  tribe: "uma",
+};
+
+/** One-line pitch: "Valdoria is a Kingdom where its towers are carved from
+ *  living stone. Queen Elara of the Iron Keep rules under a hereditary
+ *  monarchy; its wealth comes from iron and steel..." (bilingual). */
 export function territorySummary(t: Territory, lang: Lang = t.lang): string {
   const kind = loc(KIND_WORD[t.kind], lang);
-  const name = t.name.toLowerCase().startsWith("the ") ? t.name : `The ${t.name}`;
   return lang === "pt-BR"
-    ? `${name}, ${kind} onde ${t.trait}. ${t.ruler} governa sob ${t.government}; sua riqueza vem de ${t.economy}. ${capitalize(t.conflict)}.`
-    : `${name}, a ${kind} where ${t.trait}. ${t.ruler} rules under ${t.government}; its wealth comes from ${t.economy}. ${capitalize(t.conflict)}.`;
+    ? `${t.name} é ${PT_ARTICLE[t.kind]} ${kind.toLowerCase()} onde ${t.trait}. ${t.ruler} governa sob ${t.government}; sua riqueza vem de ${t.economy}. ${capitalize(t.conflict)}.`
+    : `${t.name} is a ${kind} where ${t.trait}. ${t.ruler} rules under ${t.government}; its wealth comes from ${t.economy}. ${capitalize(t.conflict)}.`;
 }
 
 function capitalize(s: string): string {
