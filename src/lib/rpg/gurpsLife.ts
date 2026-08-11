@@ -23,7 +23,7 @@ import type {
   GurpsExtensionState,
   Wallet,
 } from "./types";
-import { walletToSp, spToWallet } from "./types";
+import { gurpsLifeModeOf, walletToSp, spToWallet } from "./types";
 import { getGurpsDerived } from "./character";
 import {
   GURPS_BUSINESS_MAP,
@@ -44,12 +44,17 @@ import {
   GURPS_UNIVERSITY_MAP,
   GURPS_WEALTH_MAP,
   gurpsBusinessResult,
+  gurpsBusinessesFor,
   gurpsCorpSalary,
   gurpsCostOfLiving,
   gurpsCourtSalary,
+  gurpsCyberLayer,
   gurpsEventRep,
   gurpsHackBonus,
   gurpsJobPay,
+  gurpsJobsFor,
+  gurpsMedievalLayer,
+  gurpsModeHas,
   gurpsMonthlyIncome,
   gurpsReactionModifiers,
   gurpsStudyGain,
@@ -132,6 +137,11 @@ function has(text: string, words: string[]): boolean {
   return words.some((w) => text.includes(w));
 }
 
+/** Word-boundary match on whole words/phrases (avoids "corp" hitting "corpse"). */
+function hasWord(text: string, patterns: string[]): boolean {
+  return patterns.some((p) => new RegExp(`\\b${p}\\b`, "i").test(text));
+}
+
 /** True for success or critical-success (narrows the outcome type). */
 function isOk(outcome: string): outcome is "success" | "critical-success" {
   return outcome === "success" || outcome === "critical-success";
@@ -160,6 +170,28 @@ export function resolveLifeCommand(
   const ext = extOf(c);
   const L = (en: string, pt?: string) => loc(en, pt)(lang);
 
+  // Life Mode tag (set at Adventure Setup, changeable in the Life panel) — the
+  // world frame of the whole life-sim. Content outside the tagged era does not
+  // exist and gets a plain "world block" answer instead of a generic roll.
+  const mode = gurpsLifeModeOf(c.adventurePrefs);
+  const modeName =
+    mode === "medieval"
+      ? "Fantasy / Medieval"
+      : mode === "modern"
+        ? "Modern / Social"
+        : mode === "cyber"
+          ? "Cyberpunk"
+          : "Everything / Mixed";
+  const worldBlock = (thing: string): LifeCommand => ({
+    kind: "flat",
+    outcome: {
+      narration: L(
+        `${thing} does not exist in this world — your Life Mode tag is ${modeName}. Change the tag in the Life panel to open up other eras.`,
+        `${thing} não existe neste mundo — sua tag de Life Mode é ${modeName}. Mude a tag no painel Vida para abrir outras eras.`,
+      ),
+    },
+  });
+
   // -------------------------------------------------------------------------
   // Shop — buy / install / start / acquire anything with a price tag.
   // -------------------------------------------------------------------------
@@ -167,6 +199,7 @@ export function resolveLifeCommand(
     // Cyberware ("install dermal plating", "buy a datajack")
     for (const w of Object.values(GURPS_CYBERWARE_MAP)) {
       if (t.includes(w.name.toLowerCase()) && !ext.cyberware.includes(w.id)) {
+        if (!gurpsCyberLayer(mode)) return worldBlock(w.name);
         const afford = wallet && walletToSp(wallet) >= w.cost * 100;
         if (!afford) {
           return {
@@ -195,6 +228,7 @@ export function resolveLifeCommand(
     // Netdecks ("buy a runner deck")
     for (const nd of Object.values(GURPS_NETDECK_MAP)) {
       if (t.includes(nd.name.toLowerCase())) {
+        if (!gurpsCyberLayer(mode)) return worldBlock(nd.name);
         const afford = wallet && walletToSp(wallet) >= nd.cost * 100;
         if (!afford) {
           return {
@@ -223,6 +257,7 @@ export function resolveLifeCommand(
     // Programs ("buy the icebreaker")
     for (const p of Object.values(GURPS_PROGRAM_MAP)) {
       if (t.includes(p.name.toLowerCase())) {
+        if (!gurpsCyberLayer(mode)) return worldBlock(p.name);
         if (ext.programs.includes(p.id)) {
           return {
             kind: "flat",
@@ -259,6 +294,7 @@ export function resolveLifeCommand(
     // Noble titles ("buy the title of baron", "purchase knighthood")
     for (const tl of Object.values(GURPS_TITLE_MAP)) {
       if (t.includes(tl.name.toLowerCase())) {
+        if (!gurpsMedievalLayer(mode)) return worldBlock(`the rank of ${tl.name}`);
         const afford = wallet && walletToSp(wallet) >= tl.cost * 100;
         if (!afford) {
           return {
@@ -295,6 +331,9 @@ export function resolveLifeCommand(
           bizWords.some((w) => w.length >= 4 && t.includes(w)) ||
           t.includes(b.id.replace(/-/g, " "));
         if (bizMatch) {
+        if (!gurpsBusinessesFor(mode).some((x) => x.id === b.id)) {
+          return worldBlock(b.name);
+        }
         const afford = wallet && walletToSp(wallet) >= b.startupCost * 100;
         if (!afford) {
           return {
@@ -329,6 +368,9 @@ export function resolveLifeCommand(
   if (has(t, ["work as ", "become a ", "become an ", "take the job", "get a job", "find work as", "be a ", "be an ", "hire on as "])) {
     for (const j of Object.values(GURPS_JOB_MAP)) {
       if (t.includes(j.name.toLowerCase()) || t.includes(j.id.replace(/-/g, " "))) {
+        if (!gurpsJobsFor(mode).some((x) => x.id === j.id)) {
+          return worldBlock(`the job of ${j.name}`);
+        }
         return {
           kind: "flat",
           outcome: {
@@ -491,7 +533,7 @@ export function resolveLifeCommand(
   // Netrun — hack a target; deck + program bonuses apply, trace-defense on
   // a critical failure.
   // -------------------------------------------------------------------------
-  if (has(t, ["hack", "netrun", "breach the", "breach a", "crack the", "crack a", "jack in", "jack into", "intrude", "break into the system", "firewall", "ice breaker", "black ice", "decker", "run the net", "enter the grid", "access the grid"])) {
+  if (gurpsCyberLayer(mode) && has(t, ["hack", "netrun", "breach the", "breach a", "crack the", "crack a", "jack in", "jack into", "intrude", "break into the system", "firewall", "ice breaker", "black ice", "decker", "run the net", "enter the grid", "access the grid"])) {
     let targetDef = GURPS_HACK_TARGETS.find((tg) =>
       has(t, [tg.name.toLowerCase().replace(/\s+/g, " "), tg.id.replace(/-/g, " ")]),
     );
@@ -540,7 +582,7 @@ export function resolveLifeCommand(
   // -------------------------------------------------------------------------
   // Harvest the holding — seasonal income.
   // -------------------------------------------------------------------------
-  if (has(t, ["harvest", "collect the yield", "collect the harvest", "seasonal income", "season harvest", "tend the land", "tend the holding", "tend the field", "tend the manor", "tend the orchard", "tend the mill", "tend my land"])) {
+  if (gurpsMedievalLayer(mode) && has(t, ["harvest", "collect the yield", "collect the harvest", "seasonal income", "season harvest", "tend the land", "tend the holding", "tend the field", "tend the manor", "tend the orchard", "tend the mill", "tend my land"])) {
     const holding = ext.holdingId ? GURPS_HOLDING_MAP[ext.holdingId] : undefined;
     if (!holding) {
       return {
@@ -589,7 +631,7 @@ export function resolveLifeCommand(
   // Serve at court — monthly service roll; salary on success, dismissal on
   // a critical failure.
   // -------------------------------------------------------------------------
-  if (has(t, ["serve at court", "serve the court", "serve my court", "court duty", "court service", "serve the king", "serve the queen", "serve the realm", "court month", "month at court", "serve as page", "serve as herald", "serve as marshal", "serve as chancellor", "serve as spymaster"])) {
+  if (gurpsMedievalLayer(mode) && has(t, ["serve at court", "serve the court", "serve my court", "court duty", "court service", "serve the king", "serve the queen", "serve the realm", "court month", "month at court", "serve as page", "serve as herald", "serve as marshal", "serve as chancellor", "serve as spymaster"])) {
     const pos = ext.courtPositionId ? GURPS_COURT_POSITION_MAP[ext.courtPositionId] : undefined;
     if (!pos) {
       return {
@@ -639,7 +681,7 @@ export function resolveLifeCommand(
   // -------------------------------------------------------------------------
   // Corporate ladder — pursue a promotion.
   // -------------------------------------------------------------------------
-  if (has(t, ["promotion", "promote me", "promote", "corporate ladder", "climb the ladder", "climb the corp", "performance review", "ask for a raise", "pursue a promotion", "move up the ladder", "next rank"])) {
+  if (gurpsCyberLayer(mode) && has(t, ["promotion", "promote me", "promote", "corporate ladder", "climb the ladder", "climb the corp", "performance review", "ask for a raise", "pursue a promotion", "move up the ladder", "next rank"])) {
     const rankIdx = ext.corpPositionId
       ? GURPS_CORP_LADDER.findIndex((r) => r.id === ext.corpPositionId)
       : -1;
@@ -713,6 +755,7 @@ export function resolveLifeCommand(
   if (has(t, ["enroll", "matricul", "apply to", "go to university", "go to college", "attend university", "attend college", "sign up for"]) && !has(t, ["enroll in a degree", "enroll in the degree"])) {
     for (const u of Object.values(GURPS_UNIVERSITY_MAP)) {
       if (t.includes(u.name.toLowerCase()) || has(t, [u.id.replace(/-/g, " ")])) {
+        if (!gurpsModeHas(u.era, mode)) return worldBlock(u.name);
         if (ext.scholarship) {
           return {
             kind: "flat",
@@ -828,6 +871,7 @@ export function resolveLifeCommand(
     // "study <degree>" — pick the degree first.
     for (const dg of Object.values(GURPS_DEGREE_MAP)) {
       if (t.includes(dg.name.toLowerCase()) || has(t, [dg.id.replace(/-/g, " ")])) {
+        if (!gurpsModeHas(dg.era, mode)) return worldBlock(dg.name);
         return {
           kind: "flat",
           outcome: {
@@ -894,6 +938,7 @@ export function resolveLifeCommand(
   // -------------------------------------------------------------------------
   for (const ev of Object.values(GURPS_SOCIAL_EVENT_MAP)) {
     if (has(t, [ev.name.toLowerCase(), ev.id.replace(/-/g, " ")])) {
+      if (!gurpsModeHas(ev.era, mode)) return worldBlock(ev.name);
       const afford = wallet && walletToSp(wallet) >= ev.cost * 100;
       if (!afford) {
         return {
@@ -1018,6 +1063,21 @@ export function resolveLifeCommand(
     };
   }
 
+  // -------------------------------------------------------------------------
+  // Life Mode world gate — a command aimed at a world that does not exist in
+  // this Life Mode gets a plain answer instead of falling through to a generic
+  // skill roll. (Specific handlers above already caught the named items; this
+  // catches the generic phrasings: "hack the mainframe" in a medieval world…)
+  // -------------------------------------------------------------------------
+  const worldCyberRe = /\b(hack|netrun|jack in|jack into|netdeck|mainframe|icebreaker|cyberware|datajack|neural link|corp drone|netrunner|fixer|ripperdoc|bounty hunter|chrome|promotion|executive|the grid)\b/i;
+  const worldMedievalRe = /\b(harvest|holding|manor|fief|demesne|knighthood|esquire|baronet|duke|herald|marshal|chancellor|spymaster|serve at court|serve the king|serve the queen|title of)\b/i;
+  if (!gurpsCyberLayer(mode) && worldCyberRe.test(t)) {
+    return worldBlock("Cyberpunk content");
+  }
+  if (!gurpsMedievalLayer(mode) && worldMedievalRe.test(t)) {
+    return worldBlock("Medieval content");
+  }
+
   return null;
 }
 
@@ -1029,6 +1089,9 @@ export function resolveLifeCommand(
 export function lifeSummary(character: GurpsCharacter, lang: Lang = "en"): string {
   const ext = extOf(character);
   const L = (en: string, pt?: string) => loc(en, pt)(lang);
+  const mode = gurpsLifeModeOf(character.adventurePrefs);
+  const modeName =
+    mode === "medieval" ? "Fantasy / Medieval" : mode === "modern" ? "Modern / Social" : mode === "cyber" ? "Cyberpunk" : "Everything / Mixed";
   const job = ext.jobId ? GURPS_JOB_MAP[ext.jobId]?.name : undefined;
   const tier = ext.wealthTierId ? GURPS_WEALTH_MAP[ext.wealthTierId]?.name : undefined;
   const biz = ext.businessId ? GURPS_BUSINESS_MAP[ext.businessId]?.name : undefined;
@@ -1053,5 +1116,6 @@ export function lifeSummary(character: GurpsCharacter, lang: Lang = "en"): strin
       : undefined,
     (ext.reputation ?? 0) > 0 ? L(`Reputation: ${ext.reputation}/100`, `Reputação: ${ext.reputation}/100`) : undefined,
   ].filter((p): p is string => !!p);
-  return pieces.length > 0 ? pieces.join(" · ") : L("No life commitments yet.", "Nenhum compromisso de vida ainda.");
+  const modeLine = L(`Life Mode: ${modeName}`, `Life Mode: ${modeName}`);
+  return [modeLine, ...pieces].join(" · ");
 }

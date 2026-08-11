@@ -2,7 +2,7 @@ import { api } from "@/convex/_generated/api";
 import { useAction } from "convex/react";
 import { getDndDerived, getGurpsDerived, getPf2eDerived } from "../character";
 import type { AdventureState, GmSettings, GmTurn } from "../types";
-import { campaignBriefing, prefsOf } from "../types";
+import { campaignBriefing, gurpsLifeModeOf, prefsOf } from "../types";
 import { payloadToJson, serializeAdventure } from "../serializer";
 import { dndRulesContext, pf2eRulesContext } from "../data/adventure-samples";
 import { gurpsRulesContext } from "../data/gurps-extensions";
@@ -45,7 +45,7 @@ function buildSystemPrompt(
       ? `D&D 5E RULES REFERENCE (grounds every narration in the real rules):\n${dndRulesContext()}`
       : adventure.system === "pf2e"
         ? `PATHFINDER 2E RULES & REFERENCE CORPUS (grounds every narration in the real rules):\n${pf2eRulesContext()}`
-        : `GURPS RULES REFERENCE (grounds every narration in the real rules, incl. the Life & Livelihood extension):\n${gurpsRulesContext()}`,
+        : `GURPS RULES REFERENCE (grounds every narration in the real rules, incl. the Life & Livelihood extension):\n${gurpsRulesContext(gurpsLifeModeOf(adventure.character.adventurePrefs))}`,
     "",
     lorebook
       ? `WORLD LOREBOOK (facts about this campaign — use them when relevant):\n${lorebook}`
@@ -130,7 +130,7 @@ function buildOpeningMessages(
           ? [`Rules reference: ${dndRulesContext()}`]
           : adventure.system === "pf2e"
             ? [`Rules reference: ${pf2eRulesContext()}`]
-            : [`Rules reference: ${gurpsRulesContext()}`]),
+            : [`Rules reference: ${gurpsRulesContext(gurpsLifeModeOf(adventure.character.adventurePrefs))}`]),
         languageInstruction(settings.language),
       ].join(" "),
     },

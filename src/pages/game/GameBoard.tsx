@@ -2029,6 +2029,15 @@ export default function GameBoard({
             }
           : ch,
       ),
+    // Life Mode tag (GURPS) — re-frames the whole life-sim world. Written to
+    // the character's adventure prefs so the resolver, the panel, the AI rules
+    // context and the opening scene all follow it.
+    onSetLifeMode: (m) =>
+      updateChar((ch) =>
+        ch.system === "gurps"
+          ? { ...ch, adventurePrefs: { ...ch.adventurePrefs, lifeMode: m } }
+          : ch,
+      ),
   };
 
   // -------------------------------------------------------------------------

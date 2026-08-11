@@ -13,7 +13,7 @@ import type {
   GurpsCharacter,
   Pf2eCharacter,
 } from "./types";
-import { identityOf, prefsOf } from "./types";
+import { gurpsLifeModeOf, identityOf, prefsOf } from "./types";
 import { PF2E_FEAT_MAP } from "./data/pf2e";
 import {
   GURPS_BUSINESS_MAP,
@@ -250,6 +250,7 @@ function serializeGurps(c: GurpsCharacter): Record<string, unknown> {
     armorId: c.armorId,
     life: c.ext
       ? {
+          mode: gurpsLifeModeOf(c.adventurePrefs),
           job: GURPS_JOB_MAP[c.ext.jobId ?? ""]?.name ?? c.ext.jobId ?? null,
           wealthTier: GURPS_WEALTH_MAP[c.ext.wealthTierId ?? ""]?.name ?? c.ext.wealthTierId ?? null,
           business: GURPS_BUSINESS_MAP[c.ext.businessId ?? ""]?.name ?? c.ext.businessId ?? null,

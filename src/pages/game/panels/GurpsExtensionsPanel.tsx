@@ -4,8 +4,10 @@ import type {
   GmLanguage,
   GurpsCharacter,
   GurpsExtensionState,
+  GurpsLifeMode,
   Wallet,
 } from "@/lib/rpg/types";
+import { gurpsLifeModeOf, GURPS_LIFE_MODES } from "@/lib/rpg/types";
 import type { GurpsDerived } from "@/lib/rpg/character";
 import {
   GURPS_BUSINESSES,
@@ -41,17 +43,25 @@ import {
   GURPS_WEALTH_MAP,
   GURPS_WEALTH_TIERS,
   gurpsBusinessResult,
+  gurpsBusinessesFor,
+  gurpsCirclesFor,
   gurpsCorpSalary,
   gurpsCostOfLiving,
   gurpsCourtSalary,
+  gurpsCyberLayer,
+  gurpsDegreesFor,
   gurpsEventRep,
+  gurpsEventsFor,
   gurpsHackBonus,
   gurpsJobPay,
+  gurpsJobsFor,
+  gurpsMedievalLayer,
   gurpsMonthlyIncome,
   gurpsReactionModifiers,
   gurpsStudyGain,
   gurpsTitleIncome,
   gurpsTraceDefense,
+  gurpsUniversitiesFor,
 } from "@/lib/rpg/data/gurps-extensions";
 import type { RollRequest } from "../types";
 import {
@@ -86,6 +96,8 @@ interface Props {
   onRoll: (request: RollRequest) => DiceResult | undefined;
   /** Persist a slice of the extension state on the character. */
   onExt: (patch: Partial<GurpsExtensionState>) => void;
+  /** Change the Life Mode tag (the world frame of the whole life-sim). */
+  onSetLifeMode?: (m: GurpsLifeMode) => void;
   wallet?: Wallet;
   onWalletChange?: (w: Wallet) => void;
   gmLanguage?: GmLanguage;
@@ -178,10 +190,13 @@ export default function GurpsExtensionsPanel({
   derived: d,
   onRoll,
   onExt,
+  onSetLifeMode,
   wallet,
   onWalletChange,
 }: Props) {
   const ext: GurpsExtensionState = { ...EMPTY_EXT, ...c.ext };
+  const mode: GurpsLifeMode = gurpsLifeModeOf(c.adventurePrefs);
+  const modeDef = GURPS_LIFE_MODES.find((m) => m.id === mode) ?? GURPS_LIFE_MODES[3];
   const [result, setResult] = useState<string | null>(null);
 
   const credit = (gp: number) => {
@@ -512,6 +527,40 @@ export default function GurpsExtensionsPanel({
         "attend the ball", "start a market stall" — everything resolves mechanically, no AI required.</span>
       </p>
 
+      {/* Life Mode tag — set at Adventure Setup, switchable mid-campaign. It
+          re-frames the whole life-sim: only the tagged era's jobs, schools,
+          scenes and worlds appear below and in the chat resolver. */}
+      <div className="rounded-xl border border-teal-500/40 bg-teal-500/10 px-3 py-2">
+        <div className="flex flex-wrap items-center justify-between gap-1.5">
+          <p className="text-[9px] font-bold uppercase tracking-widest text-teal-300">
+            Life Mode · {modeDef.name}
+          </p>
+          <span className="rounded-full bg-teal-500/15 px-2 py-0.5 text-[8px] font-bold uppercase tracking-wide text-teal-300">
+            {modeDef.tagline}
+          </span>
+        </div>
+        <p className="mt-1 text-[9px] leading-relaxed text-teal-200/60">{modeDef.summary}</p>
+        {onSetLifeMode && (
+          <div className="mt-1.5 flex flex-wrap gap-1">
+            {GURPS_LIFE_MODES.map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => onSetLifeMode(m.id)}
+                className={cn(
+                  "rounded-full border px-2 py-0.5 text-[9px] font-bold transition-colors",
+                  mode === m.id
+                    ? "border-teal-400 bg-teal-500/20 text-teal-100"
+                    : "border-teal-700/40 text-teal-300/60 hover:border-teal-500/60 hover:text-teal-200",
+                )}
+              >
+                {m.name}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Economics */}
       <Section
         icon={<Coins className="size-4" />}
@@ -577,7 +626,7 @@ export default function GurpsExtensionsPanel({
       >
         <div className="flex flex-col gap-1.5">
           {(["medieval", "modern", "cyber", "business"] as const).map((domain) => {
-            const jobs = GURPS_JOBS.filter((j) => j.domain === domain);
+            const jobs = gurpsJobsFor(mode).filter((j) => j.domain === domain);
             if (jobs.length === 0) return null;
             return (
               <div key={domain}>
@@ -690,13 +739,13 @@ export default function GurpsExtensionsPanel({
               {degree.skillBonus
                 ? `Your degree grants +${degree.skillBonus.bonus} to ${degree.skillBonus.skill.replace(/-/g, " ")}.`
                 : "Your degree is parchment, pedigree, and doors that open."}
-              {degree.unlocks?.length ? ` Unlocked jobs: ${degree.unlocks.map((u) => GURPS_JOB_MAP[u]?.name ?? u).join(", ")}.` : ""}
+              {degree.unlocks?.length ? ` Unlocked jobs: ${degree.unlocks.filter((u) => gurpsJobsFor(mode).some((j) => j.id === u)).map((u) => GURPS_JOB_MAP[u]?.name ?? u).join(", ")}.` : ""}
             </p>
           </div>
         ) : (
           <div className="flex flex-col gap-2">
             <div className="flex flex-wrap gap-1.5">
-              {GURPS_UNIVERSITIES.map((u) => (
+              {gurpsUniversitiesFor(mode).map((u) => (
                 <button
                   key={u.id}
                   type="button"
@@ -726,7 +775,7 @@ export default function GurpsExtensionsPanel({
                   <span className="text-[9px] text-amber-200">Scholarship (tuition waived)</span>
                 </label>
                 <div className="flex flex-wrap gap-1.5">
-                  {GURPS_DEGREES.filter((dg) => dg.era === university.era).map((dg) => (
+                  {gurpsDegreesFor(mode).filter((dg) => dg.era === university.era).map((dg) => (
                     <button
                       key={dg.id}
                       type="button"
@@ -801,7 +850,7 @@ export default function GurpsExtensionsPanel({
           </div>
           <p className="text-[8px] font-bold uppercase tracking-widest text-amber-600/50">Social circles</p>
           <div className="flex flex-wrap gap-1.5">
-            {GURPS_SOCIAL_CIRCLES.map((sc) => (
+            {gurpsCirclesFor(mode).map((sc) => (
               <button
                 key={sc.id}
                 type="button"
@@ -834,7 +883,7 @@ export default function GurpsExtensionsPanel({
           )}
           <p className="text-[8px] font-bold uppercase tracking-widest text-amber-600/50">Attend events</p>
           <div className="flex flex-col gap-1.5">
-            {GURPS_SOCIAL_EVENTS.map((ev) => (
+            {gurpsEventsFor(mode).map((ev) => (
               <button
                 key={ev.id}
                 type="button"
@@ -882,7 +931,7 @@ export default function GurpsExtensionsPanel({
         subtitle="Own a venture — profit comes from rolls"
       >
         <div className="flex flex-col gap-1.5">
-          {GURPS_BUSINESSES.map((b) => {
+          {gurpsBusinessesFor(mode).map((b) => {
             const active = ext.businessId === b.id;
             return (
               <button
@@ -922,6 +971,8 @@ export default function GurpsExtensionsPanel({
       </Section>
 
       {/* Cyber */}
+      {gurpsCyberLayer(mode) && (
+        <>
       <Section
         icon={<Cpu className="size-4" />}
         title="Cyber"
@@ -1029,7 +1080,11 @@ export default function GurpsExtensionsPanel({
           </div>
         </div>
       </Section>
+      </>
+      )}
 
+      {gurpsCyberLayer(mode) && (
+        <>
       {/* Corp ladder */}
       <Section
         icon={<Building2 className="size-4" />}
@@ -1065,7 +1120,11 @@ export default function GurpsExtensionsPanel({
           </button>
         </div>
       </Section>
+      </>
+      )}
 
+      {gurpsMedievalLayer(mode) && (
+        <>
       {/* Medieval */}
       <Section
         icon={<Castle className="size-4" />}
@@ -1173,6 +1232,8 @@ export default function GurpsExtensionsPanel({
           )}
         </div>
       </Section>
+      </>
+      )}
 
       {result && (
         <div

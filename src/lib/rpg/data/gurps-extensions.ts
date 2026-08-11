@@ -11,8 +11,8 @@
 // Domains: Jobs · Economics · Love · Business · Cyber · Medieval.
 // ============================================================================
 
-import type { GurpsCharacter, GurpsSkillDef, Wallet } from "../types";
-import { walletToSp, spToWallet } from "../types";
+import type { GurpsCharacter, GurpsLifeMode, GurpsSkillDef, Wallet } from "../types";
+import { gurpsLifeModeOf, walletToSp, spToWallet } from "../types";
 
 // ---------------------------------------------------------------------------
 // Extension skills — added to the GURPS skill list so the wizard can train
@@ -161,16 +161,18 @@ export interface GurpsBusinessDef {
   /** Base monthly profit in gp at a successful roll. */
   profitBase: number;
   risk: "low" | "moderate" | "high";
+  /** Which Life Mode worlds this venture exists in ("all" = everywhere). */
+  mode: GurpsLifeMode | "all";
   summary: string;
 }
 
 export const GURPS_BUSINESSES: GurpsBusinessDef[] = [
-  { id: "stall", name: "Market Stall", skill: "merchant", startupCost: 20, profitBase: 8, risk: "low", summary: "A cart and a corner. Slow, safe, honest." },
-  { id: "workshop", name: "Workshop", skill: "professional-skill", startupCost: 60, profitBase: 16, risk: "low", summary: "Tools, a bench, and a reputation for good work." },
-  { id: "tavern", name: "Tavern / Bar", skill: "administration", startupCost: 150, profitBase: 30, risk: "moderate", summary: "Rooms, ale and gossip — the heart of any street." },
-  { id: "trading-house", name: "Trading House", skill: "merchant", startupCost: 300, profitBase: 55, risk: "moderate", summary: "Moving goods in bulk along the trade lanes." },
-  { id: "startup", name: "Tech Startup", skill: "computer-programming", startupCost: 250, profitBase: 90, risk: "high", summary: "An idea, a loft, and a runway of pure adrenaline." },
-  { id: "smuggling-ring", name: "Smuggling Ring", skill: "streetwise", startupCost: 200, profitBase: 80, risk: "high", summary: "Fast ships, blind guards, and very large margins." },
+  { id: "stall", name: "Market Stall", skill: "merchant", startupCost: 20, profitBase: 8, risk: "low", mode: "all", summary: "A cart and a corner. Slow, safe, honest." },
+  { id: "workshop", name: "Workshop", skill: "professional-skill", startupCost: 60, profitBase: 16, risk: "low", mode: "all", summary: "Tools, a bench, and a reputation for good work." },
+  { id: "tavern", name: "Tavern / Bar", skill: "administration", startupCost: 150, profitBase: 30, risk: "moderate", mode: "all", summary: "Rooms, ale and gossip — the heart of any street." },
+  { id: "trading-house", name: "Trading House", skill: "merchant", startupCost: 300, profitBase: 55, risk: "moderate", mode: "medieval", summary: "Moving goods in bulk along the trade lanes." },
+  { id: "startup", name: "Tech Startup", skill: "computer-programming", startupCost: 250, profitBase: 90, risk: "high", mode: "modern", summary: "An idea, a loft, and a runway of pure adrenaline." },
+  { id: "smuggling-ring", name: "Smuggling Ring", skill: "streetwise", startupCost: 200, profitBase: 80, risk: "high", mode: "cyber", summary: "Fast ships, blind guards, and very large margins." },
 ];
 
 export const GURPS_BUSINESS_MAP = Object.fromEntries(
@@ -541,6 +543,61 @@ export const GURPS_CORP_RANK_MAP = Object.fromEntries(
 );
 
 // ---------------------------------------------------------------------------
+// Life Mode filters — the Adventure Setup tag that re-frames the whole
+// extension. Every table below filters by the tag; "all" keeps everything.
+// ---------------------------------------------------------------------------
+
+/** Does the given content era exist in this Life Mode? */
+export function gurpsModeHas(era: "medieval" | "modern" | "cyber", mode: GurpsLifeMode): boolean {
+  return mode === "all" || mode === era;
+}
+
+/** Jobs available in a Life Mode (the era-agnostic "business" domain is
+ *  always included — a shopkeeper exists in every world). */
+export function gurpsJobsFor(mode: GurpsLifeMode): GurpsJobDef[] {
+  if (mode === "all") return GURPS_JOBS;
+  return GURPS_JOBS.filter(
+    (j) => j.domain === mode || j.domain === "business",
+  );
+}
+
+/** Businesses available in a Life Mode. */
+export function gurpsBusinessesFor(mode: GurpsLifeMode): GurpsBusinessDef[] {
+  if (mode === "all") return GURPS_BUSINESSES;
+  return GURPS_BUSINESSES.filter((b) => b.mode === "all" || b.mode === mode);
+}
+
+/** Universities available in a Life Mode. */
+export function gurpsUniversitiesFor(mode: GurpsLifeMode): GurpsUniversityDef[] {
+  return GURPS_UNIVERSITIES.filter((u) => gurpsModeHas(u.era, mode));
+}
+
+/** Degrees available in a Life Mode. */
+export function gurpsDegreesFor(mode: GurpsLifeMode): GurpsDegreeDef[] {
+  return GURPS_DEGREES.filter((dg) => gurpsModeHas(dg.era, mode));
+}
+
+/** Social circles available in a Life Mode. */
+export function gurpsCirclesFor(mode: GurpsLifeMode): GurpsSocialCircleDef[] {
+  return GURPS_SOCIAL_CIRCLES.filter((sc) => gurpsModeHas(sc.era, mode));
+}
+
+/** Social events available in a Life Mode. */
+export function gurpsEventsFor(mode: GurpsLifeMode): GurpsSocialEventDef[] {
+  return GURPS_SOCIAL_EVENTS.filter((ev) => gurpsModeHas(ev.era, mode));
+}
+
+/** Is the medieval layer (holdings, titles, court) part of this Life Mode? */
+export function gurpsMedievalLayer(mode: GurpsLifeMode): boolean {
+  return mode === "all" || mode === "medieval";
+}
+
+/** Is the cyber layer (chrome, netrunning, corps) part of this Life Mode? */
+export function gurpsCyberLayer(mode: GurpsLifeMode): boolean {
+  return mode === "all" || mode === "cyber";
+}
+
+// ---------------------------------------------------------------------------
 // Mechanical helpers — original GURPS-style resolution for the panel.
 // ---------------------------------------------------------------------------
 
@@ -718,9 +775,19 @@ export function gurpsEventRep(margin: number, outcome: string, repBase: number):
 // narrate job, business, love, cyber and medieval rolls faithfully.
 // ---------------------------------------------------------------------------
 
-export function gurpsRulesContext(): string {
+export function gurpsRulesContext(mode?: GurpsLifeMode): string {
+  const m = gurpsLifeModeOf(mode ? { lifeMode: mode } : undefined);
+  const modeLine =
+    m === "medieval"
+      ? "LIFE MODE TAG — FANTASY / MEDIEVAL: this campaign's life-sim is a medieval world — field hands, guilds, courts, monasteries, fiefs and titles. There are no phones, no corporations and no chrome; the social ladder runs on land, oaths and favor. Only medieval-era jobs, universities, degrees, circles, events and businesses exist; netrunning, cyberware, netdecks, programs and the corporate ladder do not exist in this world."
+      : m === "modern"
+        ? "LIFE MODE TAG — MODERN / SOCIAL: this campaign's life-sim is a contemporary social-engineering world — careers, universities, student debt, social clubs, galas and city life. Only modern-era jobs, universities, degrees, circles, events and businesses exist; medieval holdings, titles, court positions, netrunning and chrome do not exist in this world."
+        : m === "cyber"
+          ? "LIFE MODE TAG — CYBERPUNK: this campaign's life-sim is a cyberpunk world — corp drones, netrunners, chrome, ICE, the Grid and the corporate ladder. Only cyber-era jobs, universities, degrees, circles, events and businesses exist; medieval holdings, titles and court positions do not exist in this world."
+          : "LIFE MODE TAG — EVERYTHING / MIXED: every era of the life-sim coexists — medieval courts and cyber decks, monasteries and megacorps.";
   const lines: string[] = [
     "GURPS LIFE & LIVELIHOOD EXTENSION (original mechanics in GURPS style — 3d6 roll-under vs skill targets, margins of success).",
+    modeLine,
     "The engine rolls every check and resolves the outcome; you narrate the result faithfully.",
     "JOBS: a monthly work roll vs the job's skill sets the month's pay (critical success = double pay, success = standard, failure = half, critical failure = fired). Degrees can unlock higher jobs.",
     "ECONOMICS: each wealth tier sets monthly income and cost of living; the wallet in ADVENTURE STATE is the mechanical purse the player spends from.",

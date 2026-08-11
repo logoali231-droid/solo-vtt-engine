@@ -165,6 +165,50 @@ export interface AdventurePrefs {
   pace: string;
   narrator: string;
   premise: string;
+  /** GURPS only — the Life & Livelihood world tag. Selects which era of the
+   *  life-sim (jobs, universities, social scenes, cyber, medieval holdings)
+   *  exists in this campaign. "all" keeps every era available. */
+  lifeMode?: GurpsLifeMode;
+}
+
+/** Which era of the GURPS Life & Livelihood extension this campaign runs in.
+ *  The tag at Adventure Setup completely re-frames the life-sim: jobs,
+ *  universities, social circles/events, businesses, cyber and medieval content
+ *  all filter to the chosen world. */
+export type GurpsLifeMode = "medieval" | "modern" | "cyber" | "all";
+
+export const GURPS_LIFE_MODES: { id: GurpsLifeMode; name: string; tagline: string; summary: string }[] = [
+  {
+    id: "medieval",
+    name: "Fantasy / Medieval",
+    tagline: "Castles, guilds & courts",
+    summary: "Field hands and falconers, monastery scriptoria and guild colleges, fiefs and titles, court service and tavern circles. No phones, no chrome — the social ladder runs on land, oaths and favor.",
+  },
+  {
+    id: "modern",
+    name: "Modern / Social",
+    tagline: "Careers, university & city life",
+    summary: "Clerks, lawyers, journalists and professors; city universities, polytechnics and student debt; social clubs, galas and fight nights. The daily grind of a contemporary social-engineering life.",
+  },
+  {
+    id: "cyber",
+    name: "Cyberpunk",
+    tagline: "Netrunning, corps & chrome",
+    summary: "Corp drones and netrunners, corporate academies and grid universities, netdecks, ICE, chrome and the corporate ladder. The Grid is the frontier and the corps own the skyline.",
+  },
+  {
+    id: "all",
+    name: "Everything / Mixed",
+    tagline: "Every era at once",
+    summary: "The full Life & Livelihood sandbox — medieval holdings and cyber decks, monasteries and megacorps all exist in one living world. Whatever the story reaches for is there.",
+  },
+];
+
+/** Resolve a stored life-mode tag safely — anything unset or unknown falls
+ *  back to "all" (the full sandbox, and the behavior of older saves). */
+export function gurpsLifeModeOf(prefs: Partial<AdventurePrefs> | undefined): GurpsLifeMode {
+  const m = prefs?.lifeMode;
+  return m === "medieval" || m === "modern" || m === "cyber" ? m : "all";
 }
 
 export const DEFAULT_ADVENTURE_PREFS: AdventurePrefs = {
@@ -182,6 +226,7 @@ export const DEFAULT_ADVENTURE_PREFS: AdventurePrefs = {
   pace: "steady",
   narrator: "vivid literary",
   premise: "",
+  lifeMode: "all",
 };
 
 export function prefsOf(

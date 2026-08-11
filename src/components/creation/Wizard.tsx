@@ -494,7 +494,7 @@ export default function Wizard({ onLock, initial }: WizardProps) {
     }
 
     if (step === 2) {
-      return <AdventureSetupStep prefs={prefs} setPrefs={setPrefs} />;
+      return <AdventureSetupStep prefs={prefs} setPrefs={setPrefs} system={system} />;
     }
 
     if (system === "dnd5e") {

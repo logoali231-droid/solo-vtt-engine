@@ -1,7 +1,7 @@
-import type { AdventurePrefs } from "@/lib/rpg/types";
-import { campaignBriefing, prefsOf } from "@/lib/rpg/types";
+import type { AdventurePrefs, GameSystem, GurpsLifeMode } from "@/lib/rpg/types";
+import { campaignBriefing, gurpsLifeModeOf, GURPS_LIFE_MODES, prefsOf } from "@/lib/rpg/types";
 import { cn } from "@/lib/utils";
-import { Dices, Map, ScrollText, Shield, Swords, Users } from "lucide-react";
+import { Dices, Map, ScrollText, Shield, Swords, Tags, Users } from "lucide-react";
 import { PickField, SectionLabel, StepShell, type PickOption } from "../ui";
 
 interface PrefsFieldDef {
@@ -226,7 +226,12 @@ function SectionCard({
 /** Compact chips summarizing the chosen adventure setup (used on review screens). */
 export function PrefsSummaryChips({ prefs }: { prefs: Partial<AdventurePrefs> }) {
   const p = prefsOf(prefs);
+  const lifeModeName =
+    p.lifeMode && p.lifeMode !== "all"
+      ? GURPS_LIFE_MODES.find((m) => m.id === p.lifeMode)?.name ?? p.lifeMode
+      : "";
   const chipRows: [string, string][] = [
+    ...(lifeModeName ? ([["Life mode", lifeModeName]] as [string, string][]) : []),
     ["Genre", p.genre],
     ["Era", p.worldEra],
     ["Setting", p.setting],
@@ -293,20 +298,82 @@ function CampaignBriefing({ prefs }: { prefs: Partial<AdventurePrefs> }) {
   );
 }
 
-export default function AdventureSetupStep({
+/** GURPS Life Mode tag — a world tag that re-frames the Life & Livelihood
+ *  extension. Picking an era filters the jobs, universities, social scenes,
+ *  businesses and (cyber / medieval) content across the whole game: the Life
+ *  panel, the chat resolver and the AI's rules context all follow it. */
+function GurpsLifeModeTag({
   prefs,
   setPrefs,
 }: {
   prefs: Partial<AdventurePrefs>;
   setPrefs: (v: Partial<AdventurePrefs>) => void;
 }) {
+  const mode = gurpsLifeModeOf(prefs);
+  return (
+    <div className="rounded-xl border-2 border-emerald-300/70 bg-gradient-to-br from-emerald-50 via-white to-teal-50 p-5">
+      <div className="mb-3 flex items-center gap-2.5">
+        <div className="flex size-8 items-center justify-center rounded-lg bg-emerald-600 text-white">
+          <Tags className="size-4" />
+        </div>
+        <div>
+          <p className="text-sm font-bold text-stone-900">GURPS · Life Mode tag</p>
+          <p className="text-[11px] text-stone-400">
+            This tag completely re-frames the Life &amp; Livelihood extension — jobs, universities, social scenes,
+            businesses and worlds change to match. GURPS only.
+          </p>
+        </div>
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2">
+        {GURPS_LIFE_MODES.map((m) => (
+          <button
+            key={m.id}
+            type="button"
+            onClick={() => setPrefs({ ...prefs, lifeMode: m.id as GurpsLifeMode })}
+            className={cn(
+              "rounded-xl border p-3 text-left transition-all duration-150",
+              mode === m.id
+                ? "border-emerald-500 bg-emerald-600/10 shadow-[0_0_0_1px_rgba(16,185,129,0.35)]"
+                : "border-stone-200 bg-white hover:border-emerald-300 hover:shadow-sm",
+            )}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <p className={cn("text-sm font-bold", mode === m.id ? "text-emerald-900" : "text-stone-900")}>
+                {m.name}
+              </p>
+              {mode === m.id && (
+                <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white">
+                  Active
+                </span>
+              )}
+            </div>
+            <p className="mt-0.5 text-[10px] font-semibold text-emerald-600">{m.tagline}</p>
+            <p className="mt-1 text-[11px] leading-relaxed text-stone-500">{m.summary}</p>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export default function AdventureSetupStep({
+  prefs,
+  setPrefs,
+  system,
+}: {
+  prefs: Partial<AdventurePrefs>;
+  setPrefs: (v: Partial<AdventurePrefs>) => void;
+  system?: GameSystem;
+}) {
   const randomize = () => {
-    const next: Partial<AdventurePrefs> = { ...prefs };
+    // The Life Mode tag is chosen deliberately (it re-frames the whole GURPS
+    // life-sim) — the surprise roller never touches it.
+    const next: Record<string, string | undefined> = { ...prefs };
     for (const f of ALL_FIELDS) {
       const pick = f.options[Math.floor(Math.random() * f.options.length)];
       next[f.key] = pick.value;
     }
-    setPrefs(next);
+    setPrefs(next as Partial<AdventurePrefs>);
   };
 
   const renderField = (f: PrefsFieldDef) => (
@@ -325,6 +392,8 @@ export default function AdventureSetupStep({
       subtitle="Shape the campaign before it begins — the Game Master follows these directives and opens your story in the right world. Leave anything blank and the GM improvises it."
     >
       <CampaignBriefing prefs={prefs} />
+
+      {system === "gurps" && <GurpsLifeModeTag prefs={prefs} setPrefs={setPrefs} />}
 
       <div className="flex items-center justify-between gap-3">
         <SectionLabel hint="Pick every field — each one shapes your opening">Directives</SectionLabel>

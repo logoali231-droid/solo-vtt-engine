@@ -9,6 +9,7 @@ import type {
   DiceResult,
   GurpsCharacter,
   GurpsExtensionState,
+  GurpsLifeMode,
   InventoryItem,
   LorebookEntry,
   Pf2eCharacter,
@@ -81,6 +82,8 @@ export interface PanelActions {
   onGurpsRecover: (n: number) => void;
   /** Life & Livelihood extension — persists a slice of ext state. */
   onGurpsExt?: (patch: Partial<GurpsExtensionState>) => void;
+  /** Life Mode tag — re-frames the whole GURPS life-sim (set at Adventure Setup). */
+  onSetLifeMode?: (m: GurpsLifeMode) => void;
 }
 
 interface Props {
@@ -240,6 +243,7 @@ export default function CharacterPanel({
             derived={derived as GurpsDerived}
             onRoll={actions.onRoll}
             onExt={(patch) => actions.onGurpsExt?.(patch)}
+            onSetLifeMode={actions.onSetLifeMode}
             wallet={wallet}
             onWalletChange={onWalletChange}
             gmLanguage={gmLanguage}
