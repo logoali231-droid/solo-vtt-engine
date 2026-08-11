@@ -6,7 +6,15 @@ import {
   applyConditions,
 } from "@/lib/rpg/character";
 import { CONDITIONS, CONDITION_MAP } from "@/lib/rpg/data/conditions";
-import { CLASS_MAP } from "@/lib/rpg/data/dnd";
+import { ARMOR_MAP, CLASS_MAP, WEAPON_MAP } from "@/lib/rpg/data/dnd";
+import {
+  ENCHANT_TIERS,
+  enchantCost,
+  enchantDc,
+  enchantLabel,
+  fmtShopPrice,
+  type EnchantTarget,
+} from "@/lib/rpg/data/dnd-shop";
 import { SPELL_MAP } from "@/lib/rpg/data/spells";
 import { GURPS_SKILL_MAP } from "@/lib/rpg/data/gurps";
 import { PF2E_CLASS_MAP } from "@/lib/rpg/data/pf2e";
@@ -80,7 +88,9 @@ import {
   campaignBriefing,
   EMPTY_WALLET,
   prefsOf,
+  spToWallet,
   uid,
+  walletToSp,
 } from "@/lib/rpg/types";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import AdSlot from "./AdSlot";
@@ -1911,6 +1921,90 @@ export default function GameBoard({
     },
     [pushLog],
   );
+
+  // -------------------------------------------------------------------------
+  // Custom Enchanting Bench — the player's own arcane forge. Pay materials,
+  // then the dice engine resolves d20 + Int + prof vs the tier DC. The AI
+  // only narrates; the outcome is decided by the rules, locally.
+  // -------------------------------------------------------------------------
+  const enchantItem = (target: EnchantTarget, tierBonus: 1 | 2 | 3) => {
+    const snap = adventureRef.current;
+    if (snap.system !== "dnd5e") return;
+    const char = snap.character as DnDCharacter;
+    const tier = ENCHANT_TIERS.find((t) => t.bonus === tierBonus);
+    if (!tier) return;
+    if (char.level < tier.minLevel) {
+      toast(`${tier.label} enchanting requires level ${tier.minLevel} — the forge is still learning your touch.`);
+      return;
+    }
+    if (target === "shield" && !char.shield) {
+      toast("Equip a shield first — you can only enchant what you're holding.");
+      return;
+    }
+    if (target === "armor" && char.armorId === "none") {
+      toast("Equip armor first — you can only enchant what you're wearing.");
+      return;
+    }
+    const cost = enchantCost(char, target, tier);
+    const wallet = snap.wallet;
+    if (wallet && walletToSp(wallet) < cost * 100) {
+      toast(`Not enough coin — materials for a ${tier.label} enchant cost ${fmtShopPrice(cost)}.`);
+      return;
+    }
+    const dc = enchantDc(char, tier);
+    const dice = roll({
+      label: enchantLabel(target, tier, char),
+      kind: "check",
+      ability: "int",
+      proficient: true,
+      dc,
+      suppressCritNarrate: true,
+    });
+    if (!dice) return;
+    // Materials are consumed by the attempt either way.
+    if (wallet) {
+      setAdventure((prev) =>
+        prev.wallet
+          ? { ...prev, wallet: spToWallet(walletToSp(prev.wallet) - cost * 100), updatedAt: Date.now() }
+          : prev,
+      );
+    }
+    const piece =
+      target === "weapon"
+        ? (WEAPON_MAP[char.weaponId]?.name ?? "weapon")
+        : target === "armor"
+          ? (ARMOR_MAP[char.armorId]?.name ?? "armor")
+          : "shield";
+    const ok = dice.outcome === "success" || dice.outcome === "critical-success";
+    if (ok) {
+      // The enchantment lands on the equipped slot — same path as shop gear.
+      updateChar((ch) =>
+        ch.system === "dnd5e"
+          ? target === "weapon"
+            ? { ...ch, weaponId: char.weaponId, magicWeaponBonus: tier.bonus }
+            : target === "armor"
+              ? { ...ch, armorId: char.armorId, magicArmorBonus: tier.bonus }
+              : { ...ch, shield: true, magicShieldBonus: tier.bonus }
+          : ch,
+      );
+      setAdventure((prev) => ({
+        ...prev,
+        inventory: [...(prev.inventory ?? []), { id: uid(), name: `Enchanted ${piece} ${tier.label}`, qty: 1 }],
+        updatedAt: Date.now(),
+      }));
+      pushLog(
+        "combat",
+        `The forge catches the light — your ${piece} is now ${tier.label}! The magic is woven into the metal (${dice.breakdown}).`,
+      );
+    } else {
+      pushLog(
+        "combat",
+        `The enchantment fizzles and the materials are spent. Your ${piece} remains mundane (${dice.breakdown}).`,
+      );
+    }
+    void gmRespond({ playerText: `I attempt to enchant my ${piece} to ${tier.label}.`, dice });
+  };
+
   // -------------------------------------------------------------------------
   // Panel actions bundle
   // -------------------------------------------------------------------------
@@ -1918,6 +2012,7 @@ export default function GameBoard({
     onRoll: roll,
     onUseFeature: triggerFeature,
     onToggleCondition: toggleCondition,
+    onEnchant: enchantItem,
     onDndDamage: (n) =>
       updateChar((ch) =>
         ch.system === "dnd5e"

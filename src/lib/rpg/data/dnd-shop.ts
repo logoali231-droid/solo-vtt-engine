@@ -14,7 +14,7 @@
 // ============================================================================
 
 import type { ArmorDef, DnDCharacter, DnDClassId, WeaponDef } from "@/lib/rpg/types";
-import { ARMORS, CLASS_MAP, WEAPONS } from "./dnd";
+import { ARMOR_MAP, ARMORS, CLASS_MAP, WEAPON_MAP, WEAPONS } from "./dnd";
 
 export type DndShopCategory =
   | "weapon"
@@ -609,4 +609,59 @@ export function generateDndShop(c: DnDCharacter): DndShopItem[] {
 /** Human-readable price, e.g. "45 gp". */
 export function fmtShopPrice(gp: number): string {
   return `${gp} gp`;
+}
+
+// ---------------------------------------------------------------------------
+// Custom Enchanting Bench — the player's own arcane forge. Everything here
+// is deterministic and local: tier gates, material cost, DC, and the final
+// check all resolve through the app's dice engine (d20 + Int + prof vs DC).
+// The AI is never asked to decide an outcome.
+// ---------------------------------------------------------------------------
+
+export type EnchantTarget = "weapon" | "armor" | "shield";
+
+export interface EnchantTier {
+  bonus: 1 | 2 | 3;
+  label: string;
+  /** Crafting DC for this tier — rolls higher than a shop shelf price. */
+  dc: number;
+  /** Level gate, mirroring the shop's enchant curve (+1 at 3, +2 at 8, +3 at 15). */
+  minLevel: number;
+}
+
+export const ENCHANT_TIERS: EnchantTier[] = [
+  { bonus: 1, label: "+1", dc: 12, minLevel: 3 },
+  { bonus: 2, label: "+2", dc: 16, minLevel: 8 },
+  { bonus: 3, label: "+3", dc: 20, minLevel: 15 },
+];
+
+/** Base gp of the piece being enchanted (what the mundane item is worth). */
+export function enchantBasePrice(target: EnchantTarget, c: DnDCharacter): number {
+  if (target === "shield") return SHIELD_PRICE;
+  if (target === "weapon") return BASE_WEAPON_PRICE[c.weaponId] ?? 10;
+  return BASE_ARMOR_PRICE[c.armorId] ?? 10;
+}
+
+/** Full material cost of the enchant attempt — same curve as shop prices. */
+export function enchantCost(c: DnDCharacter, target: EnchantTarget, tier: EnchantTier): number {
+  return round5(enchantBasePrice(target, c) * shopLevelFactor(c.level) * ENCHANT_PRICE_MULT[tier.bonus]);
+}
+
+/** Crafting DC — Artificers are master infusers and shave 2 off the DC. */
+export function enchantDc(c: DnDCharacter, tier: EnchantTier): number {
+  return tier.dc - (c.classId === "artificer" ? 2 : 0);
+}
+
+/** The crafting check modifier: d20 + Int + proficiency (tool familiarity). */
+export function enchantModifier(c: DnDCharacter, d: { mods: Record<string, number>; profBonus: number }): number {
+  return (d.mods.int ?? 0) + d.profBonus;
+}
+
+/** How the check is described on the dice card. */
+export function enchantLabel(target: EnchantTarget, tier: EnchantTier, c: DnDCharacter): string {
+  const piece =
+    target === "weapon" ? (WEAPON_MAP[c.weaponId]?.name ?? "weapon")
+    : target === "armor" ? (ARMOR_MAP[c.armorId]?.name ?? "armor")
+    : "shield";
+  return `Arcane Enchanting — ${piece} ${tier.label} (Int + prof)`;
 }

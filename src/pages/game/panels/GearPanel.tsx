@@ -3,13 +3,17 @@ import type { DnDCharacter, InventoryItem, Wallet } from "@/lib/rpg/types";
 import { fmtWallet, spToWallet, uid, walletToSp } from "@/lib/rpg/types";
 import type { DndDerived } from "@/lib/rpg/character";
 import { formatMod } from "@/lib/rpg/dice";
-import { ARMORS, ARMOR_MAP, CLASS_MAP, WEAPONS } from "@/lib/rpg/data/dnd";
+import { ARMORS, ARMOR_MAP, CLASS_MAP, WEAPONS, WEAPON_MAP } from "@/lib/rpg/data/dnd";
 import {
   DND_RARITY_LABELS,
+  ENCHANT_TIERS,
+  enchantCost,
+  enchantDc,
   fmtShopPrice,
   generateDndShop,
   type DndRarity,
   type DndShopItem,
+  type EnchantTarget,
 } from "@/lib/rpg/data/dnd-shop";
 import {
   Backpack,
@@ -43,9 +47,10 @@ interface Props {
   onSetMagicWeapon?: (id: string, bonus: number) => void;
   onSetMagicArmor?: (id: string, bonus: number) => void;
   onSetMagicShield?: (bonus: number) => void;
+  onEnchant?: (target: EnchantTarget, tier: 1 | 2 | 3) => void;
 }
 
-export default function GearPanel({ character: c, derived: d, inventory, onInventoryChange, onSetWeapon, onSetArmor, onToggleShield, onAttack, wallet, onWalletChange, onSetMagicWeapon, onSetMagicArmor, onSetMagicShield }: Props) {
+export default function GearPanel({ character: c, derived: d, inventory, onInventoryChange, onSetWeapon, onSetArmor, onToggleShield, onAttack, wallet, onWalletChange, onSetMagicWeapon, onSetMagicArmor, onSetMagicShield, onEnchant }: Props) {
   const armor = ARMOR_MAP[c.armorId];
   // The shop stock is regenerated when the hero levels up or changes class —
   // better level means better (and pricier) gear on the shelves.
@@ -177,6 +182,71 @@ export default function GearPanel({ character: c, derived: d, inventory, onInven
           <p className="mt-2 text-[10px] text-slate-500">{armor.note ?? "Disadvantage on Stealth (bulky armor)"}</p>
         )}
       </div>
+
+      {/* Enchanting Bench — the player's own arcane forge. Every rule here is
+          local: tier gates, material costs, DCs and the d20 + Int + prof check
+          all resolve through the app's dice engine. The AI never decides gear. */}
+      {onEnchant && (
+        <div className="rounded-xl border border-violet-500/25 bg-violet-500/5 p-3">
+          <p className="mb-1 flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-violet-300">
+            <Wand2 className="size-3.5" /> Enchanting Bench
+          </p>
+          <p className="mb-2 text-[10px] leading-relaxed text-slate-500">
+            Pay the materials, then the dice engine rolls <span className="font-semibold text-slate-300">d20 + Int + prof</span>{" "}
+            vs the tier DC — success weaves the magic into the equipped piece, failure spends the materials.
+            {c.classId === "artificer" && (
+              <span className="ml-1 font-semibold text-violet-300">Artificer: −2 DC on every check.</span>
+            )}
+          </p>
+          <div className="flex flex-col gap-2">
+            {(
+              [
+                { target: "weapon" as const, label: "Weapon", base: WEAPON_MAP[c.weaponId]?.name ?? "—", current: c.magicWeaponBonus ?? 0, disabled: false },
+                { target: "armor" as const, label: "Armor", base: c.armorId === "none" ? "Unarmored" : (ARMOR_MAP[c.armorId]?.name ?? "—"), current: c.magicArmorBonus ?? 0, disabled: c.armorId === "none" },
+                { target: "shield" as const, label: "Shield", base: "Shield", current: c.magicShieldBonus ?? 0, disabled: !c.shield },
+              ]
+            ).map((row) => (
+              <div key={row.target} className="rounded-lg border border-slate-800 bg-slate-950 px-2.5 py-2">
+                <p className="mb-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] font-semibold text-slate-200">
+                  {row.label}: {row.base}
+                  {row.current > 0 ? (
+                    <span className="rounded bg-violet-500/20 px-1 py-px text-[9px] font-bold text-violet-300">
+                      magic +{row.current}
+                    </span>
+                  ) : (
+                    <span className="text-[9px] font-normal uppercase tracking-wide text-slate-600">mundane</span>
+                  )}
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {ENCHANT_TIERS.map((t) => {
+                    const locked = c.level < t.minLevel || row.disabled;
+                    return (
+                      <button
+                        key={t.bonus}
+                        type="button"
+                        disabled={locked}
+                        onClick={() => onEnchant(row.target, t.bonus)}
+                        title={locked ? (row.disabled ? "Equip this slot first" : `Requires level ${t.minLevel}`) : `Cost ${fmtShopPrice(enchantCost(c, row.target, t))} · DC ${enchantDc(c, t)}`}
+                        className={cn(
+                          "rounded-md border px-2 py-1 text-[10px] font-semibold transition-colors",
+                          locked
+                            ? "cursor-not-allowed border-slate-800 text-slate-700"
+                            : "border-violet-500/40 bg-violet-500/10 text-violet-200 hover:border-violet-400 hover:bg-violet-500/20",
+                        )}
+                      >
+                        {t.label}
+                        <span className="ml-1 font-normal text-slate-500">
+                          {fmtShopPrice(enchantCost(c, row.target, t))} · DC {enchantDc(c, t)}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <ShopSection
         character={c}
