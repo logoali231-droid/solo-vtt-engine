@@ -476,6 +476,38 @@ export function resolveLifeCommand(
   }
 
   // -------------------------------------------------------------------------
+  // Wealth tier — a player-authored CHOICE that mirrors the Economics panel
+  // buttons (the tier is free to set; only the income that flows from it is
+  // mechanical). "Make me rich" stays blocked by the cheat guard — this
+  // handles the legitimate framing "set my wealth tier to …".
+  // -------------------------------------------------------------------------
+  if (has(t, ["set my wealth", "set my wealth tier", "choose my wealth", "my wealth tier", "make my wealth"])) {
+    for (const tierDef of Object.values(GURPS_WEALTH_MAP)) {
+      if (t.includes(tierDef.name.toLowerCase()) || t.includes(tierDef.id.replace(/-/g, " "))) {
+        return {
+          kind: "flat",
+          outcome: {
+            narration: L(
+              `Your economic footing is now ${tierDef.name} — ${tierDef.summary}`,
+              `Seu padrão econômico agora é ${tierDef.name} — ${tierDef.summary}`,
+            ),
+            extPatch: { wealthTierId: tierDef.id },
+          },
+        };
+      }
+    }
+    return {
+      kind: "flat",
+      outcome: {
+        narration: L(
+          "Pick a wealth tier: Dead Broke, Poor, Struggling, Average, Comfortable, Wealthy, Very Wealthy, Filthy Rich or Multimillionaire.",
+          "Escolha um nível de riqueza: Dead Broke, Poor, Struggling, Average, Comfortable, Wealthy, Very Wealthy, Filthy Rich ou Multimillionaire.",
+        ),
+      },
+    };
+  }
+
+  // -------------------------------------------------------------------------
   // Collect income / pay living (flat, no roll).
   // -------------------------------------------------------------------------
   if (has(t, ["collect income", "collect my income", "collect my stipend", "monthly income", "receive income", "receive my income", "receive my pay", "payday money", "gather my income", "collect the stipend"])) {

@@ -6,6 +6,7 @@ import { campaignBriefing, gurpsLifeModeOf, prefsOf } from "../types";
 import { payloadToJson, serializeAdventure } from "../serializer";
 import { dndRulesContext, pf2eRulesContext } from "../data/adventure-samples";
 import { gurpsRulesContext } from "../data/gurps-extensions";
+import { GM_AUTHORITY_RULES } from "../cheatGuard";
 import { MAX_RECENT_MESSAGES, streamChatWithProvider, type ChatMessage } from "./providers";
 import { localRespond } from "./local";
 
@@ -37,6 +38,7 @@ function buildSystemPrompt(
     "You are the Game Master for a solo tabletop RPG running inside Oraculum, a strict rules engine.",
     `Ruleset: ${rules}. The player acts and the engine rolls dice — you never roll yourself.`,
     "Honor the JSON adventure state exactly: HP, AC, spell slots, resources, conditions and outcomes (critical/success/failure).",
+    GM_AUTHORITY_RULES,
     "Narrate in vivid second-person prose, 2-5 short paragraphs, advancing the scene. NPCs have desires and secrets.",
     "End each response with a single evocative question or hook for the player's next move.",
     languageInstruction(settings.language),
@@ -122,6 +124,7 @@ function buildOpeningMessages(
       content: [
         "You are the opening narrator for a solo tabletop RPG running inside Oraculum, a strict rules engine.",
         `Ruleset: ${rules}.`,
+        GM_AUTHORITY_RULES,
         "Write the opening scene of this campaign: 2-4 vivid second-person paragraphs.",
         "Ground every detail in the campaign briefing below — honor the chosen tone, genre, setting, style, villain, stakes and company.",
         "Place the hero at the threshold of the story, show the setting and the first thread, then leave the scene in motion.",

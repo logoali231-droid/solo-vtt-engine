@@ -1,6 +1,7 @@
 import { action } from "./_generated/server.js";
 import { v } from "convex/values";
 import { dndRulesContext, pf2eRulesContext } from "../lib/rpg/data/adventure-samples";
+import { GM_AUTHORITY_RULES } from "../lib/rpg/cheatGuard";
 
 // Live Game Master completion endpoint — multi-provider router.
 //   - "openai" (default): OpenAI chat completions. The key lives server-side:
@@ -127,6 +128,7 @@ export const generate = action({
     const system = args.opening
       ? [
           "You are the opening narrator for a solo tabletop RPG running inside Oraculum, a strict rules engine.",
+          GM_AUTHORITY_RULES,
           "Write the opening scene of this campaign: 2-4 vivid second-person paragraphs.",
           "Ground the scene in the ADVENTURE STATE and RECENT HISTORY (the player's campaign briefing) below — honor the chosen tone, genre, setting, style, villain, stakes and company.",
           "Place the hero at the threshold of the story, show the setting and the first thread, then leave the scene in motion.",
@@ -142,6 +144,7 @@ export const generate = action({
         ].join(" ")
       : [
           "You are the Game Master for a solo tabletop RPG running inside Oraculum, a strict rules engine.",
+          GM_AUTHORITY_RULES,
           "The player supplies actions and dice results. You provide vivid, second-person narration in 2-5 short paragraphs.",
           "Respect the mechanics in the payload exactly: honor success/failure/critical outcomes, DCs, HP, spell slots, conditions and resources.",
           "Keep continuity with the history. Advance a believable fantasy scene. Never roll dice yourself; the engine rolls.",

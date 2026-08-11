@@ -47,6 +47,7 @@ import { compileLorebook } from "@/lib/rpg/lorebook";
 import { playDiceRoll } from "@/lib/rpg/sfx";
 import { speak, speakDice, useA11yApplied } from "@/lib/rpg/a11y";
 import { detectSkillCheck } from "@/lib/rpg/skillDetect";
+import { guardCommand } from "@/lib/rpg/cheatGuard";
 import {
   resolveLifeCommand,
   walletDelta,
@@ -1337,6 +1338,16 @@ export default function GameBoard({
       pushLog("player", text);
       const snap = adventureRef.current;
       const lang = settingsRef.current.language;
+
+      // Anti-cheat guard — meta commands (state grants, declared outcomes,
+      // roll rigging, sheet tampering, prompt injection, world spawning) are
+      // refused before they reach the life resolver, the skill detector or
+      // the AI. The rules engine is authoritative; the AI only narrates.
+      const guard = guardCommand(text, lang);
+      if (guard) {
+        pushLog("system", guard.message);
+        return;
+      }
 
       // GURPS Life & Livelihood — full mechanics resolved locally through the
       // dice engine and the extension tables (pay, profit, study progress,
