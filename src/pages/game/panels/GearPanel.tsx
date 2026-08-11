@@ -51,7 +51,7 @@ export default function GearPanel({ character: c, derived: d, inventory, onInven
   const [stock, setStock] = useState<DndShopItem[]>(() => generateDndShop(c));
   useEffect(() => {
     setStock(generateDndShop(c));
-  }, [c.level, c.classId]);
+  }, [c.level, c.classId, c.subclassId]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -438,8 +438,16 @@ function ShopSection({
             <Store className="size-3.5" /> Adventurer's Shop
           </p>
           <p className="mt-0.5 text-[10px] leading-relaxed text-slate-500">
-            Stocked for a <span className="font-semibold text-slate-300">Lv {c.level} {className}</span> —
-            the higher the level, the better (and pricier) the gear on the shelves.
+            Stocked for a <span className="font-semibold text-slate-300">Lv {c.level} {className}</span>
+            {c.subclassId && (
+              <>
+                {" · "}
+                <span className="font-semibold text-amber-300/90">
+                  {CLASS_MAP[c.classId]?.subclasses.find((s) => s.id === c.subclassId)?.name ?? c.subclassId}
+                </span>
+              </>
+            )}{" "}
+            — the higher the level, the better (and pricier) the gear on the shelves.
           </p>
         </div>
         <button

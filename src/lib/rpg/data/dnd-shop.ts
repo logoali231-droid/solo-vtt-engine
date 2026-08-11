@@ -307,6 +307,69 @@ const CLASS_PROFILES: Record<DnDClassId, ClassShopProfile> = {
 };
 
 // ---------------------------------------------------------------------------
+// Subclass signature items — Tasha's subclasses get their own bespoke shelf
+// so the shop fits not just the class, but the build.
+// ---------------------------------------------------------------------------
+
+interface SubclassItemDef {
+  name: string;
+  rarity: DndRarity;
+  minLevel: number;
+  description: string;
+}
+
+const SUBCLASS_ITEMS: Record<string, SubclassItemDef[]> = {
+  alchemist: [
+    { name: "Deluxe Alchemy Satchel", rarity: "uncommon", minLevel: 3, description: "Holds twice the reagents; Advantage on checks to brew experimental elixirs." },
+    { name: "Philosopher's Alembic", rarity: "rare", minLevel: 7, description: "Your experimental elixirs gain one extra random effect per brew." },
+  ],
+  armorer: [
+    { name: "Arcane Armor Plating", rarity: "uncommon", minLevel: 3, description: "Upgrade your Arcane Armor: +1 AC while you wear it." },
+    { name: "Tesla Capacitor", rarity: "rare", minLevel: 7, description: "Your Thunder Gauntlets crackle with stored power — +1d4 lightning on a hit." },
+  ],
+  artillerist: [
+    { name: "Cannon Blueprint: Flamethrower", rarity: "uncommon", minLevel: 3, description: "Reconfigure your Eldritch Cannon to spray a 15-ft cone of fire." },
+    { name: "Sturdy Cannon Mount", rarity: "rare", minLevel: 7, description: "Your Eldritch Cannon gains +2 AC and +1d6 to its damage rolls." },
+  ],
+  "battle-smith": [
+    { name: "Steel Defender Armor Kit", rarity: "uncommon", minLevel: 3, description: "Plate your Steel Defender: +2 AC for your construct companion." },
+    { name: "Arcane Jolt Injector", rarity: "rare", minLevel: 7, description: "Your Arcane Jolt damage and healing dice step up from d6 to d8." },
+  ],
+  "psi-warrior": [
+    { name: "Psionic Focus Crystal", rarity: "uncommon", minLevel: 3, description: "Your Psionic Energy dice recover one extra per long rest." },
+    { name: "Crown of the Mind's Eye", rarity: "rare", minLevel: 7, description: "Advantage on Intelligence saving throws while worn." },
+  ],
+  "rune-knight": [
+    { name: "Giant's Chisel", rarity: "uncommon", minLevel: 3, description: "Carve runes in half the time and keep one extra rune attuned." },
+    { name: "Stone of the Cloud Giant", rarity: "rare", minLevel: 7, description: "While enlarged by Giant's Might, +2 on Strength checks and saves." },
+  ],
+  soulknife: [
+    { name: "Mind Blade Hilt", rarity: "uncommon", minLevel: 3, description: "Your Psychic Blades ignore resistance to psychic damage." },
+    { name: "Cloak of Silent Strikes", rarity: "rare", minLevel: 7, description: "Once per turn, a missed Psychic Blade returns — reroll that attack at advantage." },
+  ],
+  phantom: [
+    { name: "Whispers of the Dead", rarity: "uncommon", minLevel: 3, description: "Gain one extra Wails from the Grave use per long rest." },
+    { name: "Death's Ledger", rarity: "rare", minLevel: 7, description: "When a creature dies near you, gain temporary HP equal to your proficiency bonus." },
+  ],
+  bladesinging: [
+    { name: "Bladesong Tattoo", rarity: "uncommon", minLevel: 3, description: "Your Bladesong lasts one extra round." },
+    { name: "Songblade Scabbard", rarity: "rare", minLevel: 7, description: "While Bladesong is active, your weapon counts as magical and gains +1 to attack rolls." },
+  ],
+  "order-of-scribes": [
+    { name: "Awakened Quill", rarity: "uncommon", minLevel: 3, description: "Copy spells into your book in half the time and at half the gold cost." },
+    { name: "Living Inkwell", rarity: "rare", minLevel: 7, description: "Twice per day, manifest your spellbook's damage type change without a bonus action." },
+  ],
+  "aberrant-mind": [
+    { name: "Flesh of the Far Realm", rarity: "uncommon", minLevel: 1, description: "Your psionic spells last one round longer than normal." },
+    { name: "Eldritch Cyst", rarity: "rare", minLevel: 7, description: "Once per long rest, telepathically compel a creature that failed a save against your psionic spells." },
+  ],
+  "clockwork-soul": [
+    { name: "Harmonic Gear", rarity: "uncommon", minLevel: 1, description: "Your Restore Balance gains one extra use per long rest." },
+    { name: "Order's Metronome", rarity: "rare", minLevel: 7, description: "Once per day, reroll a failed Constitution saving throw and keep the second result." },
+  ],
+};
+
+// ---------------------------------------------------------------------------
 // Consumables — potion tier climbs with level.
 // ---------------------------------------------------------------------------
 
@@ -396,7 +459,7 @@ export function generateDndShop(c: DnDCharacter): DndShopItem[] {
       baseWeaponId: wid,
       description:
         enchant > 0
-          ? `${enchant > 0 ? `+${enchant} bonus to attack and damage rolls with this weapon. ` : ""}${def.properties.join(", ")}. Equip it to apply the bonus in the dice engine.`
+          ? `+${enchant} bonus to attack and damage rolls with this weapon. ${def.properties.join(", ")}. Equip it to apply the bonus in the dice engine.`
           : `${def.properties.join(", ")}. A reliable ${def.name.toLowerCase()} in good condition.`,
       tags: ["Weapon", enchant > 0 ? `+${enchant}` : "Martial"],
     });
@@ -424,6 +487,25 @@ export function generateDndShop(c: DnDCharacter): DndShopItem[] {
           : `${armorDef.note ? armorDef.note + ". " : ""}Solid protection for a ${CLASS_MAP[c.classId]?.name ?? "hero"}.`,
       tags: ["Armor", enchant > 0 ? `+${enchant}` : armorDef.acKind],
     });
+  } else {
+    // Classes that wear no armor (wizard, sorcerer, monk…) don't get an empty
+    // armor rack — instead the shelf holds a class-fit garment with a real use.
+    const garments: Record<string, { name: string; price: number; description: string }> = {
+      wizard: { name: "Robes of the Warded Scholar", price: 25, description: "Practical, warded robes with deep pockets for scrolls and components." },
+      sorcerer: { name: "Silkweave Dueling Robes", price: 30, description: "Light robes cut for motion — never armor, always flair." },
+      monk: { name: "Woven Traveler's Garb", price: 20, description: "Breathable wraps and robes; Advantage on checks to keep balance on narrow surfaces." },
+    };
+    const garment =
+      garments[c.classId] ?? { name: "Fine Traveling Clothes", price: 15, description: "Practical, well-made clothes for the road ahead." };
+    items.push({
+      id: `shop-gear-${slug(garment.name)}`,
+      name: garment.name,
+      category: "gear",
+      rarity: "common",
+      price: garment.price,
+      description: garment.description,
+      tags: ["Gear", "Wearable"],
+    });
   }
 
   if (prof.shield) {
@@ -441,9 +523,11 @@ export function generateDndShop(c: DnDCharacter): DndShopItem[] {
     });
   }
 
-  // --- Potions: two consumables at or below the hero's level ---
+  // --- Potions: two consumables at or below the hero's level (three for an
+  //     Alchemist — the shelf knows its regulars) ---
   const potionPool = shuffle(POTIONS.filter((p) => p.minLevel <= level));
-  for (const potion of potionPool.slice(0, 2)) {
+  const potionCount = c.subclassId === "alchemist" ? 3 : 2;
+  for (const potion of potionPool.slice(0, potionCount)) {
     items.push({
       id: `shop-potion-${slug(potion.name)}`,
       name: potion.name,
@@ -501,6 +585,21 @@ export function generateDndShop(c: DnDCharacter): DndShopItem[] {
       price: round5(priceMult * shopLevelFactor(level)),
       description: m.description,
       tags: ["Magic Item", DND_RARITY_LABELS[m.rarity]],
+    });
+  }
+
+  // --- Subclass signature items — Tasha's subclasses stock their own shelf ---
+  const subclassPool = shuffle((c.subclassId ? SUBCLASS_ITEMS[c.subclassId] : undefined) ?? []);
+  for (const m of subclassPool.filter((s) => s.minLevel <= level).slice(0, 2)) {
+    const priceMult = m.rarity === "very-rare" ? 3000 : m.rarity === "rare" ? 900 : 140;
+    items.push({
+      id: `shop-subclass-${slug(m.name)}`,
+      name: m.name,
+      category: "magic",
+      rarity: m.rarity,
+      price: round5(priceMult * shopLevelFactor(level)),
+      description: m.description,
+      tags: ["Subclass Item", DND_RARITY_LABELS[m.rarity]],
     });
   }
 
