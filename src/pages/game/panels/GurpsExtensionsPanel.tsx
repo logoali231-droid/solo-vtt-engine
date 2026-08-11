@@ -218,9 +218,10 @@ export default function GurpsExtensionsPanel({
   const living = gurpsCostOfLiving(ext.wealthTierId);
 
   // --- Love ---
-  const stageIdx = ext.relationshipStage
+  const rawStageIdx = ext.relationshipStage
     ? GURPS_RELATIONSHIP_STAGES.findIndex((s) => s.id === ext.relationshipStage)
-    : -1;
+    : 0; // unset defaults to Strangers — the first rung of the ladder
+  const stageIdx = rawStageIdx < 0 ? 0 : rawStageIdx;
   const currentStage = stageIdx >= 0 ? GURPS_RELATIONSHIP_STAGES[stageIdx] : undefined;
   const nextStage = stageIdx >= 0 && stageIdx < GURPS_RELATIONSHIP_STAGES.length - 1
     ? GURPS_RELATIONSHIP_STAGES[stageIdx + 1]
@@ -506,7 +507,9 @@ export default function GurpsExtensionsPanel({
       <p className="rounded-xl border border-amber-900/40 bg-[#1c1810] px-3 py-2 text-[10px] leading-relaxed text-amber-600/70">
         <span className="font-bold text-amber-400">Life &amp; Livelihood.</span> Original extension mechanics in
         GURPS style — every action rolls 3d6 under a skill target, and the margin decides how well it went. Money
-        comes from and returns to your purse.
+        comes from and returns to your purse. <span className="text-amber-400/80">You can also just type it in the
+        chat — "work the month", "collect my income", "hack the corporate mainframe", "study", "sit the exam",
+        "attend the ball", "start a market stall" — everything resolves mechanically, no AI required.</span>
       </p>
 
       {/* Economics */}

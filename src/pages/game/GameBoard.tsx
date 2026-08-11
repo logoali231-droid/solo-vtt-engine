@@ -47,6 +47,11 @@ import { compileLorebook } from "@/lib/rpg/lorebook";
 import { playDiceRoll } from "@/lib/rpg/sfx";
 import { speak, speakDice, useA11yApplied } from "@/lib/rpg/a11y";
 import { detectSkillCheck } from "@/lib/rpg/skillDetect";
+import {
+  resolveLifeCommand,
+  walletDelta,
+  type LifeOutcome,
+} from "@/lib/rpg/gurpsLife";
 import type {
   AdventureState,
   AdsSettings,
@@ -1295,10 +1300,72 @@ export default function GameBoard({
   // -------------------------------------------------------------------------
   // Player command + quick actions
   // -------------------------------------------------------------------------
+  // Apply a resolved Life & Livelihood outcome — wallet delta, ext-state
+  // patch and the deterministic result line — all local, no AI required.
+  const applyLifeOutcome = useCallback(
+    (outcome: LifeOutcome) => {
+      if (outcome.walletDelta) {
+        setAdventure((prev) => {
+          if (!prev.wallet) return prev;
+          const next = walletDelta(prev.wallet, outcome.walletDelta!);
+          return next ? { ...prev, wallet: next, updatedAt: Date.now() } : prev;
+        });
+      }
+      if (outcome.extPatch && Object.keys(outcome.extPatch).length > 0) {
+        updateChar((ch) =>
+          ch.system === "gurps"
+            ? {
+                ...ch,
+                ext: {
+                  cyberware: [],
+                  contacts: [],
+                  programs: [],
+                  ...ch.ext,
+                  ...outcome.extPatch,
+                },
+              }
+            : ch,
+        );
+      }
+      pushLog("system", outcome.narration);
+    },
+    [pushLog, updateChar],
+  );
+
   const sendCommand = useCallback(
     (text: string) => {
       pushLog("player", text);
       const snap = adventureRef.current;
+      const lang = settingsRef.current.language;
+
+      // GURPS Life & Livelihood — full mechanics resolved locally through the
+      // dice engine and the extension tables (pay, profit, study progress,
+      // reputation, relationships, cyber, court, titles…). The AI is only
+      // optional flavor on top; the mechanics never depend on it.
+      if (snap.system === "gurps") {
+        const life = resolveLifeCommand(text, snap.character as GurpsCharacter, snap.wallet, lang);
+        if (life) {
+          if (life.kind === "blocked") {
+            pushLog("system", life.narration);
+            return;
+          }
+          if (life.kind === "flat") {
+            applyLifeOutcome(life.outcome);
+            void gmRespond({ playerText: text });
+            return;
+          }
+          const dice = roll({
+            label: life.label,
+            kind: "check",
+            gurpsTarget: life.gurpsTarget,
+            suppressCritNarrate: true,
+          });
+          if (dice) applyLifeOutcome(life.resolve(dice, lang));
+          void gmRespond({ playerText: text, dice });
+          return;
+        }
+      }
+
       // Skill-intent detection: if the command implies a rules check
       // (investigate, sneak, persuade, climb…), resolve it through the dice
       // engine and hand the outcome to the GM — dice first, narration second.
@@ -1320,7 +1387,7 @@ export default function GameBoard({
       }
       void gmRespond({ playerText: text });
     },
-    [pushLog, gmRespond, summarizeNow, roll],
+    [pushLog, gmRespond, summarizeNow, roll, applyLifeOutcome],
   );
 
   const shortRest = useCallback(() => {
