@@ -104,6 +104,12 @@ export interface GurpsJobDef {
 export const GURPS_JOBS: GurpsJobDef[] = [
   // --- Medieval ---
   { id: "field-hand", name: "Field Hand", domain: "medieval", skill: "professional-skill", fallbackStat: "st", payMult: 0.5, summary: "Back-breaking seasonal labor on another's land." },
+  { id: "physician", name: "Court Physician", domain: "medieval", skill: "first-aid", fallbackStat: "ht", payMult: 1.8, summary: "Leeches, poultices, and a reputation that outlives your patients." },
+  { id: "cook", name: "Castle Cook", domain: "medieval", skill: "professional-skill", fallbackStat: "iq", payMult: 0.9, summary: "Twelve-course feasts and the sharpest knives in the keep." },
+  { id: "falconer", name: "Royal Falconer", domain: "medieval", skill: "professional-skill", fallbackStat: "iq", payMult: 1.1, summary: "Hawks, hunting days, and the ear of the hunt-master." },
+  { id: "forester", name: "Forester", domain: "medieval", skill: "survival", fallbackStat: "iq", payMult: 0.8, summary: "The king's woods, the king's deer, and the poachers between." },
+  { id: "mason", name: "Master Mason", domain: "medieval", skill: "professional-skill", fallbackStat: "iq", payMult: 1.2, summary: "Cathedrals, keeps, and the geometry of permanence." },
+  { id: "court-advocate", name: "Court Advocate", domain: "medieval", skill: "law", fallbackStat: "iq", payMult: 1.6, summary: "Pleading cases before judges who already know the verdict." },
   { id: "smith", name: "Smith", domain: "medieval", skill: "professional-skill", fallbackStat: "st", payMult: 1.4, summary: "Shoeing horses, mending ploughs, forging blades." },
   { id: "merchant-wagon", name: "Traveling Merchant", domain: "medieval", skill: "merchant", fallbackStat: "iq", payMult: 1.3, summary: "Buying cheap and selling dear along the trade roads." },
   { id: "guard", name: "Town Guard", domain: "medieval", skill: "spear", fallbackStat: "st", payMult: 0.9, summary: "Patrolling the walls, keeping the peace by presence." },
@@ -117,17 +123,26 @@ export const GURPS_JOBS: GurpsJobDef[] = [
   { id: "sales", name: "Salesperson", domain: "modern", skill: "merchant", fallbackStat: "iq", payMult: 1.0, summary: "Commission is a lottery with a skill-based rig." },
   { id: "journalist", name: "Journalist", domain: "modern", skill: "research", fallbackStat: "iq", payMult: 1.1, summary: "Chasing stories, filing copy, dodging libel suits." },
   { id: "medic", name: "Paramedic", domain: "modern", skill: "first-aid", fallbackStat: "ht", payMult: 1.1, summary: "First on the scene, last to leave the shift." },
+  { id: "engineer", name: "Civil Engineer", domain: "modern", skill: "professional-skill", fallbackStat: "iq", payMult: 1.6, summary: "Bridges, towers, and approving the risk of others." },
+  { id: "professor", name: "University Professor", domain: "modern", skill: "research", fallbackStat: "iq", payMult: 1.4, summary: "Lectures by day, peer-reviewed dread by night." },
+  { id: "chef", name: "Restaurant Chef", domain: "modern", skill: "professional-skill", fallbackStat: "iq", payMult: 1.2, summary: "A kitchen that runs on screaming and savoir-faire." },
+  { id: "lawyer", name: "Lawyer", domain: "modern", skill: "law", fallbackStat: "iq", payMult: 2.0, summary: "Billable hours and the art of the settlement." },
   // --- Cyber ---
   { id: "corp-drone", name: "Corp Drone", domain: "cyber", skill: "administration", fallbackStat: "iq", payMult: 1.6, summary: "A cubicle in a glass tower, chained to the quarterly report." },
   { id: "netrunner", name: "Netrunner", domain: "cyber", skill: "hacking", fallbackStat: "iq", payMult: 2.0, summary: "Stealing data through the Grid — one cred at a time." },
   { id: "fixer", name: "Fixer", domain: "cyber", skill: "streetwise", fallbackStat: "iq", payMult: 1.7, summary: "Everyone knows someone who knows someone. That's you." },
   { id: "ripperdoc", name: "Ripperdoc", domain: "cyber", skill: "first-aid", fallbackStat: "ht", payMult: 1.8, summary: "Installing chrome and stitching wounds, no questions asked." },
   { id: "bounty-hunter", name: "Bounty Hunter", domain: "cyber", skill: "stealth", fallbackStat: "dx", payMult: 1.9, summary: "Collecting heads and warrants in equal measure." },
+  { id: "corp-sec-engineer", name: "Corp Security Engineer", domain: "cyber", skill: "computer-programming", fallbackStat: "iq", payMult: 2.2, summary: "Building the walls the netrunners chip away at." },
+  { id: "data-broker", name: "Data Broker", domain: "cyber", skill: "market-analysis", fallbackStat: "iq", payMult: 2.1, summary: "Buying secrets cheap and selling them at market price." },
+  { id: "sim-diver", name: "Sim Diver", domain: "cyber", skill: "computer-operation", fallbackStat: "iq", payMult: 1.5, summary: "Testing virtual worlds by dying in them, professionally." },
+  { id: "chrome-artist", name: "Chrome Artist", domain: "cyber", skill: "professional-skill", fallbackStat: "iq", payMult: 1.9, summary: "Body-mod work that's part surgery, part street art." },
   // --- Business ---
   { id: "shopkeeper", name: "Shopkeeper", domain: "business", skill: "merchant", fallbackStat: "iq", payMult: 1.3, summary: "Your own counter, your own stock, your own hours." },
   { id: "money-lender", name: "Money Lender", domain: "business", skill: "finance", fallbackStat: "iq", payMult: 1.8, summary: "Lending at interest — profitable until a client vanishes." },
   { id: "contractor", name: "Contractor", domain: "business", skill: "professional-skill", fallbackStat: "iq", payMult: 1.4, summary: "Bidding jobs, meeting deadlines, collecting invoices." },
   { id: "entertainer", name: "Performer", domain: "business", skill: "sex-appeal", fallbackStat: "ht", payMult: 1.2, summary: "Stage, screen or street — the crowd is the boss." },
+  { id: "investor", name: "Private Investor", domain: "business", skill: "finance", fallbackStat: "iq", payMult: 2.4, summary: "Other people's ideas, your money, their risk." },
 ];
 
 export const GURPS_JOB_MAP = Object.fromEntries(GURPS_JOBS.map((j) => [j.id, j]));
@@ -270,6 +285,262 @@ export const GURPS_HOLDING_MAP = Object.fromEntries(
 );
 
 // ---------------------------------------------------------------------------
+// Education — original universities & degrees. Enrolling costs tuition from
+// the wallet (scholarships waive it); studying rolls 3d6 vs the degree's study
+// skill and fills progress; the exam rolls 3d6 vs the university's exam skill.
+// A graduated degree grants its skill bonus and unlocks its jobs.
+// ---------------------------------------------------------------------------
+
+export interface GurpsUniversityDef {
+  id: string;
+  name: string;
+  era: "medieval" | "modern" | "cyber";
+  /** Tuition per semester in gp. */
+  tuition: number;
+  /** Skill id used for exams at this university. */
+  examSkill: string;
+  fallbackStat: "st" | "dx" | "iq" | "ht";
+  summary: string;
+}
+
+export const GURPS_UNIVERSITIES: GurpsUniversityDef[] = [
+  { id: "monastery", name: "Monastery Scriptorium", era: "medieval", tuition: 30, examSkill: "research", fallbackStat: "iq", summary: "Vellum, candlelight, and the patient copying of the great texts." },
+  { id: "guild-college", name: "Guild College", era: "medieval", tuition: 50, examSkill: "professional-skill", fallbackStat: "iq", summary: "Masters, apprentices, and a syllabus written in tools." },
+  { id: "crown-university", name: "Crown University", era: "medieval", tuition: 90, examSkill: "law", fallbackStat: "iq", summary: "The kingdom's oldest seat of learning — clerks, jurists, and poets." },
+  { id: "city-university", name: "City University", era: "modern", tuition: 140, examSkill: "research", fallbackStat: "iq", summary: "Lecture halls, late libraries, and the debt that follows." },
+  { id: "polytechnic", name: "Polytechnic Institute", era: "modern", tuition: 120, examSkill: "professional-skill", fallbackStat: "iq", summary: "Workshops over oratories — learn by breaking things." },
+  { id: "corp-academy", name: "Corp Academy", era: "cyber", tuition: 260, examSkill: "computer-programming", fallbackStat: "iq", summary: "Sponsored seats, signed NDAs, and a career pre-assigned." },
+  { id: "grid-university", name: "Grid University", era: "cyber", tuition: 180, examSkill: "computer-operation", fallbackStat: "iq", summary: "Fully remote lectures beamed straight into the neural link." },
+];
+
+export const GURPS_UNIVERSITY_MAP = Object.fromEntries(
+  GURPS_UNIVERSITIES.map((u) => [u.id, u]),
+);
+
+export interface GurpsDegreeDef {
+  id: string;
+  name: string;
+  era: "medieval" | "modern" | "cyber";
+  /** Skill id rolled when studying. */
+  studySkill: string;
+  fallbackStat: "st" | "dx" | "iq" | "ht";
+  /** 3d6 target for the final exam. */
+  examTarget: number;
+  /** Semesters required to graduate. */
+  semesters: number;
+  /** Skill bonus granted on graduation. */
+  skillBonus?: { skill: string; bonus: number };
+  /** Jobs this degree unlocks (ids from GURPS_JOBS). */
+  unlocks?: string[];
+  summary: string;
+}
+
+export const GURPS_DEGREES: GurpsDegreeDef[] = [
+  { id: "theology", name: "Theology", era: "medieval", studySkill: "research", fallbackStat: "iq", examTarget: 11, semesters: 3, summary: "Doctrine, scripture, and the patience of the cloister." },
+  { id: "law-degree", name: "Law", era: "medieval", studySkill: "law", fallbackStat: "iq", examTarget: 13, semesters: 4, skillBonus: { skill: "law", bonus: 1 }, unlocks: ["court-advocate", "lawyer"], summary: "Contracts, customs, and the arguments that move realms." },
+  { id: "medicine-degree", name: "Medicine", era: "medieval", studySkill: "first-aid", fallbackStat: "ht", examTarget: 13, semesters: 4, skillBonus: { skill: "first-aid", bonus: 1 }, unlocks: ["physician"], summary: "Humours, anatomy, and the delicate art of not killing." },
+  { id: "history", name: "History & Letters", era: "medieval", studySkill: "research", fallbackStat: "iq", examTarget: 12, semesters: 3, summary: "Chronicles, lineages, and the long memory of kingdoms." },
+  { id: "economics", name: "Economics", era: "modern", studySkill: "finance", fallbackStat: "iq", examTarget: 13, semesters: 3, skillBonus: { skill: "finance", bonus: 1 }, unlocks: ["investor"], summary: "Supply, demand, and why the invisible hand is usually broke." },
+  { id: "engineering-degree", name: "Engineering", era: "modern", studySkill: "professional-skill", fallbackStat: "iq", examTarget: 13, semesters: 4, skillBonus: { skill: "professional-skill", bonus: 1 }, unlocks: ["engineer"], summary: "Stress, strain, and the mathematics of not collapsing." },
+  { id: "computer-science", name: "Computer Science", era: "cyber", studySkill: "computer-programming", fallbackStat: "iq", examTarget: 13, semesters: 3, skillBonus: { skill: "computer-programming", bonus: 1 }, unlocks: ["corp-sec-engineer"], summary: "Algorithms, architecture, and the logic under the Grid." },
+  { id: "netsec", name: "Net Security", era: "cyber", studySkill: "hacking", fallbackStat: "iq", examTarget: 14, semesters: 3, skillBonus: { skill: "hacking", bonus: 1 }, unlocks: ["corp-sec-engineer", "data-broker"], summary: "Offense and defense on the Grid — a degree with teeth." },
+];
+
+export const GURPS_DEGREE_MAP = Object.fromEntries(
+  GURPS_DEGREES.map((dg) => [dg.id, dg]),
+);
+
+// ---------------------------------------------------------------------------
+// Social life — original circles & events. Joining a circle costs entry and
+// grants a reaction bonus on social rolls; attending events rolls 3d6 vs the
+// event's skill and moves your reputation (0–100) by the margin.
+// ---------------------------------------------------------------------------
+
+export interface GurpsSocialCircleDef {
+  id: string;
+  name: string;
+  era: "medieval" | "modern" | "cyber";
+  /** Entry cost in gp. */
+  entryCost: number;
+  /** Reaction bonus while a member. */
+  reactionMod: number;
+  summary: string;
+}
+
+export const GURPS_SOCIAL_CIRCLES: GurpsSocialCircleDef[] = [
+  { id: "tavern", name: "Tavern Regulars", era: "medieval", entryCost: 5, reactionMod: 1, summary: "A stool by the fire and a name the whole room knows." },
+  { id: "guild", name: "Merchant Guild", era: "medieval", entryCost: 60, reactionMod: 2, summary: "Trade secrets, contacts, and the price of everything." },
+  { id: "court", name: "Court Society", era: "medieval", entryCost: 120, reactionMod: 2, summary: "Intrigue, dances, and the politics of the great hall." },
+  { id: "church", name: "Parish Congregation", era: "medieval", entryCost: 10, reactionMod: 1, summary: "Soup kitchens, hymns, and quiet influence." },
+  { id: "social-club", name: "Social Club", era: "modern", entryCost: 80, reactionMod: 1, summary: "Golf, gala dinners, and handshakes that matter." },
+  { id: "union", name: "Workers' Union", era: "modern", entryCost: 20, reactionMod: 1, summary: "Solidarity, strikes, and the strength of numbers." },
+  { id: "gym", name: "Fitness Scene", era: "modern", entryCost: 30, reactionMod: 0, summary: "Lifting, posing, and the respect of the strong." },
+  { id: "netrunners-club", name: "Netrunner Underground", era: "cyber", entryCost: 40, reactionMod: 2, summary: "Darknet handles, black-market chrome, and trust by reputation." },
+  { id: "corp-social", name: "Corporate Social Circuit", era: "cyber", entryCost: 200, reactionMod: 2, summary: "Elevator pitches in glass atriums with synth-lattes." },
+  { id: "street", name: "Street Scene", era: "cyber", entryCost: 10, reactionMod: 1, summary: "Street racers, graffiti crews, and the people's network." },
+];
+
+export const GURPS_SOCIAL_CIRCLE_MAP = Object.fromEntries(
+  GURPS_SOCIAL_CIRCLES.map((sc) => [sc.id, sc]),
+);
+
+export interface GurpsSocialEventDef {
+  id: string;
+  name: string;
+  era: "medieval" | "modern" | "cyber";
+  /** Skill id rolled to shine at the event. */
+  skill: string;
+  fallbackStat: "st" | "dx" | "iq" | "ht";
+  /** Cost to attend in gp. */
+  cost: number;
+  /** Base reputation gain on a success. */
+  repBase: number;
+  summary: string;
+}
+
+export const GURPS_SOCIAL_EVENTS: GurpsSocialEventDef[] = [
+  { id: "feast", name: "Great Feast", era: "medieval", skill: "savoir-faire", fallbackStat: "iq", cost: 15, repBase: 4, summary: "Twelve courses, seating politics, and the king's ear." },
+  { id: "tournament", name: "Tournament", era: "medieval", skill: "broadsword", fallbackStat: "dx", cost: 20, repBase: 6, summary: "The lists, the crowd, and glory for the bold." },
+  { id: "market-day", name: "Market Day", era: "medieval", skill: "merchant", fallbackStat: "iq", cost: 5, repBase: 2, summary: "Booths, banter, and bargaining in the square." },
+  { id: "ball", name: "Grand Ball", era: "modern", skill: "sex-appeal", fallbackStat: "ht", cost: 40, repBase: 5, summary: "Orchestras, champagne, and the dance of alliances." },
+  { id: "gala", name: "Charity Gala", era: "modern", skill: "savoir-faire", fallbackStat: "iq", cost: 60, repBase: 4, summary: "Auction paddles, flashbulbs, and causes to be seen with." },
+  { id: "sports-night", name: "Fight Night", era: "modern", skill: "brawling", fallbackStat: "dx", cost: 15, repBase: 3, summary: "Ringside seats, roar of the crowd, and heavy bets." },
+  { id: "rave", name: "Street Rave", era: "cyber", skill: "computer-operation", fallbackStat: "iq", cost: 10, repBase: 3, summary: "Synth-bass, neural strobes, and the night's own wavelength." },
+  { id: "demo", name: "Product Demo", era: "cyber", skill: "computer-programming", fallbackStat: "iq", cost: 25, repBase: 4, summary: "Pitch your build to investors with lasers on." },
+  { id: "auction", name: "Black Market Auction", era: "cyber", skill: "streetwise", fallbackStat: "iq", cost: 50, repBase: 5, summary: "Chrome, secrets, and bid paddles for the unscrupulous." },
+];
+
+export const GURPS_SOCIAL_EVENT_MAP = Object.fromEntries(
+  GURPS_SOCIAL_EVENTS.map((ev) => [ev.id, ev]),
+);
+
+// ---------------------------------------------------------------------------
+// Medieval deep — original noble titles & court positions. Titles are bought
+// from the wallet (or granted) and multiply income; court positions pay a
+// salary and are served with a monthly roll.
+// ---------------------------------------------------------------------------
+
+export interface GurpsTitleDef {
+  id: string;
+  name: string;
+  /** Purchase cost in gp. */
+  cost: number;
+  /** Multiplier on standard income added while holding the title. */
+  incomeMult: number;
+  summary: string;
+}
+
+export const GURPS_NOBLE_TITLES: GurpsTitleDef[] = [
+  { id: "esquire", name: "Esquire", cost: 80, incomeMult: 0.2, summary: "A coat of arms and the right to carry a banner." },
+  { id: "knight", name: "Knight", cost: 200, incomeMult: 0.5, summary: "Spurs, an oath, and land in fief." },
+  { id: "baronet", name: "Baronet", cost: 400, incomeMult: 0.8, summary: "Hereditary rank, modest lands, real obligations." },
+  { id: "baron", name: "Baron", cost: 900, incomeMult: 1.5, summary: "A keep, tenants, and a seat in the king's council." },
+  { id: "count", name: "Count", cost: 1800, incomeMult: 2.5, summary: "A county to govern and an army to raise." },
+  { id: "duke", name: "Duke", cost: 3600, incomeMult: 4, summary: "The highest honor short of the crown itself." },
+];
+
+export const GURPS_TITLE_MAP = Object.fromEntries(
+  GURPS_NOBLE_TITLES.map((t) => [t.id, t]),
+);
+
+export interface GurpsCourtPositionDef {
+  id: string;
+  name: string;
+  /** Skill id rolled when serving. */
+  skill: string;
+  fallbackStat: "st" | "dx" | "iq" | "ht";
+  /** Pay multiplier vs standard income. */
+  payMult: number;
+  summary: string;
+}
+
+export const GURPS_COURT_POSITIONS: GurpsCourtPositionDef[] = [
+  { id: "page", name: "Page", skill: "savoir-faire", fallbackStat: "iq", payMult: 0.4, summary: "Run messages, pour wine, learn everything." },
+  { id: "herald", name: "Royal Herald", skill: "sex-appeal", fallbackStat: "ht", payMult: 0.7, summary: "Proclaim, announce, and carry the king's voice." },
+  { id: "marshal", name: "Court Marshal", skill: "tactics", fallbackStat: "iq", payMult: 1.1, summary: "Tournaments, guards, and the discipline of the yard." },
+  { id: "chancellor", name: "Chancellor", skill: "administration", fallbackStat: "iq", payMult: 1.6, summary: "The realm's paperwork flows through your desk." },
+  { id: "spymaster", name: "Spymaster", skill: "streetwise", fallbackStat: "iq", payMult: 2.0, summary: "You know what the king knows — and what he doesn't." },
+];
+
+export const GURPS_COURT_POSITION_MAP = Object.fromEntries(
+  GURPS_COURT_POSITIONS.map((p) => [p.id, p]),
+);
+
+// ---------------------------------------------------------------------------
+// Cyber deep — original netdecks, programs & the corporate ladder.
+// ---------------------------------------------------------------------------
+
+export interface GurpsNetdeckDef {
+  id: string;
+  name: string;
+  cost: number;
+  /** Hacking bonus while jacked in. */
+  hackBonus: number;
+  summary: string;
+}
+
+export const GURPS_NETDECKS: GurpsNetdeckDef[] = [
+  { id: "civic-deck", name: "Civic Deck", cost: 40, hackBonus: 0, summary: "Public-access terminal hardware — gets you on the Grid." },
+  { id: "runner-deck", name: "Runner Deck", cost: 120, hackBonus: 1, summary: "Custom-rigged for speed and silence." },
+  { id: "corp-deck", name: "Corp Deck", cost: 300, hackBonus: 2, summary: "Enterprise hardware with corporate-grade ICE breakers." },
+  { id: "military-deck", name: "Military Deck", cost: 700, hackBonus: 3, summary: "War-issue architecture. Owning one is probably illegal." },
+];
+
+export const GURPS_NETDECK_MAP = Object.fromEntries(
+  GURPS_NETDECKS.map((nd) => [nd.id, nd]),
+);
+
+export interface GurpsProgramDef {
+  id: string;
+  name: string;
+  kind: "attack" | "defense" | "utility";
+  cost: number;
+  /** Hacking bonus while loaded. */
+  hackBonus?: number;
+  /** Defense bonus against traces when caught. */
+  defenseBonus?: number;
+  summary: string;
+}
+
+export const GURPS_PROGRAMS: GurpsProgramDef[] = [
+  { id: "icebreaker", name: "Icebreaker", kind: "attack", cost: 35, hackBonus: 1, summary: "Shatters ICE walls with brute force." },
+  { id: "stealth-wrap", name: "Stealth Wrap", kind: "attack", cost: 50, hackBonus: 1, defenseBonus: 1, summary: "Muffles your footprint while you dig." },
+  { id: "data-razor", name: "Data Razor", kind: "attack", cost: 60, hackBonus: 2, summary: "Carves through encrypted payloads fast." },
+  { id: "firewall", name: "Micro-Firewall", kind: "defense", cost: 30, defenseBonus: 1, summary: "Personal ICE that eats stray daemons." },
+  { id: "trace-killer", name: "Trace Killer", kind: "defense", cost: 70, defenseBonus: 2, summary: "Erases the breadcrumbs as you run." },
+  { id: "decryptor", name: "Decryptor", kind: "utility", cost: 25, hackBonus: 1, summary: "Opens sealed files and cipher-locked doors." },
+  { id: "glitch", name: "Glitch Bomb", kind: "utility", cost: 40, summary: "Jams sensors and spoofs identities." },
+  { id: "proxy-chain", name: "Proxy Chain", kind: "utility", cost: 45, defenseBonus: 1, summary: "Bounces your signal through six dead zones." },
+];
+
+export const GURPS_PROGRAM_MAP = Object.fromEntries(
+  GURPS_PROGRAMS.map((p) => [p.id, p]),
+);
+
+export interface GurpsCorpRankDef {
+  id: string;
+  name: string;
+  /** Income multiplier for the rank. */
+  incomeMult: number;
+  /** 3d6 target to be promoted INTO this rank. */
+  target: number;
+  summary: string;
+}
+
+export const GURPS_CORP_LADDER: GurpsCorpRankDef[] = [
+  { id: "intern", name: "Intern", incomeMult: 0.4, target: 7, summary: "Unpaid in spirit, coffee in hand." },
+  { id: "analyst", name: "Analyst", incomeMult: 0.9, target: 9, summary: "Spreadsheets and the eternal status meeting." },
+  { id: "associate", name: "Associate", incomeMult: 1.4, target: 11, summary: "You delegate the bad news now." },
+  { id: "manager", name: "Manager", incomeMult: 2.0, target: 13, summary: "A floor, a budget, and a door that closes." },
+  { id: "director", name: "Director", incomeMult: 3.0, target: 15, summary: "The corner office and the quarterly guillotine." },
+  { id: "executive", name: "Executive", incomeMult: 4.5, target: 17, summary: "The company bends around your signature." },
+];
+
+export const GURPS_CORP_RANK_MAP = Object.fromEntries(
+  GURPS_CORP_LADDER.map((r) => [r.id, r]),
+);
+
+// ---------------------------------------------------------------------------
 // Mechanical helpers — original GURPS-style resolution for the panel.
 // ---------------------------------------------------------------------------
 
@@ -377,6 +648,71 @@ export function gurpsPay(wallet: Wallet | undefined, cost: number): Wallet | nul
   return spToWallet(total - costSp);
 }
 
+/** Extra monthly income from a noble title, in gp. */
+export function gurpsTitleIncome(titleId: string | undefined): number {
+  if (!titleId) return 0;
+  const t = GURPS_TITLE_MAP[titleId];
+  return Math.round(GURPS_STANDARD_INCOME * (t?.incomeMult ?? 0));
+}
+
+/** Monthly salary for a court position, in gp. */
+export function gurpsCourtSalary(positionId: string | undefined): number {
+  if (!positionId) return 0;
+  const p = GURPS_COURT_POSITION_MAP[positionId];
+  return Math.round(GURPS_STANDARD_INCOME * (p?.payMult ?? 0));
+}
+
+/** Monthly salary for a corp rank, in gp. */
+export function gurpsCorpSalary(rankId: string | undefined): number {
+  if (!rankId) return 0;
+  const r = GURPS_CORP_RANK_MAP[rankId];
+  return Math.round(GURPS_STANDARD_INCOME * (r?.incomeMult ?? 0));
+}
+
+/** Total hacking bonus from netdeck + loaded programs (original). */
+export function gurpsHackBonus(
+  netdeckId: string | undefined,
+  programs: string[] | undefined,
+): number {
+  let b = 0;
+  if (netdeckId) b += GURPS_NETDECK_MAP[netdeckId]?.hackBonus ?? 0;
+  for (const p of programs ?? []) b += GURPS_PROGRAM_MAP[p]?.hackBonus ?? 0;
+  return b;
+}
+
+/** Total trace-defense bonus from loaded programs. */
+export function gurpsTraceDefense(programs: string[] | undefined): number {
+  let b = 0;
+  for (const p of programs ?? []) b += GURPS_PROGRAM_MAP[p]?.defenseBonus ?? 0;
+  return b;
+}
+
+/**
+ * Study session result: how much exam progress (0–100) a study roll buys.
+ * Critical success is a breakthrough; a critical failure sets you back.
+ */
+export function gurpsStudyGain(margin: number, outcome: string): number {
+  if (outcome === "critical-success") return 24;
+  if (outcome === "critical-failure") return -12;
+  if (margin >= 5) return 16;
+  if (margin >= 0) return 10;
+  if (margin >= -3) return 4;
+  return 0;
+}
+
+/**
+ * Social event outcome: reputation delta from the roll margin.
+ * A critical failure is a scandal — reputation drops.
+ */
+export function gurpsEventRep(margin: number, outcome: string, repBase: number): number {
+  if (outcome === "critical-success") return repBase * 3;
+  if (outcome === "critical-failure") return -Math.round(repBase * 1.5);
+  if (margin >= 5) return repBase * 2;
+  if (margin >= 0) return repBase;
+  if (margin >= -3) return 0;
+  return -Math.round(repBase * 0.5);
+}
+
 // ---------------------------------------------------------------------------
 // AI rules corpus — original plain-language summary fed to the GM so it can
 // narrate job, business, love, cyber and medieval rolls faithfully.
@@ -386,12 +722,14 @@ export function gurpsRulesContext(): string {
   const lines: string[] = [
     "GURPS LIFE & LIVELIHOOD EXTENSION (original mechanics in GURPS style — 3d6 roll-under vs skill targets, margins of success).",
     "The engine rolls every check and resolves the outcome; you narrate the result faithfully.",
-    "JOBS: a monthly work roll vs the job's skill sets the month's pay (critical success = double pay, success = standard, failure = half, critical failure = fired).",
+    "JOBS: a monthly work roll vs the job's skill sets the month's pay (critical success = double pay, success = standard, failure = half, critical failure = fired). Degrees can unlock higher jobs.",
     "ECONOMICS: each wealth tier sets monthly income and cost of living; the wallet in ADVENTURE STATE is the mechanical purse the player spends from.",
     "LOVE: advancing a relationship requires a reaction roll — 3d6 + attraction modifiers vs the stage target (Strangers 6, Acquaintances 9, Friends 12, Romantic 14, Lovers 16, Committed 18).",
     "BUSINESS: an owned business pays monthly profit on a roll vs its skill (high-risk ventures swing wider — windfalls and disasters are both possible).",
-    "CYBER: hacking rolls vs Hacking with a penalty from the target's ICE (Public 0, Personal −2, Corporate −4, Military −7, Black ICE −10).",
-    "MEDIEVAL: a holding pays seasonal income on a successful roll vs its skill.",
+    "CYBER: hacking rolls vs Hacking + netdeck/program bonuses with a penalty from the target's ICE (Public 0, Personal −2, Corporate −4, Military −7, Black ICE −10). Programs also grant trace-defense bonuses. The corporate ladder promotes on a roll vs the next rank's target (Intern 7, Analyst 9, Associate 11, Manager 13, Director 15, Executive 17).",
+    "MEDIEVAL: a holding pays seasonal income on a successful roll vs its skill. Noble titles add monthly income; court positions pay a salary on a monthly service roll.",
+    "EDUCATION: universities charge tuition per semester (scholarships waive it). Studying rolls 3d6 vs the degree's study skill and fills exam progress (0–100); the final exam rolls vs the university's exam skill at the degree's target. Graduating grants the degree's skill bonus and unlocks its jobs.",
+    "SOCIAL LIFE: reputation runs 0–100. Social circles cost entry and grant a reaction bonus; attending events (feast, ball, gala, rave…) rolls 3d6 vs the event's skill — successes raise reputation, critical failures are scandals that lower it.",
     "Always honor the rolled margin: narrate success proportionally to how far the roll succeeded or failed, and never invent unrolled outcomes.",
   ];
   return lines.join("\n");

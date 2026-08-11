@@ -17,10 +17,18 @@ import { identityOf, prefsOf } from "./types";
 import { PF2E_FEAT_MAP } from "./data/pf2e";
 import {
   GURPS_BUSINESS_MAP,
+  GURPS_CORP_RANK_MAP,
+  GURPS_COURT_POSITION_MAP,
   GURPS_CYBERWARE_MAP,
+  GURPS_DEGREE_MAP,
   GURPS_HOLDING_MAP,
   GURPS_JOB_MAP,
+  GURPS_NETDECK_MAP,
+  GURPS_PROGRAM_MAP,
   GURPS_RELATIONSHIP_MAP,
+  GURPS_SOCIAL_CIRCLE_MAP,
+  GURPS_TITLE_MAP,
+  GURPS_UNIVERSITY_MAP,
   GURPS_WEALTH_MAP,
 } from "./data/gurps-extensions";
 import {
@@ -249,6 +257,20 @@ function serializeGurps(c: GurpsCharacter): Record<string, unknown> {
           relationshipStage: GURPS_RELATIONSHIP_MAP[c.ext.relationshipStage ?? ""]?.name ?? c.ext.relationshipStage ?? null,
           relationshipName: c.ext.relationshipName ?? null,
           holding: GURPS_HOLDING_MAP[c.ext.holdingId ?? ""]?.name ?? c.ext.holdingId ?? null,
+          university: GURPS_UNIVERSITY_MAP[c.ext.universityId ?? ""]?.name ?? c.ext.universityId ?? null,
+          degree: GURPS_DEGREE_MAP[c.ext.degreeId ?? ""]?.name ?? c.ext.degreeId ?? null,
+          studyProgress: c.ext.studyProgress ?? 0,
+          graduated: c.ext.graduated ?? false,
+          studentDebt: c.ext.studentDebt ?? 0,
+          scholarship: c.ext.scholarship ?? false,
+          reputation: c.ext.reputation ?? 0,
+          socialCircle: GURPS_SOCIAL_CIRCLE_MAP[c.ext.socialCircleId ?? ""]?.name ?? c.ext.socialCircleId ?? null,
+          contacts: c.ext.contacts ?? [],
+          title: GURPS_TITLE_MAP[c.ext.titleId ?? ""]?.name ?? c.ext.titleId ?? null,
+          courtPosition: GURPS_COURT_POSITION_MAP[c.ext.courtPositionId ?? ""]?.name ?? c.ext.courtPositionId ?? null,
+          netdeck: GURPS_NETDECK_MAP[c.ext.netdeckId ?? ""]?.name ?? c.ext.netdeckId ?? null,
+          programs: (c.ext.programs ?? []).map((p) => GURPS_PROGRAM_MAP[p]?.name ?? p),
+          corpRank: GURPS_CORP_RANK_MAP[c.ext.corpPositionId ?? ""]?.name ?? c.ext.corpPositionId ?? null,
         }
       : null,
   };

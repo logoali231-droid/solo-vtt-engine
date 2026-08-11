@@ -2015,6 +2015,8 @@ export default function GameBoard({
                 relationshipStage: undefined,
                 relationshipName: undefined,
                 holdingId: undefined,
+                contacts: [],
+                programs: [],
                 ...ch.ext,
                 ...patch,
               },

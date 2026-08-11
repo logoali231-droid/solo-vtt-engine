@@ -804,6 +804,38 @@ export interface GurpsExtensionState {
   relationshipName?: string;
   /** Held fief id (see GURPS_HOLDINGS). */
   holdingId?: string;
+  // --- Education (original GURPS-style mechanics) ---
+  /** Enrolled university id (see GURPS_UNIVERSITIES). */
+  universityId?: string;
+  /** Pursued degree id (see GURPS_DEGREES). */
+  degreeId?: string;
+  /** 0–100 progress toward the degree's exam. */
+  studyProgress?: number;
+  /** Whether the degree has been completed. */
+  graduated?: boolean;
+  /** Outstanding tuition debt in gp. */
+  studentDebt?: number;
+  /** Scholarship covering tuition. */
+  scholarship?: boolean;
+  // --- Social life (original mechanics) ---
+  /** 0–100 renown in the local social world. */
+  reputation?: number;
+  /** Joined social circle id (see GURPS_SOCIAL_CIRCLES). */
+  socialCircleId?: string;
+  /** Acquired contacts (names/roles, player-written). */
+  contacts: string[];
+  // --- Medieval deep ---
+  /** Purchased noble title id (see GURPS_NOBLE_TITLES). */
+  titleId?: string;
+  /** Held court position id (see GURPS_COURT_POSITIONS). */
+  courtPositionId?: string;
+  // --- Cyber deep ---
+  /** Owned netdeck id (see GURPS_NETDECKS). */
+  netdeckId?: string;
+  /** Loaded program ids (see GURPS_PROGRAMS). */
+  programs: string[];
+  /** Current corp ladder rank id (see GURPS_CORP_LADDER). */
+  corpPositionId?: string;
 }
 
 // ---------------------------------------------------------------------------

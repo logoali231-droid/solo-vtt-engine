@@ -136,6 +136,18 @@ const GURPS_RULES: GurpsRule[] = [
   { skill: "hacking", ability: "iq", label: "Hacking", re: /\bhack\b|\bnetrun\b|breach (the|a) (firewall|system|network)|crack (the|a) (password|system|firewall)|intrude|\bice\b.*(system|defense)|firewall/ },
   { skill: "fast-talk", ability: "iq", label: "Fast-Talk", re: /fast-?talk|smooth-?talk|\bbullshit\b|\bcon\b.*(him|her|them)|scam|blarney/ },
   { skill: "professional-skill", ability: "iq", label: "Professional Skill", re: /\bjob\b|\bwork\b.*(shift|day|week)|\bcraft\b|\bhone\b|trade skill|do (my|your|the) (job|work)/ },
+  // --- Education & study (original GURPS-style) ---
+  { skill: "research", ability: "iq", label: "Study / Research", re: /\bstudy\b|\bstudy(ing)? (for|the)|\bexam\b|\bcram\b|homework|assignment|\blecture\b|\bseminar\b|university|academ|enroll|matricul|hit the books|thesis|dissertation|\bdegree\b/ },
+  { skill: "computer-operation", ability: "iq", label: "Computer Operation", re: /online course|remote class|e-?learning|\bwebinar\b/ },
+  // --- Social life (original) ---
+  { skill: "savoir-faire", ability: "iq", label: "Savoir-Faire", re: /\bmingle\b|small talk|\bnetwork\b.*(party|event)|attend (the )?(ball|gala|dinner)|socializ|etiquette|protocol/ },
+  { skill: "sex-appeal", ability: "ht", label: "Sex Appeal", re: /attend (the )?(ball|feast|rave)|\brave\b|\bparty\b.*(dance|danced|all night)|charm (the )?(crowd|room)/ },
+  { skill: "politics", ability: "iq", label: "Politics", re: /petition (the )?(king|court|queen)|audience with|\bcourt\b.*(favor|intrigue)|curry favor|intrigue/ },
+  { skill: "broadsword", ability: "dx", label: "Broadsword (Tournament)", re: /\btournament\b|\bjoust\b|the lists/ },
+  // --- Corp ladder (original) ---
+  { skill: "administration", ability: "iq", label: "Administration (Promotion)", re: /promotion|promot(e|ed)|climb (the|corporate) ladder|corporate ladder|raise (request|asking)|performance review/ },
+  // --- Court service (original) ---
+  { skill: "administration", ability: "iq", label: "Administration (Court)", re: /serve (at|the) court|court (duty|service)|chancellor|marshal|herald|royal (decree|proclamation)|the realm's paperwork/ },
   { skill: "", ability: "iq", label: "IQ Roll (Investigate)", re: /investigat|examin|inspect|\bdeduc|figure out|\bclues?\b|search (the|a|this|for)|scour|recall|remember/ },
   { skill: "", ability: "iq", label: "IQ Roll (Persuade)", re: /persuad|convinc|negotiat|barter|\bcharm\b|sweet-?talk|bargain|fast-?talk/ },
   { skill: "", ability: "iq", label: "IQ Roll (Animal Handling)", re: /\b(calm|soothe|ride|handle|train|feed|groom|mount|lead|pet|tame|coax)\b.*\b(animal|beast|horse|creature)\b|\b(animal|beast|horse|creature)\b.*\b(calm|soothe|ride|handle|train|feed|groom|mount|lead|pet|tame|coax)\b/ },
