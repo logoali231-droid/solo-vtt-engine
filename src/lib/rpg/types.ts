@@ -672,6 +672,8 @@ export interface DnDCharacter {
   magicArmorBonus?: number;
   /** Magic-shield enchantment bought from the shop (+N to AC when equipped). */
   magicShieldBonus?: number;
+  /** Minor property infused into the equipped weapon (Ember-Brand, Frostbite…). */
+  weaponProperty?: string;
   /** Class starting wealth (gold) and equipment, seeded into the adventure. */
   startingGold?: number;
   startingInventory?: InventoryItem[];
@@ -1083,6 +1085,8 @@ export interface GmTurn {
   dice?: DiceResult;
   action?: string;
   lorebook?: string; // compiled lorebook context for the live GM
+  /** Structured puzzle spec — the AI narrates the flavor, the rules stay local. */
+  puzzle?: string;
 }
 
 export function uid(): string {

@@ -8,20 +8,30 @@ import {
 import { CONDITIONS, CONDITION_MAP } from "@/lib/rpg/data/conditions";
 import { ARMOR_MAP, CLASS_MAP, WEAPON_MAP } from "@/lib/rpg/data/dnd";
 import {
+  ENCHANT_PROPERTIES,
+  ENCHANT_PROPERTY_MAP,
   ENCHANT_TIERS,
   enchantCost,
   enchantDc,
   enchantLabel,
+  enchantPropertyCost,
+  enchantPropertyLabel,
   fmtShopPrice,
   type EnchantTarget,
 } from "@/lib/rpg/data/dnd-shop";
 import { SPELL_MAP } from "@/lib/rpg/data/spells";
-import { GURPS_SKILL_MAP } from "@/lib/rpg/data/gurps";
+import {
+  GURPS_ATTRIBUTE_UPGRADE_COST,
+  GURPS_SKILL_MAP,
+  gurpsSkillUpgradeCost,
+} from "@/lib/rpg/data/gurps";
+import { generatePuzzle, type PuzzleSpec } from "@/lib/rpg/puzzle";
 import { PF2E_CLASS_MAP } from "@/lib/rpg/data/pf2e";
 import {
   buildDiceResult,
   d as rollDie,
   formatMod,
+  gurpsSwing,
   gurpsThrust,
   parseDice,
   pf2eOutcome,
@@ -101,6 +111,7 @@ import TopBar from "./TopBar";
 import type { RollRequest } from "./types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
+import PuzzleDialog from "./center/PuzzleDialog";
 
 const COND_EFFECTS = Object.fromEntries(CONDITIONS.map((cd) => [cd.id, cd.effects]));
 interface Props {
@@ -260,16 +271,23 @@ export default function GameBoard({
   const [featurePicker, setFeaturePicker] = useState(false);
   const [saveDialog, setSaveDialog] = useState(false);
   const [saveLabel, setSaveLabel] = useState("");
+  // Rules-governed puzzles — spec lives here, narration goes through the GM.
+  const [puzzle, setPuzzle] = useState<PuzzleSpec | null>(null);
+  const [puzzleOpen, setPuzzleOpen] = useState(false);
+  // 0 fresh · 1 first check passed · 2 solved · −1 failed (consequence applied)
+  const [puzzleStep, setPuzzleStep] = useState(0);
   const gm = useGmClient(settings);
   const adventureRef = useRef(adventure);
   const settingsRef = useRef(settings);
   const loreRef = useRef(lorebook);
+  const puzzleRef = useRef<PuzzleSpec | null>(null);
   // Keep refs in sync after every render — event handlers read them, so refs
   // must never be touched during render (React Compiler rule).
   useEffect(() => {
     adventureRef.current = adventure;
     settingsRef.current = settings;
     loreRef.current = lorebook;
+    puzzleRef.current = puzzle;
   });
 
   const system = adventure.system;
@@ -1144,6 +1162,20 @@ export default function GameBoard({
         labels.push(`${sneak}d6 (Sneak Attack)`);
         damageTotal += sum(s);
       }
+      // Infused minor property (Ember-Brand, Frostbite…) — extra damage dice.
+      const prop = dnd.weaponProperty ? ENCHANT_PROPERTY_MAP[dnd.weaponProperty] : undefined;
+      if (prop?.damage) {
+        const p = rollDice(prop.damage.count, prop.damage.sides);
+        rolls.push(...p);
+        labels.push(`${prop.damage.count}d${prop.damage.sides} (${prop.name})`);
+        damageTotal += sum(p);
+      }
+      if (prop?.critBonus && attackDice.outcome === "critical-success") {
+        const p = rollDice(prop.critBonus.count, prop.critBonus.sides);
+        rolls.push(...p);
+        labels.push(`${prop.critBonus.count}d${prop.critBonus.sides} (${prop.name} crit)`);
+        damageTotal += sum(p);
+      }
       // pending damage bonuses
       for (const pb of dnd.state.damagePending) {
         if (pb.die) {
@@ -1165,8 +1197,9 @@ export default function GameBoard({
     } else {
       const gp = char as GurpsCharacter;
       const st = gp.attributes.st;
-      // GURPS thrust damage table — rolls the correct dice for high ST
-      const thr = gurpsThrust(st);
+      // GURPS thrust/swing damage table — rolls the correct dice for high ST.
+      // The swing of a sword hits harder than a thrust; the label carries the mode.
+      const thr = /swing/i.test(attackDice.label) ? gurpsSwing(st) : gurpsThrust(st);
       const r = rollDice(parseDice(thr.notation).count, 6);
       rolls.push(...r);
       labels.push(thr.notation);
@@ -1724,9 +1757,9 @@ export default function GameBoard({
               .filter((s) => GURPS_SKILL_MAP[s.id]?.stat === "dx")
               .sort((a, b) => b.level - a.level)[0];
             roll({
-              label: `${melee ? melee.name : "Brawling (default)"} vs defense 9`,
+              label: `${melee ? melee.name : "Brawling (default)"} Swing vs defense 9`,
               kind: "attack",
-              gurpsTarget: 9,
+              gurpsTarget: melee ? melee.level : char.attributes.dx - 5,
             });
           }
           break;
@@ -2006,6 +2039,161 @@ export default function GameBoard({
   };
 
   // -------------------------------------------------------------------------
+  // Rules-governed puzzles — the spec (checks, DCs, consequences) is decided
+  // locally; the AI narrates the scene and the outcomes, never the mechanics.
+  // -------------------------------------------------------------------------
+  const startPuzzle = useCallback(() => {
+    const snap = adventureRef.current;
+    const spec = generatePuzzle(snap.system, charLevel(snap.character));
+    setPuzzle(spec);
+    setPuzzleStep(0);
+    setPuzzleOpen(true);
+    const checksText = spec.checks
+      .map((ck) => `${ck.label} (${ck.rollLabel}${ck.dc ? `, DC ${ck.dc}` : ""}${ck.gurpsTarget ? `, target ${ck.gurpsTarget}` : ""})`)
+      .join("; then ");
+    void gmRespond({ action: "puzzle", puzzle: `${spec.title} — ${spec.intro} The way forward needs: ${checksText}.` });
+  }, [gmRespond]);
+
+  const attemptPuzzleCheck = useCallback(
+    (idx: number) => {
+      const spec = puzzleRef.current;
+      if (!spec || puzzleStep !== idx) return;
+      const ck = spec.checks[idx];
+      if (!ck) return;
+      const req: RollRequest =
+        system === "gurps"
+          ? { label: ck.rollLabel, kind: "check", gurpsTarget: ck.gurpsTarget, suppressCritNarrate: true }
+          : system === "pf2e"
+            ? { label: ck.rollLabel, kind: "skill", ability: ck.ability, rank: ck.rank, dc: ck.dc, suppressCritNarrate: true }
+            : { label: ck.rollLabel, kind: "skill", ability: ck.ability, skill: ck.skill, proficient: true, dc: ck.dc, suppressCritNarrate: true };
+      const dice = roll(req);
+      if (!dice) return;
+      const ok = dice.outcome === "success" || dice.outcome === "critical-success";
+      if (!ok) {
+        setPuzzleStep(-1);
+        // Puzzle consequences apply the same way in every system — each branch
+        // keeps the discriminated union narrow so the spread stays type-safe.
+        updateChar((ch) => {
+          if (ch.system === "dnd5e") return { ...ch, state: { ...ch.state, hpDamage: ch.state.hpDamage + spec.consequenceHp } };
+          if (ch.system === "pf2e") return { ...ch, state: { ...ch.state, hpDamage: ch.state.hpDamage + spec.consequenceHp } };
+          return { ...ch, state: { ...ch.state, hpDamage: ch.state.hpDamage + spec.consequenceHp } };
+        });
+        pushLog("combat", `${spec.consequenceText} (−${spec.consequenceHp} HP). The puzzle re-locks, mocking you.`);
+      } else if (idx === 1) {
+        setPuzzleStep(2);
+        setAdventure((prev) => ({ ...prev, xp: (prev.xp ?? 0) + spec.rewardXp, updatedAt: Date.now() }));
+        pushLog("combat", `Puzzle solved — ${spec.title}! The way opens (+${spec.rewardXp} XP).`);
+      } else {
+        setPuzzleStep(1);
+        pushLog("system", `You ${ck.label.toLowerCase()} — the puzzle yields its first secret.`);
+      }
+      void gmRespond({ playerText: `I attempt to ${ck.label.toLowerCase()}.`, dice });
+    },
+    [puzzleStep, system, roll, pushLog, updateChar, gmRespond],
+  );
+
+  // -------------------------------------------------------------------------
+  // Property Infusion — minor weapon properties, resolved by the dice engine.
+  // -------------------------------------------------------------------------
+  const enchantProperty = (propId: string) => {
+    const snap = adventureRef.current;
+    if (snap.system !== "dnd5e") return;
+    const char = snap.character as DnDCharacter;
+    const prop = ENCHANT_PROPERTY_MAP[propId];
+    if (!prop) return;
+    if (char.level < prop.minLevel) {
+      toast(`${prop.name} requires level ${prop.minLevel}.`);
+      return;
+    }
+    const cost = enchantPropertyCost(char, prop);
+    const wallet = snap.wallet;
+    if (wallet && walletToSp(wallet) < cost * 100) {
+      toast(`Materials for ${prop.name} cost ${fmtShopPrice(cost)}.`);
+      return;
+    }
+    const dc = prop.dc - (char.classId === "artificer" ? 2 : 0);
+    const dice = roll({
+      label: enchantPropertyLabel(char, prop),
+      kind: "check",
+      ability: "int",
+      proficient: true,
+      dc,
+      suppressCritNarrate: true,
+    });
+    if (!dice) return;
+    if (wallet) {
+      setAdventure((prev) =>
+        prev.wallet
+          ? { ...prev, wallet: spToWallet(walletToSp(prev.wallet) - cost * 100), updatedAt: Date.now() }
+          : prev,
+      );
+    }
+    const piece = WEAPON_MAP[char.weaponId]?.name ?? "weapon";
+    const ok = dice.outcome === "success" || dice.outcome === "critical-success";
+    if (ok) {
+      updateChar((ch) => (ch.system === "dnd5e" ? { ...ch, weaponProperty: prop.id } : ch));
+      setAdventure((prev) => ({
+        ...prev,
+        inventory: [...(prev.inventory ?? []), { id: uid(), name: `${piece} of ${prop.name}`, qty: 1 }],
+        updatedAt: Date.now(),
+      }));
+      pushLog("combat", `The property settles into the steel — your ${piece} now carries ${prop.name} (${dice.breakdown}).`);
+    } else {
+      pushLog("combat", `The infusion fails and the reagents burn away — your ${piece} stays as it was (${dice.breakdown}).`);
+    }
+    void gmRespond({ playerText: `I attempt to infuse my ${piece} with ${prop.name}.`, dice });
+  };
+
+  // -------------------------------------------------------------------------
+  // GURPS training — spend unspent character points straight from the sheet.
+  // -------------------------------------------------------------------------
+  const trainGurpsSkill = (skillId: string) => {
+    const snap = adventureRef.current;
+    if (snap.system !== "gurps") return;
+    const char = snap.character as GurpsCharacter;
+    const d = getGurpsDerived(char);
+    const skill = char.skills.find((s) => s.id === skillId);
+    if (!skill) return;
+    const cost = gurpsSkillUpgradeCost(skill.points);
+    if (d.pointTotal + cost > char.points.budget) {
+      toast("Not enough unspent character points.");
+      return;
+    }
+    updateChar((ch) =>
+      ch.system === "gurps"
+        ? {
+            ...ch,
+            skills: ch.skills.map((s) => (s.id === skillId ? { ...s, points: s.points + cost } : s)),
+            points: { ...ch.points, skills: ch.points.skills + cost },
+          }
+        : ch,
+    );
+    pushLog("system", `Training: ${GURPS_SKILL_MAP[skillId]?.name ?? skillId} raised (${cost} pts spent).`);
+  };
+
+  const trainGurpsAttribute = (attr: "st" | "dx" | "iq" | "ht") => {
+    const snap = adventureRef.current;
+    if (snap.system !== "gurps") return;
+    const char = snap.character as GurpsCharacter;
+    const d = getGurpsDerived(char);
+    const cost = GURPS_ATTRIBUTE_UPGRADE_COST;
+    if (d.pointTotal + cost > char.points.budget) {
+      toast("Not enough unspent character points.");
+      return;
+    }
+    updateChar((ch) =>
+      ch.system === "gurps"
+        ? {
+            ...ch,
+            attributes: { ...ch.attributes, [attr]: ch.attributes[attr] + 1 },
+            points: { ...ch.points, attributes: ch.points.attributes + cost },
+          }
+        : ch,
+    );
+    pushLog("system", `Training: ${attr.toUpperCase()} raised to ${char.attributes[attr] + 1} (${cost} pts spent).`);
+  };
+
+  // -------------------------------------------------------------------------
   // Panel actions bundle
   // -------------------------------------------------------------------------
   const panelActions: PanelActions = {
@@ -2013,6 +2201,11 @@ export default function GameBoard({
     onUseFeature: triggerFeature,
     onToggleCondition: toggleCondition,
     onEnchant: enchantItem,
+    onEnchantProperty: enchantProperty,
+    onStripProperty: () =>
+      updateChar((ch) => (ch.system === "dnd5e" ? { ...ch, weaponProperty: undefined } : ch)),
+    onGurpsTrainSkill: trainGurpsSkill,
+    onGurpsTrainAttribute: trainGurpsAttribute,
     onDndDamage: (n) =>
       updateChar((ch) =>
         ch.system === "dnd5e"
@@ -2387,6 +2580,7 @@ export default function GameBoard({
               }
               enemyConditions={adventure.enemies.find((e) => e.hp > 0)?.conditions ?? []}
               onEnemyConditionToggle={toggleEnemyCondition}
+              onPuzzle={startPuzzle}
             />
           </div>
           <AdSlot settings={ads} />
@@ -2425,6 +2619,16 @@ export default function GameBoard({
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Puzzle dialog — rules-governed: local DCs, AI narration */}
+      <PuzzleDialog
+        open={puzzleOpen}
+        onOpenChange={setPuzzleOpen}
+        puzzle={puzzle}
+        step={puzzleStep}
+        onAttempt={attemptPuzzleCheck}
+        onNewPuzzle={startPuzzle}
+      />
 
       {/* Mobile character sheet drawer */}
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>

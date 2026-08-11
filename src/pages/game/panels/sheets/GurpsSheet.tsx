@@ -12,6 +12,9 @@ interface Props extends SheetProps<GurpsCharacter> {
     heal: (n: number) => void;
     fatigue: (n: number) => void;
     recover: (n: number) => void;
+    /** Spend unspent character points on training, straight from the sheet. */
+    trainSkill?: (skillId: string) => void;
+    trainAttribute?: (attr: "st" | "dx" | "iq" | "ht") => void;
   };
 }
 
@@ -97,6 +100,35 @@ export default function GurpsSheet({ character: c, derived: d, onRoll, actions }
         </div>
       </div>
 
+      {/* Combat — ST-derived damage, click to attack the current foe */}
+      <div className="border-b border-amber-900/40 px-4 py-3">
+        <p className="mb-2 text-[9px] font-bold uppercase tracking-widest text-amber-600/60">
+          Combat · ST damage — click to strike
+        </p>
+        <div className="grid grid-cols-2 gap-1.5">
+          <button
+            type="button"
+            onClick={() => onRoll({ label: `Thrust strike (${d.thrust.notation})`, kind: "attack", gurpsTarget: Math.max(9, c.attributes.dx - 4) })}
+            className="rounded border border-amber-900/40 bg-[#1c1810] px-2 py-2 text-center transition-colors hover:border-amber-500/60"
+          >
+            <p className="text-[9px] font-bold text-amber-600/70">THRUST · spear / dagger</p>
+            <p className="font-mono text-base font-bold text-amber-200">{d.thrust.notation}</p>
+          </button>
+          <button
+            type="button"
+            onClick={() => onRoll({ label: `Swing strike (${d.swing.notation})`, kind: "attack", gurpsTarget: Math.max(9, c.attributes.dx - 4) })}
+            className="rounded border border-amber-900/40 bg-[#1c1810] px-2 py-2 text-center transition-colors hover:border-amber-500/60"
+          >
+            <p className="text-[9px] font-bold text-amber-600/70">SWING · sword / axe</p>
+            <p className="font-mono text-base font-bold text-amber-200">{d.swing.notation}</p>
+          </button>
+        </div>
+        <p className="mt-1.5 text-[8px] leading-relaxed text-amber-600/50">
+          Combat skill defaults to DX−4; train a weapon skill on the Life sheet to raise it. Hit rolls 3d6
+          under the target; the strike lands for {d.thrust.notation} / {d.swing.notation}.
+        </p>
+      </div>
+
       {/* Skills */}
       <div className="px-4 py-3">
         <p className="mb-2 text-[9px] font-bold uppercase tracking-widest text-amber-600/60">
@@ -177,6 +209,49 @@ export default function GurpsSheet({ character: c, derived: d, onRoll, actions }
             </div>
           ))}
         </div>
+
+        {/* Training — spend unspent budget points to raise attributes or skills */}
+        {(actions.trainSkill || actions.trainAttribute) && (
+          <div className="mt-3 rounded border border-emerald-900/40 bg-[#10150e] p-2.5">
+            <p className="mb-1.5 text-[9px] font-bold uppercase tracking-widest text-emerald-500/80">
+              Training · spend unspent budget points
+            </p>
+            <p className="mb-2 text-[8px] leading-relaxed text-emerald-600/60">
+              Unspent budget: {Math.max(0, c.points.budget - d.pointTotal)} pts. +1 attribute = 10 pts;
+              skills follow the standard doubling curve.
+            </p>
+            {actions.trainAttribute && (
+              <div className="mb-2 flex gap-1">
+                {(["st", "dx", "iq", "ht"] as const).map((attr) => (
+                  <button
+                    key={attr}
+                    type="button"
+                    onClick={() => actions.trainAttribute!(attr)}
+                    title={`+1 ${attr.toUpperCase()} (10 pts)`}
+                    className="flex-1 rounded border border-emerald-900/50 py-1 text-[9px] font-bold text-emerald-400 transition-colors hover:border-emerald-500/70 hover:bg-emerald-950/40"
+                  >
+                    {attr.toUpperCase()}+1
+                  </button>
+                ))}
+              </div>
+            )}
+            {actions.trainSkill && d.skills.length > 0 && (
+              <div className="flex flex-col gap-1">
+                {d.skills.map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => actions.trainSkill!(s.id)}
+                    className="flex items-center justify-between rounded border border-emerald-900/40 bg-[#10150e] px-2 py-1 text-left transition-colors hover:border-emerald-500/70"
+                  >
+                    <span className="text-[9px] text-emerald-200">{s.name.toUpperCase()}</span>
+                    <span className="text-[8px] font-bold text-emerald-500">{s.level} → {s.level + 1}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

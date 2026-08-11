@@ -68,6 +68,12 @@ function buildSystemPrompt(
 }
 
 function buildUserPrompt(turn: GmTurn): string {
+  // Rules-governed puzzle: the spec (title, description, required checks) is
+  // local fact — the AI writes the in-world flavor and one clue, but the DCs
+  // and targets are decided by the rules engine, never by the model.
+  if (turn.puzzle) {
+    return `A puzzle blocks the way: ${turn.puzzle}.\n\nDescribe the mechanism vividly, in-world, in the voice of the current scene. Drop exactly one subtle clue. Never state the DC, the target number, or the answer outright — the player must earn it with checks.`;
+  }
   if (turn.playerText && turn.dice) {
     // The engine already resolved a check — the AI must narrate that outcome.
     return `${turn.playerText}\n\n(dice result: ${turn.dice.label} — ${turn.dice.breakdown} — the outcome is already determined, narrate it faithfully)`;

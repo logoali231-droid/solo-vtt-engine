@@ -38,6 +38,7 @@ import {
   GURPS_SKILL_MAP,
   gurpsSkillLevel,
 } from "./data/gurps";
+import { gurpsSwing, gurpsThrust } from "./dice";
 import {
   PF2E_ANCESTRY_MAP,
   PF2E_ARMOR_MAP,
@@ -382,6 +383,9 @@ export interface GurpsDerived {
   advPoints: number;
   disadvPoints: number;
   pointTotal: number;
+  /** ST-derived melee damage — thrust (dagger, spear) and swing (sword, axe). */
+  thrust: { notation: string; flat: number };
+  swing: { notation: string; flat: number };
 }
 
 export interface GurpsAdvantageView {
@@ -465,6 +469,8 @@ export function getGurpsDerived(c: GurpsCharacter): GurpsDerived {
     disadvantages,
     advPoints,
     disadvPoints,
+    thrust: gurpsThrust(c.attributes.st),
+    swing: gurpsSwing(c.attributes.st),
   };
 }
 

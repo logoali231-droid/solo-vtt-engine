@@ -67,6 +67,30 @@ export function gurpsThrust(st: number): { notation: string; flat: number } {
   return { notation: `${dice}d6${flatText}`, flat };
 }
 
+/**
+ * GURPS swing-damage table (custom variant, same +2 ST / +1 dmg curve but
+ * one die step ahead of thrust — a broadside from a sword hits harder than
+ * a thrust). 1d at ST 10, 2d at ST 13, one extra die every 8 ST after 18.
+ */
+export function gurpsSwing(st: number): { notation: string; flat: number } {
+  const s = Math.max(4, Math.min(50, st));
+  let dice = 1;
+  let flat = 0;
+  if (s <= 9) {
+    flat = s - 10; // ST 10 → 1d
+  } else if (s <= 12) {
+    flat = s - 10; // ST 11 → 1d+1, ST 12 → 1d+2
+  } else if (s <= 17) {
+    dice = 2;
+    flat = Math.floor((s - 13) / 2) - 1; // ST 13 → 2d-1 … ST 17 → 2d+1
+  } else {
+    dice = 2 + Math.floor((s - 14) / 8);
+    flat = Math.floor(((s - 14) % 8) / 2); // ST 18 → 3d, ST 22 → 3d+2
+  }
+  const flatText = flat > 0 ? `+${flat}` : flat < 0 ? `${flat}` : "";
+  return { notation: `${dice}d6${flatText}`, flat };
+}
+
 // ---------------------------------------------------------------------------
 // D&D 5e / PF2e d20 resolution
 // ---------------------------------------------------------------------------

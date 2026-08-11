@@ -665,3 +665,75 @@ export function enchantLabel(target: EnchantTarget, tier: EnchantTier, c: DnDCha
     : "shield";
   return `Arcane Enchanting — ${piece} ${tier.label} (Int + prof)`;
 }
+
+// ---------------------------------------------------------------------------
+// Property Infusion — minor weapon properties on top of the +N enchant.
+// Each property has a mechanical effect the dice engine applies on a hit;
+// the cost and DC are local rules, never AI decisions.
+// ---------------------------------------------------------------------------
+
+export interface EnchantPropertyDef {
+  id: string;
+  name: string;
+  desc: string;
+  dc: number;
+  minLevel: number;
+  costMult: number;
+  /** Extra damage dice on every hit, e.g. 1d6 fire. */
+  damage?: { count: number; sides: number; label: string };
+  /** Extra damage dice on a critical hit only. */
+  critBonus?: { count: number; sides: number; label: string };
+}
+
+export const ENCHANT_PROPERTIES: EnchantPropertyDef[] = [
+  {
+    id: "ember",
+    name: "Ember-Brand",
+    desc: "The blade licks with crimson fire — +1d6 fire damage on a hit.",
+    dc: 14, minLevel: 5, costMult: 1.6,
+    damage: { count: 1, sides: 6, label: "fire" },
+  },
+  {
+    id: "frost",
+    name: "Frostbite",
+    desc: "A killing cold clings to the edge — +1d6 cold damage on a hit.",
+    dc: 14, minLevel: 5, costMult: 1.6,
+    damage: { count: 1, sides: 6, label: "cold" },
+  },
+  {
+    id: "storm",
+    name: "Storm-Touched",
+    desc: "Crackling arcs leap from the metal — +1d6 lightning damage on a hit.",
+    dc: 16, minLevel: 7, costMult: 2,
+    damage: { count: 1, sides: 6, label: "lightning" },
+  },
+  {
+    id: "vicious",
+    name: "Vicious Edge",
+    desc: "Critical hits bite deeper — +2d6 extra damage on a critical hit.",
+    dc: 18, minLevel: 9, costMult: 2.5,
+    critBonus: { count: 2, sides: 6, label: "crit" },
+  },
+  {
+    id: "heartpiercer",
+    name: "Heartpiercer",
+    desc: "The point seeks vitals — +1d4 damage on every hit, +2d4 more on a crit.",
+    dc: 20, minLevel: 12, costMult: 3,
+    damage: { count: 1, sides: 4, label: "piercing" },
+    critBonus: { count: 2, sides: 4, label: "crit" },
+  },
+];
+
+export const ENCHANT_PROPERTY_MAP = Object.fromEntries(
+  ENCHANT_PROPERTIES.map((p) => [p.id, p]),
+);
+
+/** Material cost of infusing a property into the equipped weapon. */
+export function enchantPropertyCost(c: DnDCharacter, prop: EnchantPropertyDef): number {
+  return round5(enchantBasePrice("weapon", c) * shopLevelFactor(c.level) * prop.costMult);
+}
+
+/** Dice label for a property-infusion attempt. */
+export function enchantPropertyLabel(c: DnDCharacter, prop: EnchantPropertyDef): string {
+  return `Property Infusion — ${WEAPON_MAP[c.weaponId]?.name ?? "weapon"} ${prop.name} (Int + prof)`;
+}

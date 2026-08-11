@@ -228,6 +228,22 @@ export function gurpsSkillLevel(
   return stat + offset + 2 + Math.floor((points - 4) / 4);
 }
 
+/**
+ * Cost in character points to raise a skill one step from its current
+ * investment (1 → 2 → 4 → 8 → 12 → …). The next level after 4 points costs
+ * +4 per step, mirroring the gurpsSkillLevel curve above.
+ */
+export function gurpsSkillUpgradeCost(points: number): number {
+  if (points <= 0) return 1;
+  if (points === 1) return 1;
+  if (points === 2) return 2;
+  if (points === 4) return 4;
+  return 4;
+}
+
+/** Cost to raise a primary attribute by one (custom: 10 pts per +1). */
+export const GURPS_ATTRIBUTE_UPGRADE_COST = 10;
+
 /** Attribute cost: base 10, each ±1 costs/refunds 10 points. */
 export function gurpsAttributeCost(attributes: {
   st: number;

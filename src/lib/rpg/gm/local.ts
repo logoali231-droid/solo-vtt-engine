@@ -691,6 +691,17 @@ export function localRespond(
   const text = (turn.playerText ?? "").trim();
   const lower = text.toLowerCase();
 
+  // Rules-governed puzzle — the spec is local fact; this offline narrator
+  // frames it in-world. The checks themselves resolve through the dice engine.
+  if (turn.action === "puzzle" && turn.puzzle) {
+    return (
+      turn.puzzle +
+      (language === "pt-BR"
+        ? " O caminho está bloqueado — decifre o mecanismo, um passo de cada vez."
+        : " The way is blocked — decipher the mechanism, one step at a time.")
+    );
+  }
+
   // NPC generator — "npc", "who is this", "meet someone"…
   if (
     /(^|\s)(npc|stranger|who is (this|that)|meet someone|introduce someone|roll an npc|personagem|quem é (esse|essa)|estranho|apresente alguém|conhecer alguém)/.test(

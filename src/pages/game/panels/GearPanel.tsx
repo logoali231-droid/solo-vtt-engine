@@ -6,9 +6,11 @@ import { formatMod } from "@/lib/rpg/dice";
 import { ARMORS, ARMOR_MAP, CLASS_MAP, WEAPONS, WEAPON_MAP } from "@/lib/rpg/data/dnd";
 import {
   DND_RARITY_LABELS,
+  ENCHANT_PROPERTIES,
   ENCHANT_TIERS,
   enchantCost,
   enchantDc,
+  enchantPropertyCost,
   fmtShopPrice,
   generateDndShop,
   type DndRarity,
@@ -48,9 +50,12 @@ interface Props {
   onSetMagicArmor?: (id: string, bonus: number) => void;
   onSetMagicShield?: (bonus: number) => void;
   onEnchant?: (target: EnchantTarget, tier: 1 | 2 | 3) => void;
+  onEnchantProperty?: (propId: string) => void;
+  /** Strip the infused property off the weapon — it is lost, but the slot frees up. */
+  onStripProperty?: () => void;
 }
 
-export default function GearPanel({ character: c, derived: d, inventory, onInventoryChange, onSetWeapon, onSetArmor, onToggleShield, onAttack, wallet, onWalletChange, onSetMagicWeapon, onSetMagicArmor, onSetMagicShield, onEnchant }: Props) {
+export default function GearPanel({ character: c, derived: d, inventory, onInventoryChange, onSetWeapon, onSetArmor, onToggleShield, onAttack, wallet, onWalletChange, onSetMagicWeapon, onSetMagicArmor, onSetMagicShield, onEnchant, onEnchantProperty, onStripProperty }: Props) {
   const armor = ARMOR_MAP[c.armorId];
   // The shop stock is regenerated when the hero levels up or changes class —
   // better level means better (and pricier) gear on the shelves.
@@ -245,6 +250,55 @@ export default function GearPanel({ character: c, derived: d, inventory, onInven
               </div>
             ))}
           </div>
+
+          {/* Property Infusion — minor weapon properties, resolved by the dice engine */}
+          {onEnchantProperty && (
+            <div className="mt-3 border-t border-violet-500/20 pt-2">
+              <p className="mb-1.5 text-[10px] font-bold uppercase tracking-widest text-violet-300/80">
+                Property Infusion — weapon only
+              </p>
+              <div className="flex flex-col gap-1.5">
+                {ENCHANT_PROPERTIES.map((prop) => {
+                  const locked = c.level < prop.minLevel;
+                  const current = c.weaponProperty === prop.id;
+                  const dc = prop.dc - (c.classId === "artificer" ? 2 : 0);
+                  return (
+                    <button
+                      key={prop.id}
+                      type="button"
+                      disabled={locked}
+                      onClick={() => onEnchantProperty(prop.id)}
+                      title={
+                        locked
+                          ? `Requires level ${prop.minLevel}`
+                          : `${fmtShopPrice(enchantPropertyCost(c, prop))} materials · DC ${dc} · Int + prof`
+                      }
+                      className={cn(
+                        "flex items-start justify-between gap-2 rounded-lg border px-2.5 py-1.5 text-left transition-colors",
+                        current
+                          ? "border-emerald-500/60 bg-emerald-500/10"
+                          : locked
+                            ? "cursor-not-allowed border-slate-800 text-slate-700"
+                            : "border-violet-500/30 bg-violet-500/5 hover:border-violet-400 hover:bg-violet-500/15",
+                      )}
+                    >
+                      <div>
+                        <p className={cn("text-[11px] font-semibold", current ? "text-emerald-300" : "text-slate-200")}>
+                          {prop.name}
+                          {current && <span className="ml-1.5 text-[9px] font-bold uppercase text-emerald-400">active</span>}
+                        </p>
+                        <p className="text-[9px] leading-relaxed text-slate-500">{prop.desc}</p>
+                      </div>
+                      <span className="shrink-0 pt-0.5 text-right text-[9px] font-semibold text-slate-500">
+                        {fmtShopPrice(enchantPropertyCost(c, prop))}
+                        <br />DC {dc}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

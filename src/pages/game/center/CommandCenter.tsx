@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 import type { GameSystem } from "@/lib/rpg/types";
 import type { RollRequest } from "../types";
-import { Loader2, Send, Sparkles } from "lucide-react";
+import { Loader2, Puzzle, Send, Sparkles } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { CONDITION_MAP } from "@/lib/rpg/data/conditions";
 
@@ -27,6 +27,8 @@ interface Props {
   /** Conditions on the current foe — drive automatic advantage/disadvantage. */
   enemyConditions?: string[];
   onEnemyConditionToggle?: (id: string) => void;
+  /** Rules-governed puzzle — local DCs, AI narration. */
+  onPuzzle?: () => void;
 }
 
 export default function CommandCenter({
@@ -39,6 +41,7 @@ export default function CommandCenter({
   pendingCount,
   enemyConditions,
   onEnemyConditionToggle,
+  onPuzzle,
 }: Props) {
   const [text, setText] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -134,6 +137,16 @@ export default function CommandCenter({
           </span>
         )}
         <div className="ml-auto hidden gap-1 sm:flex">
+          {onPuzzle && (
+            <button
+              type="button"
+              onClick={onPuzzle}
+              title="A rules-governed puzzle — local DCs, the AI narrates the scene"
+              className="flex items-center gap-1 rounded-lg border border-violet-500/40 bg-violet-500/10 px-2.5 py-1.5 text-[11px] font-semibold text-violet-300 transition-all hover:border-violet-400 hover:bg-violet-500/20 hover:text-violet-200"
+            >
+              <Puzzle className="size-3" /> Puzzle
+            </button>
+          )}
           {actions.map((a) => (
             <button
               key={a.id}
@@ -177,6 +190,12 @@ export default function CommandCenter({
       </div>
       {/* Mobile quick actions */}
       <div className="mt-2 flex gap-1 overflow-x-auto pb-0.5 sm:hidden">
+        {onPuzzle && (
+          <button type="button" onClick={onPuzzle}
+            className="shrink-0 rounded-lg border border-violet-500/40 bg-violet-500/10 px-2.5 py-1.5 text-[11px] font-semibold text-violet-300">
+            Puzzle
+          </button>
+        )}
         {actions.map((a) => (
           <button key={a.id} type="button" onClick={() => onQuickAction(a.id)}
             className="shrink-0 rounded-lg border border-slate-800 bg-slate-900 px-2.5 py-1.5 text-[11px] font-semibold text-slate-300">

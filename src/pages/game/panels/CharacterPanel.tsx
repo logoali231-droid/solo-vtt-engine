@@ -75,6 +75,10 @@ export interface PanelActions {
   onSetMagicShield?: (bonus: number) => void;
   /** Custom Enchanting Bench — attempt to enchant the equipped slot (+1/+2/+3). */
   onEnchant?: (target: "weapon" | "armor" | "shield", tier: 1 | 2 | 3) => void;
+  /** Property Infusion — weave a minor weapon property (Ember-Brand, Frostbite…) via a local crafting check. */
+  onEnchantProperty?: (propId: string) => void;
+  /** Strip the infused property off the weapon (reagents returned to nothing — it is lost). */
+  onStripProperty?: () => void;
   // pf2e
   onPfSetSkillRank: (skill: string, rank: PfRank) => void;
   onPfSetSaveRank: (ability: string, rank: PfRank) => void;
@@ -95,6 +99,9 @@ export interface PanelActions {
   onGurpsExt?: (patch: Partial<GurpsExtensionState>) => void;
   /** Life Mode tag — re-frames the whole GURPS life-sim (set at Adventure Setup). */
   onSetLifeMode?: (m: GurpsLifeMode) => void;
+  /** Spend unspent character points on skill/attribute training from the sheet. */
+  onGurpsTrainSkill?: (skillId: string) => void;
+  onGurpsTrainAttribute?: (attr: "st" | "dx" | "iq" | "ht") => void;
 }
 
 interface Props {
@@ -213,6 +220,8 @@ export default function CharacterPanel({
                 heal: actions.onGurpsHeal,
                 fatigue: actions.onGurpsFatigue,
                 recover: actions.onGurpsRecover,
+                trainSkill: actions.onGurpsTrainSkill,
+                trainAttribute: actions.onGurpsTrainAttribute,
               }}
             />
           ))}
@@ -231,6 +240,8 @@ export default function CharacterPanel({
               onSetMagicArmor={actions.onSetMagicArmor}
               onSetMagicShield={actions.onSetMagicShield}
               onEnchant={actions.onEnchant}
+              onEnchantProperty={actions.onEnchantProperty}
+              onStripProperty={actions.onStripProperty}
               wallet={wallet}
               onWalletChange={onWalletChange}
             />
