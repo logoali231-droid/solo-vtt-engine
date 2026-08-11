@@ -1,4 +1,5 @@
 import type { GurpsSkillDef } from "../types";
+import { GURPS_EXTENSION_SKILLS } from "./gurps-extensions";
 
 // Skill list: name, controlling attribute, difficulty.
 export const GURPS_SKILLS: GurpsSkillDef[] = [
@@ -30,6 +31,9 @@ export const GURPS_SKILLS: GurpsSkillDef[] = [
   { id: "running", name: "Running", stat: "ht", difficulty: "hard" },
   { id: "swimming", name: "Swimming", stat: "ht", difficulty: "easy" },
   { id: "brawling-dx", name: "—", stat: "dx", difficulty: "easy" },
+  // Life & Livelihood extension skills (original content — jobs, economics,
+  // love, business, cyber, medieval).
+  ...GURPS_EXTENSION_SKILLS,
 ];
 
 export const GURPS_SKILL_MAP = Object.fromEntries(

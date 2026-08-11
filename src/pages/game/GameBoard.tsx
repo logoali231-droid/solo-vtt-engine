@@ -2001,6 +2001,26 @@ export default function GameBoard({
           ? { ...ch, state: { ...ch.state, fpDamage: Math.max(0, ch.state.fpDamage - n) } }
           : ch,
       ),
+    // Life & Livelihood extension — persist a slice of the ext state.
+    onGurpsExt: (patch) =>
+      updateChar((ch) =>
+        ch.system === "gurps"
+          ? {
+              ...ch,
+              ext: {
+                jobId: undefined,
+                wealthTierId: undefined,
+                businessId: undefined,
+                cyberware: [],
+                relationshipStage: undefined,
+                relationshipName: undefined,
+                holdingId: undefined,
+                ...ch.ext,
+                ...patch,
+              },
+            }
+          : ch,
+      ),
   };
 
   // -------------------------------------------------------------------------

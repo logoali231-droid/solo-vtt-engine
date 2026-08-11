@@ -16,6 +16,7 @@ import type {
 } from "./types";
 import { ABILITIES } from "./types";
 import { abilityMod, pfTierBonus } from "./dice";
+import { GURPS_CYBERWARE_MAP } from "./data/gurps-extensions";
 import {
   ARMOR_MAP,
   attackAbilityFor,
@@ -402,9 +403,14 @@ export function getGurpsDerived(c: GurpsCharacter): GurpsDerived {
   });
   const dodge =
     move + 3 + advantages.reduce((a, x) => a + (GURPS_ADVANTAGE_MAP[x.id]?.effects?.dodge ?? 0), 0);
+  const cyberwareDr = (c.ext?.cyberware ?? []).reduce(
+    (a, w) => a + (GURPS_CYBERWARE_MAP[w]?.dr ?? 0),
+    0,
+  );
   const dr =
     (GURPS_ARMOR_MAP[c.armorId]?.dr ?? 0) +
-    advantages.reduce((a, x) => a + (GURPS_ADVANTAGE_MAP[x.id]?.effects?.dr ?? 0), 0);
+    advantages.reduce((a, x) => a + (GURPS_ADVANTAGE_MAP[x.id]?.effects?.dr ?? 0), 0) +
+    cyberwareDr;
   const skills = c.skills.map((s) => {
     const def = GURPS_SKILL_MAP[s.id];
     const stat =

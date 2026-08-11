@@ -775,11 +775,35 @@ export interface GurpsCharacter {
   identity?: Partial<CharacterIdentity>;
   adventurePrefs?: Partial<AdventurePrefs>;
   points: { attributes: number; advantages: number; skills: number; disadvantages?: number; budget: number };
+  /** Life & Livelihood extension state — jobs, wealth, business, relationships,
+   *  cyberware and holdings. Original mechanics built on GURPS logic. */
+  ext?: GurpsExtensionState;
   state: {
     hpDamage: number;
     fpDamage: number;
     conditions: string[];
   };
+}
+
+// ---------------------------------------------------------------------------
+// GURPS Life & Livelihood extension (original mechanics in GURPS style)
+// ---------------------------------------------------------------------------
+
+export interface GurpsExtensionState {
+  /** Active job id (see GURPS_JOBS). */
+  jobId?: string;
+  /** Wealth tier id (see GURPS_WEALTH_TIERS). */
+  wealthTierId?: string;
+  /** Owned business id (see GURPS_BUSINESSES) — paid for from the wallet. */
+  businessId?: string;
+  /** Installed cyberware ids (see GURPS_CYBERWARE). */
+  cyberware: string[];
+  /** Current relationship stage id (see GURPS_RELATIONSHIP_STAGES). */
+  relationshipStage?: string;
+  /** Name of the current romantic interest / partner. */
+  relationshipName?: string;
+  /** Held fief id (see GURPS_HOLDINGS). */
+  holdingId?: string;
 }
 
 // ---------------------------------------------------------------------------

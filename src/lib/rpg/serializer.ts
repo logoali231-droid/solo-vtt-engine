@@ -16,6 +16,14 @@ import type {
 import { identityOf, prefsOf } from "./types";
 import { PF2E_FEAT_MAP } from "./data/pf2e";
 import {
+  GURPS_BUSINESS_MAP,
+  GURPS_CYBERWARE_MAP,
+  GURPS_HOLDING_MAP,
+  GURPS_JOB_MAP,
+  GURPS_RELATIONSHIP_MAP,
+  GURPS_WEALTH_MAP,
+} from "./data/gurps-extensions";
+import {
   getDndDerived,
   getGurpsDerived,
   getPf2eDerived,
@@ -232,6 +240,17 @@ function serializeGurps(c: GurpsCharacter): Record<string, unknown> {
     dodge: d.dodge,
     damageResistance: d.dr,
     armorId: c.armorId,
+    life: c.ext
+      ? {
+          job: GURPS_JOB_MAP[c.ext.jobId ?? ""]?.name ?? c.ext.jobId ?? null,
+          wealthTier: GURPS_WEALTH_MAP[c.ext.wealthTierId ?? ""]?.name ?? c.ext.wealthTierId ?? null,
+          business: GURPS_BUSINESS_MAP[c.ext.businessId ?? ""]?.name ?? c.ext.businessId ?? null,
+          cyberware: (c.ext.cyberware ?? []).map((w) => GURPS_CYBERWARE_MAP[w]?.name ?? w),
+          relationshipStage: GURPS_RELATIONSHIP_MAP[c.ext.relationshipStage ?? ""]?.name ?? c.ext.relationshipStage ?? null,
+          relationshipName: c.ext.relationshipName ?? null,
+          holding: GURPS_HOLDING_MAP[c.ext.holdingId ?? ""]?.name ?? c.ext.holdingId ?? null,
+        }
+      : null,
   };
 }
 

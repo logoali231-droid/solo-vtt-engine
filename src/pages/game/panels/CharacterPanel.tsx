@@ -6,7 +6,9 @@ import type {
   DnDCharacter,
   GameSystem,
   GmLanguage,
+  DiceResult,
   GurpsCharacter,
+  GurpsExtensionState,
   InventoryItem,
   LorebookEntry,
   Pf2eCharacter,
@@ -19,6 +21,7 @@ import CompanionPanel from "./CompanionPanel";
 import ConditionsPanel from "./ConditionsPanel";
 import GearPanel, { InventoryEditor, WalletEditor } from "./GearPanel";
 import Pf2eGearPanel from "./Pf2eGearPanel";
+import GurpsExtensionsPanel from "./GurpsExtensionsPanel";
 import LorebookPanel from "./LorebookPanel";
 import DndSheet from "./sheets/DndSheet";
 import GurpsSheet from "./sheets/GurpsSheet";
@@ -47,7 +50,8 @@ export interface CampaignPanelData {
 }
 
 export interface PanelActions {
-  onRoll: (r: RollRequest) => void;
+  /** Returns the resolved dice synchronously for GURPS extension rolls; sheets ignore the return. */
+  onRoll: (r: RollRequest) => DiceResult | undefined;
   onUseFeature: (featureId: string) => void;
   onToggleCondition: (id: string) => void;
   // dnd
@@ -75,6 +79,8 @@ export interface PanelActions {
   onGurpsHeal: (n: number) => void;
   onGurpsFatigue: (n: number) => void;
   onGurpsRecover: (n: number) => void;
+  /** Life & Livelihood extension — persists a slice of ext state. */
+  onGurpsExt?: (patch: Partial<GurpsExtensionState>) => void;
 }
 
 interface Props {
@@ -112,7 +118,7 @@ export default function CharacterPanel({
   campaign,
   gmLanguage = "en",
 }: Props) {
-  const [tab, setTab] = useState<"sheet" | "party" | "gear" | "conditions" | "lorebook" | "campaign">("sheet");
+  const [tab, setTab] = useState<"sheet" | "party" | "gear" | "conditions" | "lorebook" | "campaign" | "life">("sheet");
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -125,6 +131,7 @@ export default function CharacterPanel({
             ["conditions", "Conditions"],
             ["lorebook", "Lorebook"],
             ["campaign", "Campaign"],
+            ...(system === "gurps" ? ([["life", "Life"]] as const) : []),
           ] as const
         ).map(([id, label]) => (
           <button
@@ -227,6 +234,17 @@ export default function CharacterPanel({
               )}
             </div>
           ))}
+        {tab === "life" && system === "gurps" && (
+          <GurpsExtensionsPanel
+            character={character as GurpsCharacter}
+            derived={derived as GurpsDerived}
+            onRoll={actions.onRoll}
+            onExt={(patch) => actions.onGurpsExt?.(patch)}
+            wallet={wallet}
+            onWalletChange={onWalletChange}
+            gmLanguage={gmLanguage}
+          />
+        )}
         {tab === "conditions" && (
           <ConditionsPanel
             system={system}
