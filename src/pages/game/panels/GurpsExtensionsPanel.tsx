@@ -489,9 +489,9 @@ export default function GurpsExtensionsPanel({
     report(`${g.name} secured (${g.cost} gp).`);
   };
   const runNetrun = (run: GurpsNetrunDef) => {
-    const deckBonus = ext.netdeckId ? (GURPS_NETDECK_MAP[ext.netdeckId]?.hackBonus ?? 0) : 0;
-    const progBonus = gurpsHackBonus(ext.netdeckId, ext.programs);
-    const target = gurpsHackingLevel(c) + deckBonus + progBonus + run.penalty;
+    // gurpsHackBonus already includes the netdeck bonus — add it exactly once.
+    const bonus = gurpsHackBonus(ext.netdeckId, ext.programs);
+    const target = gurpsHackingLevel(c) + bonus + run.penalty;
     const dice = onRoll({ label: `Netrun: ${run.name} (Hacking ${target})`, kind: "check", gurpsTarget: target });
     if (!dice) return;
     const r = gurpsNetrunResult(dice.margin ?? 0, dice.outcome, run);

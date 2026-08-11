@@ -133,7 +133,7 @@ const GURPS_RULES: GurpsRule[] = [
   { skill: "computer-operation", ability: "iq", label: "Computer Operation", re: /\bcomputer\b|\bterminal\b|\bpc\b|\blaptop\b|operate (the|a) computer|\binterface\b|\bscreen\b/ },
   { skill: "computer-programming", ability: "iq", label: "Computer Programming", re: /\bcode\b|\bprogram(ming)?\b|\balgorithm\b|\bscript\b|\bdebug\b|\bdevelop\b.*(app|software)/ },
   { skill: "electronics-operation", ability: "iq", label: "Electronics Operation", re: /electronics|\bcircuit\b|\bsensor\b|\bradar\b|\bscanner\b|operate (the|a) (device|machine|console)/ },
-  { skill: "hacking", ability: "iq", label: "Hacking", re: /\bhack\b|\bnetrun\b|breach (the|a) (firewall|system|network)|crack (the|a) (password|system|firewall)|intrude|\bice\b.*(system|defense)|firewall/ },
+  { skill: "hacking", ability: "iq", label: "Hacking", re: /\bhack\b(?! (at|away|down|through|off|out|the door|the lock|it open|a path))|\bnetrun\b|breach (the|a) (firewall|system|network)|crack (the|a) (password|system|firewall)|intrude|\bice\b.*(system|defense)|firewall/ },
   { skill: "fast-talk", ability: "iq", label: "Fast-Talk", re: /fast-?talk|smooth-?talk|\bbullshit\b|\bcon\b.*(him|her|them)|scam|blarney/ },
   { skill: "professional-skill", ability: "iq", label: "Professional Skill", re: /\bjob\b|\bwork\b.*(shift|day|week)|\bcraft\b|\bhone\b|trade skill|do (my|your|the) (job|work)/ },
   // --- Education & study (original GURPS-style) ---

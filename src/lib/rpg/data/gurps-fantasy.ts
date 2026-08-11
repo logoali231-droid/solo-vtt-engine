@@ -118,7 +118,7 @@ export function gurpsSpellSkillLevel(c: GurpsCharacter, collegeId: GurpsMagicCol
 
 /** Total FP available to spend on magic (FP max − fatigue damage). */
 export function gurpsMaxFp(c: GurpsCharacter): number {
-  return Math.max(1, c.attributes.ht + 2 - (c.state?.fpDamage ?? 0));
+  return Math.max(1, c.attributes.ht - (c.state?.fpDamage ?? 0));
 }
 
 /** Critical-failure mishap table (original, d6). */

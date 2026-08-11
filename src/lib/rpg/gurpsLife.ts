@@ -1222,9 +1222,9 @@ export function resolveLifeCommand(
       if (!run) continue;
       if (!words.some((w) => t.includes(w))) continue;
       if (!gurpsCyberLayer(mode)) return worldBlock(run.name);
-      const deckBonus = ext.netdeckId ? (GURPS_NETDECK_MAP[ext.netdeckId]?.hackBonus ?? 0) : 0;
-      const progBonus = gurpsHackBonus(ext.netdeckId, ext.programs);
-      const target = gurpsHackingLevel(c) + deckBonus + progBonus + run.penalty;
+      // gurpsHackBonus already includes the netdeck bonus — add it exactly once.
+      const bonus = gurpsHackBonus(ext.netdeckId, ext.programs);
+      const target = gurpsHackingLevel(c) + bonus + run.penalty;
       return {
         kind: "rolled",
         label: `Netrun: ${run.name} (Hacking ${target})`,
@@ -1564,7 +1564,7 @@ export function resolveLifeCommand(
   // skill roll. (Specific handlers above already caught the named items; this
   // catches the generic phrasings: "hack the mainframe" in a medieval world…)
   // -------------------------------------------------------------------------
-  const worldCyberRe = /\b(hack|netrun|jack in|jack into|netdeck|mainframe|icebreaker|cyberware|datajack|neural link|corp drone|netrunner|fixer|ripperdoc|bounty hunter|chrome|promotion|executive|the grid|drone|plasma|arc lance|hardsuit|weave suit|ballistic vest|pulse carbine|shredder|bio-?scanner|jammer|hoverbike|gridrunner|paydata)\b/i;
+  const worldCyberRe = /\b(hack|netrun|jack in|jack into|netdeck|mainframe|icebreaker|cyberware|datajack|neural link|corp drone|netrunner|fixer|ripperdoc|bounty hunter|chrome|corp promotion|corporate ladder|executive suite|executive position|the grid|drone|plasma|arc lance|hardsuit|weave suit|ballistic vest|pulse carbine|shredder|bio-?scanner|jammer|hoverbike|gridrunner|paydata)\b/i;
   const worldMedievalRe = /\b(harvest|holding|manor|fief|demesne|knighthood|esquire|baronet|duke|herald|marshal|chancellor|spymaster|serve at court|serve the king|serve the queen|title of|spell|magic|alchem|potion|reagent|brew|forge|smith)\b|\b(cast|learn|study)\b.{0,40}\b(spell|magic|pyre|frost|gale|verdant|veil|spirit)\b/i;
   if (!gurpsCyberLayer(mode) && worldCyberRe.test(t)) {
     return worldBlock("Cyberpunk content");
@@ -1610,6 +1610,18 @@ export function lifeSummary(character: GurpsCharacter, lang: Lang = "en"): strin
         )
       : undefined,
     (ext.reputation ?? 0) > 0 ? L(`Reputation: ${ext.reputation}/100`, `Reputação: ${ext.reputation}/100`) : undefined,
+    (ext.spells ?? []).length > 0
+      ? L(`Spells: ${(ext.spells ?? []).map((s) => GURPS_SPELL_MAP[s]?.name ?? s).join(", ")}`, `Magias: ${(ext.spells ?? []).map((s) => GURPS_SPELL_MAP[s]?.name ?? s).join(", ")}`)
+      : undefined,
+    (ext.potions ?? []).length > 0
+      ? L(`Potions: ${(ext.potions ?? []).map((p) => GURPS_ALCHEMY_MAP[p]?.name ?? p).join(", ")}`, `Poções: ${(ext.potions ?? []).map((p) => GURPS_ALCHEMY_MAP[p]?.name ?? p).join(", ")}`)
+      : undefined,
+    (ext.crafted ?? []).length > 0
+      ? L(`Crafted: ${(ext.crafted ?? []).map((f) => GURPS_FORGE_MAP[f]?.name ?? f).join(", ")}`, `Forjado: ${(ext.crafted ?? []).map((f) => GURPS_FORGE_MAP[f]?.name ?? f).join(", ")}`)
+      : undefined,
+    (ext.gear ?? []).length > 0
+      ? L(`Gear: ${(ext.gear ?? []).map((g) => GURPS_GEAR_MAP[g]?.name ?? g).join(", ")}`, `Equipamento: ${(ext.gear ?? []).map((g) => GURPS_GEAR_MAP[g]?.name ?? g).join(", ")}`)
+      : undefined,
   ].filter((p): p is string => !!p);
   const modeLine = L(`Life Mode: ${modeName}`, `Life Mode: ${modeName}`);
   return [modeLine, ...pieces].join(" · ");
