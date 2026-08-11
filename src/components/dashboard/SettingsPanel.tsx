@@ -1,14 +1,26 @@
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { chatWithProvider, GM_PROVIDERS, providerOf } from "@/lib/rpg/gm/providers";
+import { useAction } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import {
+  chatWithProvider,
+  GM_PROVIDERS,
+  hordeModelStatus,
+  HORDE_RPG_MODELS,
+  providerOf,
+} from "@/lib/rpg/gm/providers";
+import type { HordeStatusResult } from "@/lib/rpg/gm/providers";
 import { loadGmSettings, saveGmSettings } from "@/lib/rpg/storage";
 import type { GmLanguage, GmSettings } from "@/lib/rpg/types";
-import { Loader2, PlugZap } from "lucide-react";
-import { useState } from "react";
+import { Loader2, PlugZap, RefreshCw } from "lucide-react";
+import { useEffect, useState } from "react";
 
 export default function SettingsPanel() {
   const [settings, setSettings] = useState<GmSettings>(() => loadGmSettings());
   const [testing, setTesting] = useState(false);
+  const [hordeStatus, setHordeStatus] = useState<HordeStatusResult | null>(null);
+  const [checkingHorde, setCheckingHorde] = useState(false);
+  const hordeStatusAction = useAction(api.gm.hordeStatus);
 
   const patch = (p: Partial<GmSettings>) => {
     const next = { ...settings, ...p };
@@ -17,6 +29,41 @@ export default function SettingsPanel() {
   };
 
   const provider = providerOf(settings.provider);
+
+  /** Live availability check against the AI Horde network. The convex action
+   *  is the primary path (no CORS), the client fetch is the fallback. */
+  const checkHorde = async (model?: string) => {
+    setCheckingHorde(true);
+    try {
+      const target = model ?? settings.model;
+      let res: HordeStatusResult;
+      try {
+        const r = await hordeStatusAction({ model: target || undefined });
+        res = (r ?? { ok: false, selected: null, models: [] }) as HordeStatusResult;
+      } catch {
+        res = await hordeModelStatus(target);
+      }
+      setHordeStatus(res);
+      if (!res.ok) {
+        toast.error(res.detail ?? "AI Horde status check failed.");
+      }
+    } finally {
+      setCheckingHorde(false);
+    }
+  };
+
+  // Auto-check once when the horde provider becomes active.
+  useEffect(() => {
+    if (settings.provider === "horde" && !hordeStatus) {
+      void checkHorde();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings.provider]);
+
+  const selectHordeModel = (name: string) => {
+    patch({ model: name });
+    void checkHorde(name);
+  };
 
   const testConnection = async () => {
     if (settings.provider === "builtin") {
@@ -170,6 +217,121 @@ export default function SettingsPanel() {
           ))}
         </datalist>
       </div>
+
+      {/* AI Horde — live model availability */}
+      {settings.provider === "horde" && (
+        <div className="rounded-xl border border-emerald-500/30 bg-emerald-950/50 p-3">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-300">
+              AI Horde · model status
+            </p>
+            <button
+              type="button"
+              onClick={() => void checkHorde()}
+              disabled={checkingHorde}
+              className="flex items-center gap-1 rounded-md border border-emerald-500/40 bg-emerald-500/10 px-2 py-1 text-[10px] font-bold text-emerald-300 transition-colors hover:bg-emerald-500/20 disabled:opacity-50"
+            >
+              {checkingHorde ? (
+                <Loader2 className="size-3 animate-spin" />
+              ) : (
+                <RefreshCw className="size-3" />
+              )}
+              {checkingHorde ? "Checking…" : "Check again"}
+            </button>
+          </div>
+          <p className="mt-1 text-[10px] leading-relaxed text-emerald-200/60">
+            AI Horde is an open volunteer GPU network — a model only works while
+            a worker is hosting it right now. This checks the live network.
+          </p>
+
+          {/* Selected model verdict */}
+          {hordeStatus && (
+            <div className="mt-2 rounded-lg border border-emerald-500/20 bg-emerald-900/40 p-2.5">
+              <p className="break-all font-mono text-[11px] font-bold text-emerald-100">
+                {settings.model || "(no model set)"}
+              </p>
+              {hordeStatus.selected?.running ? (
+                <p className="mt-0.5 text-[10px] font-semibold text-emerald-300">
+                  ● Running — {hordeStatus.selected.workers} worker
+                  {hordeStatus.selected.workers === 1 ? "" : "s"}
+                  {hordeStatus.selected.queued > 0
+                    ? `, ${hordeStatus.selected.queued} queued`
+                    : ""}
+                  {hordeStatus.selected.eta != null
+                    ? `, ~${hordeStatus.selected.eta}s ETA`
+                    : ""}
+                </p>
+              ) : hordeStatus.ok ? (
+                <p className="mt-0.5 text-[10px] font-semibold text-amber-300">
+                  ○ Not running right now — no worker currently hosts it. Pick
+                  a model below that is, or type another name from aihorde.net.
+                </p>
+              ) : (
+                <p className="mt-0.5 text-[10px] font-semibold text-rose-300">
+                  Check failed — {hordeStatus.detail ?? "network error"}
+                </p>
+              )}
+            </div>
+          )}
+          {!hordeStatus && !checkingHorde && (
+            <p className="mt-2 text-[10px] text-emerald-200/60">
+              Press “Check again” to see which models are live.
+            </p>
+          )}
+
+          {/* Live RPG shortlist */}
+          {hordeStatus?.ok && hordeStatus.models.length > 0 && (
+            <div className="mt-3">
+              <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-emerald-400">
+                RPG shortlist · live network
+              </p>
+              <div className="flex max-h-56 flex-col gap-1 overflow-y-auto pr-1">
+                {hordeStatus.models.map((m) => {
+                  const info = HORDE_RPG_MODELS.find((x) => x.name === m.name);
+                  return (
+                    <button
+                      key={m.name}
+                      type="button"
+                      onClick={() => selectHordeModel(m.name)}
+                      className={cn(
+                        "flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-left transition-colors",
+                        m.running
+                          ? "border-emerald-500/30 bg-emerald-900/30 hover:bg-emerald-900/60"
+                          : "border-stone-800 bg-emerald-950/30 opacity-60 hover:opacity-90",
+                        settings.model === m.name &&
+                          "ring-1 ring-emerald-400/60",
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "size-1.5 shrink-0 rounded-full",
+                          m.running ? "bg-emerald-400" : "bg-stone-600",
+                        )}
+                        aria-hidden
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-mono text-[10px] font-semibold text-emerald-100">
+                          {m.name}
+                        </span>
+                        {info && (
+                          <span className="block text-[9px] text-emerald-200/50">
+                            {info.size} · {info.style}
+                          </span>
+                        )}
+                      </span>
+                      {m.running && (
+                        <span className="shrink-0 text-[9px] font-bold text-emerald-300">
+                          {m.workers}w{m.queued > 0 ? ` · ${m.queued}q` : ""}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Base URL */}
       {provider.needsBaseUrl && (

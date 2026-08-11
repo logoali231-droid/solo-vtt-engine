@@ -18,6 +18,41 @@ export interface GmProviderDef {
   keyPlaceholder?: string;
 }
 
+// ---------------------------------------------------------------------------
+// AI Horde — curated RPG-focused model catalog.
+//
+// AI Horde is an open, volunteer-run GPU network: a model only works while at
+// least one worker is currently hosting it. The catalog below is the RPG
+// shortlist (roleplay-tuned storytellers of every size). Availability is
+// checked live against the network — see hordeModelStatus() and the convex
+// `gm.hordeStatus` action — because workers come and go.
+// ---------------------------------------------------------------------------
+
+export interface HordeRpgModel {
+  name: string;
+  size: string;
+  style: string;
+}
+
+export const HORDE_RPG_MODELS: HordeRpgModel[] = [
+  { name: "koboldcpp/L3-8B-Stheno-v3.2-IQ3_S-imat", size: "8B", style: "Roleplay storyteller — fast, smart, reliable" },
+  { name: "koboldcpp/Llama-3.2-3B", size: "3B", style: "Lightning-fast general storytelling" },
+  { name: "aphrodite/TheDrummer/Skyfall-31B-v4.2", size: "31B", style: "High-quality roleplay with rich prose" },
+  { name: "TheBloke/MythoMax-L2-13B-GPTQ", size: "13B", style: "Classic creative-writing / RP all-rounder" },
+  { name: "koboldcpp/MythoMax-L2-13B-GGUF", size: "13B", style: "Same classic storyteller, GGUF build" },
+  { name: "KoboldAI/LLaMA2-13B-Tiefighter", size: "13B", style: "Long-time roleplay staple of the Horde" },
+  { name: "TheBloke/Mistral-7B-Instruct-v0.2-GPTQ", size: "7B", style: "Fast instruct — decent narration, low queue" },
+  { name: "KoboldAI/OPT-13B-Erebus", size: "13B", style: "Old-school creative writing / adventure" },
+  { name: "TheBloke/Llama-2-7B-Chat-GPTQ", size: "7B", style: "Quick general chat when queues spike" },
+  { name: "TheBloke/Llama-2-13B-Chat-GPTQ", size: "13B", style: "Balanced general storytelling" },
+  { name: "TheBloke/Pygmalion-13B-SuperHOT-8K-GPTQ", size: "13B", style: "Roleplay with 8K context window" },
+  { name: "TheDrummer/Rocinante-12B-v1.1", size: "12B", style: "Modern roleplay — strong prose" },
+  { name: "TheDrummer/Unholy-V1-12B", size: "12B", style: "Creative writing with a darker edge" },
+  { name: "TheDrummer/Mirage-8B", size: "8B", style: "Smooth roleplay storyteller" },
+  { name: "TheDrummer/Lobotomized-Llama-3.2-3B", size: "3B", style: "Fast roleplay, mature-content tolerant" },
+];
+
+
 export const GM_PROVIDERS: GmProviderDef[] = [
   {
     id: "builtin",
@@ -109,13 +144,102 @@ export const GM_PROVIDERS: GmProviderDef[] = [
     tagline: "100% free & unlimited — community-hosted GPUs with roleplay-tuned models. No key, no caps; expect a queue of seconds to minutes. Pick any model name from aihorde.net.",
     tier: "free",
     needsKey: false,
-    models: [
-      "koboldcpp/L3-8B-Stheno-v3.2-IQ3_S-imat",
-      "koboldcpp/Llama-3.2-3B",
-      "aphrodite/TheDrummer/Skyfall-31B-v4.2",
-    ],
+    models: HORDE_RPG_MODELS.map((m) => m.name),
   },
 ];
+
+export interface HordeLiveEntry {
+  name: string;
+  running: boolean;
+  workers: number;
+  queued: number;
+  eta: number | null; // seconds
+}
+
+export interface HordeStatusResult {
+  ok: boolean;
+  checkedAt?: number;
+  selected: HordeLiveEntry | null;
+  models: HordeLiveEntry[];
+  code?: string;
+  detail?: string;
+}
+
+/** Parse a raw GET /status/models payload into curated availability entries.
+ *  Defensive: tolerates any field shape the network returns. */
+export function parseHordeStatus(
+  raw: unknown,
+  model?: string,
+): Omit<HordeStatusResult, "ok"> {
+  const list = Array.isArray(raw) ? raw : [];
+  const textEntries = list.filter((m) => {
+    if (!m || typeof m !== "object") return false;
+    const t = (m as { type?: string }).type;
+    const name = (m as { name?: string }).name;
+    return (t === undefined || t === "text" || t === "Text") && typeof name === "string";
+  });
+  const byName = new Map<string, { workers: number; queued: number; eta: number | null }>();
+  for (const e of textEntries) {
+    const r = e as {
+      name: string;
+      count?: number;
+      queued?: number;
+      jobs?: number;
+      eta?: number;
+    };
+    byName.set(r.name, {
+      workers: r.count ?? 0,
+      queued: r.queued ?? r.jobs ?? 0,
+      eta: typeof r.eta === "number" && r.eta > 0 ? r.eta : null,
+    });
+  }
+  const entry = (name: string): HordeLiveEntry => {
+    const s = byName.get(name);
+    return {
+      name,
+      // A model only works while at least one worker is actively hosting it —
+      // a listed entry with 0 workers means requests would queue forever.
+      running: !!s && s.workers > 0,
+      workers: s?.workers ?? 0,
+      queued: s?.queued ?? 0,
+      eta: s?.eta ?? null,
+    };
+  };
+  const models = HORDE_RPG_MODELS.map((m) => entry(m.name));
+  const selected = model && model.trim() ? entry(model.trim()) : null;
+  return { selected, models };
+}
+
+/** Client-side availability check against the AI Horde network.
+ *  The API is CORS-open for anonymous reads; the convex `gm.hordeStatus`
+ *  action is the primary path (used by the settings UI), this is the
+ *  browser fallback when the backend is unreachable. */
+export async function hordeModelStatus(model?: string): Promise<HordeStatusResult> {
+  try {
+    const res = await fetch(`${HORDE_API}/status/models`, {
+      headers: { "Client-Agent": "Oraculum-SoloVTT/1.0" },
+    });
+    if (!res.ok) {
+      return {
+        ok: false,
+        code: `horde_status_${res.status}`,
+        detail: `AI Horde status check failed (${res.status})`,
+        selected: null,
+        models: [],
+      };
+    }
+    const raw = await res.json();
+    return { ok: true, checkedAt: Date.now(), ...parseHordeStatus(raw, model) };
+  } catch (err) {
+    return {
+      ok: false,
+      code: "network_error",
+      detail: err instanceof Error ? err.message : String(err),
+      selected: null,
+      models: [],
+    };
+  }
+}
 
 export function providerOf(id: GmSettings["provider"]): GmProviderDef {
   return GM_PROVIDERS.find((p) => p.id === id) ?? GM_PROVIDERS[0];

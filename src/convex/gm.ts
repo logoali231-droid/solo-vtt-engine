@@ -2,6 +2,7 @@ import { action } from "./_generated/server.js";
 import { v } from "convex/values";
 import { dndRulesContext, pf2eRulesContext } from "../lib/rpg/data/adventure-samples";
 import { GM_AUTHORITY_RULES } from "../lib/rpg/cheatGuard";
+import { parseHordeStatus } from "../lib/rpg/gm/providers";
 
 // Live Game Master completion endpoint — multi-provider router.
 //   - "openai" (default): OpenAI chat completions. The key lives server-side:
@@ -26,6 +27,45 @@ function hordePrompt(system: string, user: string): string {
     "<|im_start|>assistant\n",
   ].join("\n");
 }
+
+/** Live availability check — AI Horde is an open volunteer network: a model
+ *  only works while a worker is currently hosting it. GET /status/models
+ *  returns exactly what is running right now. No auth required. */
+export const hordeStatus = action({
+  args: {
+    model: v.optional(v.string()),
+  },
+  handler: async (_ctx, args) => {
+    try {
+      const res = await fetch(`${HORDE_API}/status/models`, {
+        headers: { "Client-Agent": "Oraculum-SoloVTT/1.0" },
+      });
+      if (!res.ok) {
+        return {
+          ok: false,
+          code: `horde_status_${res.status}`,
+          detail: `AI Horde status check failed (${res.status})`,
+          selected: null,
+          models: [],
+        };
+      }
+      const raw = await res.json();
+      return {
+        ok: true,
+        checkedAt: Date.now(),
+        ...parseHordeStatus(raw, args.model),
+      };
+    } catch (err) {
+      return {
+        ok: false,
+        code: "network_error",
+        detail: err instanceof Error ? err.message : String(err),
+        selected: null,
+        models: [],
+      };
+    }
+  },
+});
 
 /** AI Horde async-job completion: submit, then poll until finished/timeout. */
 async function hordeGenerate(
