@@ -168,7 +168,7 @@ export function getDndDerived(c: DnDCharacter): DndDerived {
   if (c.state.activeStatus.includes("bladesong")) {
     ac += Math.max(1, mods.int);
   }
-  if (c.shield) ac += 2;
+  if (c.shield) ac += 2 + (c.magicShieldBonus ?? 0);
   // Magic armor bought from the shop — +N to AC while worn.
   ac += c.magicArmorBonus ?? 0;
 

@@ -670,6 +670,8 @@ export interface DnDCharacter {
   magicWeaponBonus?: number;
   /** Magic-armor enchantment bought from the shop (+N to AC). */
   magicArmorBonus?: number;
+  /** Magic-shield enchantment bought from the shop (+N to AC when equipped). */
+  magicShieldBonus?: number;
   /** Class starting wealth (gold) and equipment, seeded into the adventure. */
   startingGold?: number;
   startingInventory?: InventoryItem[];

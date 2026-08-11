@@ -1110,10 +1110,14 @@ export default function GameBoard({
         d.attacks.find((a) => attackDice.label.startsWith(a.name)) ?? d.attacks[0];
       const count = attack.count;
       const dmgRolls = rollDice(count, attack.sides);
-      const bonus = d.mods[attack.ability];
+      // Magic-weapon enchantment adds to damage exactly like the attack roll.
+      const bonus = d.mods[attack.ability] + (attack.enchant ?? 0);
       rolls.push(...dmgRolls);
       labels.push(`${count}d${attack.sides}`);
-      damageTotal = sum(dmgRolls) + Math.max(0, bonus);
+      // Negative ability modifiers DO reduce damage (a -2 STR hit lands weak);
+      // the rules floor the result at 1 — they never zero the penalty out.
+      // (5e: minimum 1 on a hit; PF2e: same minimum-damage rule.)
+      damageTotal = Math.max(1, sum(dmgRolls) + bonus);
       // extra damage dice (smite, fury, artillerist…)
       const extraDmg = d.features.find((f) => f.hook?.kind === "extraDamage" && f.hook.die > 0 && f.level <= dnd.level);
       if (extraDmg) {
@@ -1145,7 +1149,9 @@ export default function GameBoard({
       const r = rollDice(1, 8);
       rolls.push(...r);
       labels.push("1d8");
-      damageTotal = sum(r) + Math.max(0, getPf2eDerived(pf).mods[klass.keyAbility]);
+      // Same rule as D&D: the key-ability modifier applies even when negative,
+      // floored at 1 damage on a successful hit.
+      damageTotal = Math.max(1, sum(r) + getPf2eDerived(pf).mods[klass.keyAbility]);
     } else {
       const gp = char as GurpsCharacter;
       const st = gp.attributes.st;
@@ -1957,9 +1963,21 @@ export default function GameBoard({
           : ch,
       );
     },
-    onSetWeapon: (id) => updateChar((ch) => (ch.system === "dnd5e" ? { ...ch, weaponId: id } : ch)),
-    onSetArmor: (id) => updateChar((ch) => (ch.system === "dnd5e" ? { ...ch, armorId: id } : ch)),
+    // Equipping a MUNDANE weapon/armor drops any shop enchantment — the
+    // magic bonus only applies to the enchanted piece it was bought with.
+    onSetWeapon: (id) =>
+      updateChar((ch) => (ch.system === "dnd5e" ? { ...ch, weaponId: id, magicWeaponBonus: 0 } : ch)),
+    onSetArmor: (id) =>
+      updateChar((ch) => (ch.system === "dnd5e" ? { ...ch, armorId: id, magicArmorBonus: 0 } : ch)),
     onToggleShield: () => updateChar((ch) => (ch.system === "dnd5e" ? { ...ch, shield: !ch.shield } : ch)),
+    // Enchanted gear from the Adventurer's Shop — sets the slot AND applies
+    // the +N enchantment so the dice engine and AC math pick it up.
+    onSetMagicWeapon: (id, bonus) =>
+      updateChar((ch) => (ch.system === "dnd5e" ? { ...ch, weaponId: id, magicWeaponBonus: bonus } : ch)),
+    onSetMagicArmor: (id, bonus) =>
+      updateChar((ch) => (ch.system === "dnd5e" ? { ...ch, armorId: id, magicArmorBonus: bonus } : ch)),
+    onSetMagicShield: (bonus) =>
+      updateChar((ch) => (ch.system === "dnd5e" ? { ...ch, shield: true, magicShieldBonus: bonus } : ch)),
     onAttack: (attackId) => {
       const snap = adventureRef.current;
       if (snap.system !== "dnd5e") return;

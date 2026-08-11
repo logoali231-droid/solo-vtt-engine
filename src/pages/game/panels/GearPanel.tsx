@@ -42,9 +42,10 @@ interface Props {
   onWalletChange?: (w: Wallet) => void;
   onSetMagicWeapon?: (id: string, bonus: number) => void;
   onSetMagicArmor?: (id: string, bonus: number) => void;
+  onSetMagicShield?: (bonus: number) => void;
 }
 
-export default function GearPanel({ character: c, derived: d, inventory, onInventoryChange, onSetWeapon, onSetArmor, onToggleShield, onAttack, wallet, onWalletChange, onSetMagicWeapon, onSetMagicArmor }: Props) {
+export default function GearPanel({ character: c, derived: d, inventory, onInventoryChange, onSetWeapon, onSetArmor, onToggleShield, onAttack, wallet, onWalletChange, onSetMagicWeapon, onSetMagicArmor, onSetMagicShield }: Props) {
   const armor = ARMOR_MAP[c.armorId];
   // The shop stock is regenerated when the hero levels up or changes class —
   // better level means better (and pricier) gear on the shelves.
@@ -164,8 +165,14 @@ export default function GearPanel({ character: c, derived: d, inventory, onInven
               : "border-slate-800 text-slate-400 hover:border-slate-600",
           )}
         >
-          Shield {c.shield ? "equipped (+2 AC)" : "—"}
+          Shield {c.shield ? `equipped (+${2 + (c.magicShieldBonus ?? 0)} AC)` : "—"}
         </button>
+        {(c.magicShieldBonus ?? 0) > 0 && (
+          <p className="mt-1.5 rounded-lg border border-amber-500/30 bg-amber-500/5 px-2.5 py-1.5 text-[10px] text-amber-300/90">
+            Magic shield from the shop — +{c.magicShieldBonus} AC on top of the shield's +2. Toggle the
+            shield off to stow it.
+          </p>
+        )}
         {armor.stealthDis && (
           <p className="mt-2 text-[10px] text-slate-500">{armor.note ?? "Disadvantage on Stealth (bulky armor)"}</p>
         )}
@@ -181,6 +188,7 @@ export default function GearPanel({ character: c, derived: d, inventory, onInven
         onInventoryChange={onInventoryChange}
         onSetMagicWeapon={onSetMagicWeapon}
         onSetMagicArmor={onSetMagicArmor}
+        onSetMagicShield={onSetMagicShield}
       />
 
       <InventoryEditor inventory={inventory} onChange={onInventoryChange} />
@@ -388,6 +396,7 @@ function ShopSection({
   onInventoryChange,
   onSetMagicWeapon,
   onSetMagicArmor,
+  onSetMagicShield,
 }: {
   character: DnDCharacter;
   stock: DndShopItem[];
@@ -398,6 +407,7 @@ function ShopSection({
   onInventoryChange: (items: InventoryItem[]) => void;
   onSetMagicWeapon?: (id: string, bonus: number) => void;
   onSetMagicArmor?: (id: string, bonus: number) => void;
+  onSetMagicShield?: (bonus: number) => void;
 }) {
   const className = CLASS_MAP[c.classId]?.name ?? "Adventurer";
   const affordable = (price: number) => (wallet ? walletToSp(wallet) >= price * 100 : true);
@@ -418,6 +428,11 @@ function ShopSection({
     }
     if (item.baseArmorId && item.enchant && onSetMagicArmor) {
       onSetMagicArmor(item.baseArmorId, item.enchant);
+    }
+    // Shields (mundane or enchanted) equip through the shield slot — an
+    // enchanted one also stores its +N AC bonus for the engine.
+    if (item.category === "shield" && onSetMagicShield) {
+      onSetMagicShield(item.enchant ?? 0);
     }
     toast(`Bought ${item.name} for ${fmtShopPrice(item.price)}.`);
   };
