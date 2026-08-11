@@ -568,6 +568,13 @@ export default function GameBoard({
           extra.push({ label: "Flash of Genius", value: d.mods.int, source: "feature" });
           featureUsed = "Flash of Genius";
         }
+        // Magic weapon equipped from the shop — +N enchantment on attack rolls.
+        if (request.kind === "attack") {
+          const atk = d.attacks.find((a) => request.label.startsWith(a.name));
+          if (atk?.enchant) {
+            extra.push({ label: "Magic Weapon", value: atk.enchant, source: "equipment" });
+          }
+        }
 
         const abilityMod = request.ability ? d.mods[request.ability] : 0;
         const bonus = request.proficient ? d.profBonus : 0;

@@ -633,6 +633,8 @@ export interface AttackDef {
   ability: AbilityId;
   range?: string;
   properties: string[];
+  /** Magic-weapon enchantment applied to this attack (shop gear). */
+  enchant?: number;
 }
 
 export interface PendingBonus {
@@ -664,6 +666,10 @@ export interface DnDCharacter {
   weaponId: string;
   armorId: string;
   shield: boolean;
+  /** Magic-weapon enchantment bought from the shop (+N to attack/damage). */
+  magicWeaponBonus?: number;
+  /** Magic-armor enchantment bought from the shop (+N to AC). */
+  magicArmorBonus?: number;
   /** Class starting wealth (gold) and equipment, seeded into the adventure. */
   startingGold?: number;
   startingInventory?: InventoryItem[];

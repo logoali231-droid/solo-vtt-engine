@@ -169,6 +169,8 @@ export function getDndDerived(c: DnDCharacter): DndDerived {
     ac += Math.max(1, mods.int);
   }
   if (c.shield) ac += 2;
+  // Magic armor bought from the shop — +N to AC while worn.
+  ac += c.magicArmorBonus ?? 0;
 
   const initiative =
     mods.dex + featEffects.reduce((a, f) => a + (f.effects?.initiative ?? 0), 0);
@@ -230,6 +232,8 @@ export function getDndDerived(c: DnDCharacter): DndDerived {
       ability,
       range: weapon.range,
       properties: weapon.properties,
+      // Magic-weapon enchantment bought from the shop — +N to hit & damage.
+      enchant: c.magicWeaponBonus ?? 0,
     },
   ];
 

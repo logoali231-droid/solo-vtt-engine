@@ -68,6 +68,9 @@ export interface PanelActions {
   onSetArmor: (id: string) => void;
   onToggleShield: () => void;
   onAttack: (attackId: string) => void;
+  /** Equip magic gear from the shop — sets the slot AND applies its enchant. */
+  onSetMagicWeapon?: (id: string, bonus: number) => void;
+  onSetMagicArmor?: (id: string, bonus: number) => void;
   // pf2e
   onPfSetSkillRank: (skill: string, rank: PfRank) => void;
   onPfSetSaveRank: (ability: string, rank: PfRank) => void;
@@ -218,6 +221,8 @@ export default function CharacterPanel({
               onSetArmor={actions.onSetArmor}
               onToggleShield={actions.onToggleShield}
               onAttack={actions.onAttack}
+              onSetMagicWeapon={actions.onSetMagicWeapon}
+              onSetMagicArmor={actions.onSetMagicArmor}
               wallet={wallet}
               onWalletChange={onWalletChange}
             />
