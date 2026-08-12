@@ -45,6 +45,7 @@ function resolveRedirectTarget(redirectTo: string): string {
 export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
   providers: [emailOtp, Anonymous, Google],
   callbacks: {
-    redirect: ({ redirectTo }) => resolveRedirectTarget(redirectTo),
+    redirect: ({ redirectTo }) =>
+      Promise.resolve(resolveRedirectTarget(redirectTo)),
   },
 });

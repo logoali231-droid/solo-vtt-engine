@@ -37,9 +37,10 @@ function resolveRedirectAfterAuth(
 const GOOGLE_FLOW_TIMEOUT_MS = 15000;
 
 /** Key used to carry the post-OAuth destination through the hard redirect back
- *  to the SPA root. The deployed host only serves the app at "/" on full page
- *  loads, so the OAuth round-trip must land there; Landing.tsx reads this stash
- *  and routes to the intended screen once the session token is exchanged. */
+ *  to the app root. The OAuth round-trip must land on the app's own origin
+ *  (the backend's .convex.site domain never serves the SPA), so Google
+ *  sign-in redirects to `<origin>/` and Landing.tsx reads this stash to route
+ *  to the intended screen once the session token is exchanged. */
 export const OAUTH_RETURN_KEY = "oraculum.oauthReturn";
 
 /** Map common OAuth errors to actionable guidance (credentials live in the
@@ -167,16 +168,23 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
     }, GOOGLE_FLOW_TIMEOUT_MS);
 
     try {
-      // The deployed host serves the SPA only at "/" on full page loads, so the
-      // OAuth round-trip must land at the root, where ConvexAuthProvider picks
-      // up and exchanges the ?code= session token. Stash the real destination
-      // so Landing.tsx can continue into it once the session is established.
+      // The OAuth handshake runs on the backend's `.convex.site` domain, which
+      // never hosts the SPA. Convex Auth resolves a *relative* redirectTo
+      // against its SITE_URL env var (the backend domain), so a relative path
+      // would land the browser on a "No matching routes found" 404. Instead we
+      // pass the app's own absolute origin, which the backend redirect
+      // callback (see convex/auth.ts) allows; the browser then returns to the
+      // app root, where ConvexAuthProvider picks up and exchanges the ?code=
+      // session token. Stash the real destination so Landing.tsx can continue
+      // into it once the session is established.
       try {
         sessionStorage.setItem(OAUTH_RETURN_KEY, redirect);
       } catch {
         // storage unavailable — fall back to the default destination
       }
-      const result = await signIn("google", { redirectTo: "/" });
+      const result = await signIn("google", {
+        redirectTo: `${window.location.origin}/`,
+      });
       const oauthUrl = result?.redirect;
       if (!oauthUrl) {
         // Not an OAuth flow — the auth-state effect handles navigation.
