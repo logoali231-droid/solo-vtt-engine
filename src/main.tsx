@@ -7,7 +7,7 @@ import { ConvexAuthProvider } from "@convex-dev/auth/react";
 import { ConvexReactClient } from "convex/react";
 import React, { StrictMode, useEffect, lazy, Suspense } from "react";
 import { createRoot } from "react-dom/client";
-import { BrowserRouter, Route, Routes, useLocation } from "react-router";
+import { HashRouter, Route, Routes, useLocation } from "react-router";
 import "./index.css";
 
 /**
@@ -163,7 +163,13 @@ createRoot(document.getElementById("root")!).render(
         <VlyToolbar />
       </ToolbarErrorBoundary>
       <ConvexAuthProvider client={convex}>
-        <BrowserRouter>
+        {/* Hash routing: static hosts (Convex hosting, previews) only serve
+         * index.html at the root, so deep paths like /dashboard 404 on full
+         * page loads. Hash URLs (e.g. /#/dashboard) are never sent to the
+         * host, so every route, reload and share link works anywhere.
+         * OAuth still lands at "/" with ?code=, which ConvexAuthProvider
+         * exchanges before Landing.tsx resumes the stashed destination. */}
+        <HashRouter>
           <RouteSyncer />
           <Suspense fallback={<RouteLoading />}>
             <Routes>
@@ -183,7 +189,7 @@ createRoot(document.getElementById("root")!).render(
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>
-        </BrowserRouter>
+        </HashRouter>
         <Toaster />
       </ConvexAuthProvider>
     </RootErrorBoundary>
