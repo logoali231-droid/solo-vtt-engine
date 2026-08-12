@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/input-otp";
 
 import { useAuth } from "@/hooks/use-auth";
+import { useConvex } from "convex/react";
 import logo from "@/assets/logo.svg";
 import { ArrowRight, Loader2, Mail, UserX } from "lucide-react";
 import { Suspense, useEffect, useState } from "react";
@@ -34,13 +35,15 @@ function resolveRedirectAfterAuth(
   return fallback;
 }
 
-const GOOGLE_FLOW_TIMEOUT_MS = 15000;
+// OAuth runs inside a popup and the user may take a while in Google's account
+// picker, so give the flow a generous window before re-enabling the buttons.
+const GOOGLE_FLOW_TIMEOUT_MS = 60000;
 
-/** Key used to carry the post-OAuth destination through the hard redirect back
- *  to the app root. The OAuth round-trip must land on the app's own origin
- *  (the backend's .convex.site domain never serves the SPA), so Google
- *  sign-in redirects to `<origin>/` and Landing.tsx reads this stash to route
- *  to the intended screen once the session token is exchanged. */
+/** Key used to carry the post-OAuth destination across a full-page navigation
+ *  back to the app root. Google sign-in's OAuth round-trip lands on the app's
+ *  own origin (the backend's .convex.site domain never serves the SPA);
+ *  Landing.tsx reads this stash to route to the intended screen once the
+ *  session token is exchanged. */
 export const OAUTH_RETURN_KEY = "oraculum.oauthReturn";
 
 /** Map common OAuth errors to actionable guidance (credentials live in the
@@ -83,6 +86,7 @@ function GoogleIcon({ className }: { className?: string }) {
 
 function Auth({ redirectAfterAuth }: AuthProps = {}) {
   const { isLoading: authLoading, isAuthenticated, signIn } = useAuth();
+  const convex = useConvex();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const redirect = resolveRedirectAfterAuth(
@@ -156,35 +160,62 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
     setError(null);
     setIsLoading(true);
 
-    // Watchdog: OAuth sign-in is supposed to navigate the whole tab to the
-    // Convex auth URL. If that top-level navigation is blocked (sandboxed
-    // preview iframe) the promise still resolves, and without this guard the
-    // button would spin forever. Never allow that.
+    // The Freebuff host serves this app cross-origin-isolated (COEP:
+    // require-corp), and Firefox blocks cross-origin top-level navigations to
+    // targets that don't send a CORP header — which is exactly the case for
+    // the Convex OAuth pages on *.convex.site (NS_ERROR_DOM_COEP_FAILED). So
+    // instead of navigating this tab, we run the OAuth round-trip inside a
+    // same-origin popup opened synchronously from the click (so popup blockers
+    // allow it). The popup is a fresh browsing context, so it is not subject
+    // to this page's COEP. Convex Auth stores the session in localStorage,
+    // which the provider in THIS tab watches via storage events — when the
+    // popup finishes, this tab authenticates and navigates to the destination.
+    let popup: Window | null = null;
+    try {
+      popup = window.open(
+        "",
+        "oraculum_google_oauth",
+        "popup,width=520,height=680",
+      );
+    } catch {
+      popup = null;
+    }
+
+    // Watchdog so the button never spins forever if the user abandons the
+    // popup without completing the sign-in.
     const watchdog = window.setTimeout(() => {
       setIsLoading(false);
       setError(
-        "Google sign-in timed out. In the embedded preview, the sign-in redirect to an external domain can be blocked — use the email code or guest options here, or open the app in a full browser tab to sign in with Google.",
+        "Google sign-in is taking a while. If the popup closed without completing, click again — or use the email code or guest options.",
       );
     }, GOOGLE_FLOW_TIMEOUT_MS);
 
     try {
-      // The OAuth handshake runs on the backend's `.convex.site` domain, which
-      // never hosts the SPA. Convex Auth resolves a *relative* redirectTo
-      // against its SITE_URL env var (the backend domain), so a relative path
-      // would land the browser on a "No matching routes found" 404. Instead we
-      // pass the app's own absolute origin, which the backend redirect
-      // callback (see convex/auth.ts) allows; the browser then returns to the
-      // app root, where ConvexAuthProvider picks up and exchanges the ?code=
-      // session token. Stash the real destination so Landing.tsx can continue
-      // into it once the session is established.
+      // Stash the real destination so the main tab continues into it once the
+      // session token lands (the popup has its own per-tab sessionStorage).
       try {
         sessionStorage.setItem(OAUTH_RETURN_KEY, redirect);
       } catch {
         // storage unavailable — fall back to the default destination
       }
-      const result = await signIn("google", {
-        redirectTo: `${window.location.origin}/`,
-      });
+
+      // Request the OAuth authorize URL directly instead of the library's
+      // signIn (which would navigate THIS tab). The backend redirect callback
+      // (convex/auth.ts) allows the app's own absolute origin as the return
+      // target, so the round-trip comes back to the app instead of the
+      // backend's "No matching routes found" 404.
+      const result = (await (
+        convex as unknown as {
+          action: (
+            name: string,
+            args: Record<string, unknown>,
+          ) => Promise<{ redirect?: string; verifier?: string }>;
+        }
+      ).action("auth:signIn", {
+        provider: "google",
+        params: { redirectTo: `${window.location.origin}/` },
+      })) as { redirect?: string; verifier?: string } | undefined;
+
       const oauthUrl = result?.redirect;
       if (!oauthUrl) {
         // Not an OAuth flow — the auth-state effect handles navigation.
@@ -193,28 +224,61 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
         return;
       }
 
-      // The auth client sets window.location.href = oauthUrl (top-level
-      // navigation). If we're still on this page a moment later, the browser
-      // blocked it — detect and recover instead of hanging on the spinner.
-      await new Promise((resolve) => setTimeout(resolve, 250));
-      if (window.location.href !== oauthUrl.toString()) {
+      // Persist the PKCE verifier under the exact key the popup's
+      // ConvexAuthProvider reads when it exchanges the ?code= session token.
+      // The provider namespaces its storage by the client's address.
+      try {
+        const namespace = (convex as unknown as { address: string }).address.replace(
+          /[^a-zA-Z0-9]/g,
+          "",
+        );
+        localStorage.setItem(
+          `__convexAuthOAuthVerifier_${namespace}`,
+          result.verifier ?? "",
+        );
+      } catch {
+        popup?.close();
         window.clearTimeout(watchdog);
         setIsLoading(false);
-        let opened = false;
-        try {
-          opened = Boolean(window.open(oauthUrl.toString(), "_blank"));
-        } catch {
-          opened = false;
-        }
         setError(
-          opened
-            ? "Google sign-in opened in a new tab. Finish it there, then refresh this page to complete sign-in. If it still doesn't work here, open the app in a full browser tab — embedded previews can block the sign-in redirect."
-            : "This preview blocked Google's sign-in redirect. Use the email code or guest options here, or open the app in a full browser tab to sign in with Google.",
+          "Browser storage is unavailable, so Google sign-in can't complete here. Use the email code or guest options instead.",
         );
+        return;
       }
-      // else: navigation succeeded — the component is being torn down.
+
+      if (popup && !popup.closed) {
+        // Navigate the popup through the handshake. When it finishes it writes
+        // the session to localStorage; this tab's provider syncs it and the
+        // auth-state effect below navigates to the destination.
+        try {
+          popup.location.href = oauthUrl;
+        } catch {
+          window.clearTimeout(watchdog);
+          setIsLoading(false);
+          setError(
+            "Couldn't start the Google sign-in popup. Use the email code or guest options instead.",
+          );
+        }
+        return;
+      }
+
+      // The popup was blocked (e.g. a sandboxed preview iframe). If this
+      // document is NOT cross-origin-isolated, a plain top-level navigation
+      // still works — use it as a last resort (Landing.tsx continues via the
+      // stash once the session is established).
+      if (!window.crossOriginIsolated) {
+        window.location.href = oauthUrl;
+        return;
+      }
+
+      window.clearTimeout(watchdog);
+      setIsLoading(false);
+      setError(
+        "This embedded preview blocked the Google sign-in popup. Open the app in a full browser tab to sign in with Google, or use the email code or guest options here.",
+      );
     } catch (error) {
       window.clearTimeout(watchdog);
+      popup?.close();
       console.error("Google sign-in error:", error);
       setError(googleSignInHint(error));
       setIsLoading(false);
