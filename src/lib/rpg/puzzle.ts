@@ -9,7 +9,49 @@
 // template below, so puzzles work fully offline.
 // ============================================================================
 
-import type { AbilityId, GameSystem, PfRank } from "./types";
+import type { AbilityId, GameSystem, GurpsCharacter, PfRank } from "./types";
+import { GURPS_SKILL_MAP } from "./data/gurps";
+
+/**
+ * GURPS skill level for the hero (same curve as gurpsSkillLevel): the puzzle
+ * targets the character's ACTUAL trained skill rather than a fixed number, so
+ * the check stays rules-compliant and scales with the hero.
+ */
+function gurpsPuzzleLevel(
+  c: GurpsCharacter,
+  skillId: string,
+  fallbackStat: "st" | "dx" | "iq" | "ht",
+): number {
+  const trained = c.skills.find((s) => s.id === skillId);
+  const stat = c.attributes[fallbackStat];
+  if (!trained || trained.points <= 0) return stat - 5; // untrained default
+  const def = GURPS_SKILL_MAP[skillId];
+  const offset = def?.difficulty === "easy" ? 0 : def?.difficulty === "hard" ? -2 : -1;
+  if (trained.points === 1) return stat + offset;
+  if (trained.points === 2) return stat + offset + 1;
+  if (trained.points === 4) return stat + offset + 2;
+  return stat + offset + 2 + Math.floor((trained.points - 4) / 4);
+}
+
+/** Best trained magic/arcane skill level (Pyre, Frost, Gale, Verdant, Veil,
+ *  Spirit, Alchemy) — used by the arcane GURPS puzzle. Falls back to IQ−5. */
+function gurpsArcaneLevel(c: GurpsCharacter): number {
+  const arcane = [
+    "pyre-magic",
+    "frost-magic",
+    "gale-magic",
+    "verdant-magic",
+    "veil-magic",
+    "spirit-magic",
+    "alchemy",
+  ];
+  let best = c.attributes.iq - 5;
+  for (const id of arcane) {
+    const lv = gurpsPuzzleLevel(c, id, "iq");
+    if (lv > best) best = lv;
+  }
+  return best;
+}
 
 export interface PuzzleCheck {
   /** Short player-facing action, e.g. "Study the seals". */
@@ -54,7 +96,7 @@ interface Template {
   title: string;
   kind: string;
   intro: string;
-  build: (level: number) => PuzzleCheck[];
+  build: (level: number, gurps?: GurpsCharacter) => PuzzleCheck[];
   consequenceHp: (level: number) => number;
   consequenceText: string;
   rewardXp: (level: number) => number;
@@ -142,10 +184,19 @@ const GURPS_TEMPLATES: Template[] = [
     title: "The Mechanized Gate",
     kind: "Mechanical lock",
     intro: "A heavy gate of interlocked gears and pressure pins blocks the corridor. The lock is hand-built, stubborn, and full of small deliberate traps for anyone who pries without understanding.",
-    build: () => [
-      { label: "Study the mechanism", rollLabel: "Mechanic (IQ)", gurpsTarget: 11 },
-      { label: "Pick the pins", rollLabel: "Lockpicking (DX)", gurpsTarget: 10 },
-    ],
+    // Targets use the hero's ACTUAL skills: Professional Skill for the
+    // mechanism, Lockpicking for the pins — untrained heroes fall back to the
+    // raw attribute default, so the DC scales with who you built.
+    build: (_lv, gurps) =>
+      gurps
+        ? [
+            { label: "Study the mechanism", rollLabel: "Mechanic (IQ)", gurpsTarget: gurpsPuzzleLevel(gurps, "professional-skill", "iq") },
+            { label: "Pick the pins", rollLabel: "Lockpicking (DX)", gurpsTarget: gurpsPuzzleLevel(gurps, "lockpicking", "dx") },
+          ]
+        : [
+            { label: "Study the mechanism", rollLabel: "Mechanic (IQ)", gurpsTarget: 11 },
+            { label: "Pick the pins", rollLabel: "Lockpicking (DX)", gurpsTarget: 10 },
+          ],
     consequenceHp: () => 2,
     consequenceText: "A counterweight slams down and catches you across the ribs.",
     rewardXp: () => 1,
@@ -156,10 +207,18 @@ const GURPS_TEMPLATES: Template[] = [
     title: "The Glyph Sequence",
     kind: "Arcane matrix",
     intro: "Nine floating glyphs orbit a stone seal, each humming on a different frequency. The sequence is half-memorized in a faded manual — but half is guesswork, and a wrong guess burns.",
-    build: () => [
-      { label: "Decipher the manual", rollLabel: "Occultism (IQ)", gurpsTarget: 11 },
-      { label: "Trace the sequence", rollLabel: "IQ roll", gurpsTarget: 10 },
-    ],
+    // Deciphering the manual uses the hero's best trained magic/alchemy skill;
+    // tracing the sequence is a straight IQ roll.
+    build: (_lv, gurps) =>
+      gurps
+        ? [
+            { label: "Decipher the manual", rollLabel: "Arcane Lore (IQ)", gurpsTarget: gurpsArcaneLevel(gurps) },
+            { label: "Trace the sequence", rollLabel: "IQ roll", gurpsTarget: gurps.attributes.iq },
+          ]
+        : [
+            { label: "Decipher the manual", rollLabel: "Occultism (IQ)", gurpsTarget: 11 },
+            { label: "Trace the sequence", rollLabel: "IQ roll", gurpsTarget: 10 },
+          ],
     consequenceHp: () => 2,
     consequenceText: "The glyphs flare white-hot and scorch your arms.",
     rewardXp: () => 1,
@@ -172,11 +231,19 @@ function templatePool(system: GameSystem): Template[] {
   return system === "dnd5e" ? DND_TEMPLATES : system === "pf2e" ? PF2E_TEMPLATES : GURPS_TEMPLATES;
 }
 
-/** Generate a fully local, rules-complete puzzle for the hero's system. */
-export function generatePuzzle(system: GameSystem, level: number): PuzzleSpec {
+/**
+ * Generate a fully local, rules-complete puzzle for the hero's system.
+ * Pass the GURPS character so its puzzle checks target the hero's actual
+ * trained skills (untrained heroes use raw-attribute defaults).
+ */
+export function generatePuzzle(
+  system: GameSystem,
+  level: number,
+  gurps?: GurpsCharacter,
+): PuzzleSpec {
   const pool = templatePool(system);
   const tpl = pool[Math.floor(Math.random() * pool.length)];
-  const checks = tpl.build(level);
+  const checks = tpl.build(level, gurps);
   const checksText = checks.map((c) => `${c.label} (${c.rollLabel}${c.dc ? `, DC ${c.dc}` : c.gurpsTarget ? `, target ${c.gurpsTarget}` : ""})`).join("; then ");
   return {
     id: uid(),

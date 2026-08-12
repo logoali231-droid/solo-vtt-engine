@@ -50,6 +50,19 @@ export default function GurpsSheet({ character: c, derived: d, onRoll, actions }
       gurpsTarget: target,
     });
 
+  // Trained weapon skills replace the DX−4 default — the best trained skill for
+  // each attack type governs its target. Skill ids match the core GURPS data
+  // (broadsword / shortsword / axe-mace / brawling swing; spear / polearm /
+  // knife / brawling thrust).
+  const skillLevel = (ids: string[]) =>
+    d.skills
+      .filter((s) => ids.includes(s.id))
+      .sort((a, b) => b.level - a.level)[0];
+  const swingSkill = skillLevel(["broadsword", "shortsword", "axe-mace", "brawling"]);
+  const thrustSkill = skillLevel(["spear", "polearm", "knife", "brawling"]);
+  const swingTarget = Math.max(3, swingSkill?.level ?? c.attributes.dx - 4);
+  const thrustTarget = Math.max(3, thrustSkill?.level ?? c.attributes.dx - 4);
+
   return (
     <div className="overflow-hidden rounded-xl border border-amber-900/50 bg-[#14110b] font-mono shadow-[0_12px_32px_-16px_rgba(0,0,0,0.8)]">
       {/* Header */}
@@ -108,24 +121,31 @@ export default function GurpsSheet({ character: c, derived: d, onRoll, actions }
         <div className="grid grid-cols-2 gap-1.5">
           <button
             type="button"
-            onClick={() => onRoll({ label: `Thrust strike (${d.thrust.notation})`, kind: "attack", gurpsTarget: Math.max(9, c.attributes.dx - 4) })}
+            onClick={() => onRoll({ label: `Thrust strike (${d.thrust.notation})`, kind: "attack", gurpsTarget: thrustTarget })}
             className="rounded border border-amber-900/40 bg-[#1c1810] px-2 py-2 text-center transition-colors hover:border-amber-500/60"
           >
             <p className="text-[9px] font-bold text-amber-600/70">THRUST · spear / dagger</p>
             <p className="font-mono text-base font-bold text-amber-200">{d.thrust.notation}</p>
+            <p className="mt-0.5 text-[8px] text-amber-500/80">
+              {thrustSkill ? `${thrustSkill.name} ${thrustSkill.level}` : `DX−4 default`}
+            </p>
           </button>
           <button
             type="button"
-            onClick={() => onRoll({ label: `Swing strike (${d.swing.notation})`, kind: "attack", gurpsTarget: Math.max(9, c.attributes.dx - 4) })}
+            onClick={() => onRoll({ label: `Swing strike (${d.swing.notation})`, kind: "attack", gurpsTarget: swingTarget })}
             className="rounded border border-amber-900/40 bg-[#1c1810] px-2 py-2 text-center transition-colors hover:border-amber-500/60"
           >
             <p className="text-[9px] font-bold text-amber-600/70">SWING · sword / axe</p>
             <p className="font-mono text-base font-bold text-amber-200">{d.swing.notation}</p>
+            <p className="mt-0.5 text-[8px] text-amber-500/80">
+              {swingSkill ? `${swingSkill.name} ${swingSkill.level}` : `DX−4 default`}
+            </p>
           </button>
         </div>
         <p className="mt-1.5 text-[8px] leading-relaxed text-amber-600/50">
-          Combat skill defaults to DX−4; train a weapon skill on the Life sheet to raise it. Hit rolls 3d6
-          under the target; the strike lands for {d.thrust.notation} / {d.swing.notation}.
+          Trained weapon skills (Broadsword, Shortsword, Spear, Knife, Brawling) set the attack target;
+          otherwise combat defaults to DX−4. Hit rolls 3d6 under the target; the strike lands for{" "}
+          {d.thrust.notation} / {d.swing.notation}.
         </p>
       </div>
 
