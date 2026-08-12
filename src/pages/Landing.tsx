@@ -12,8 +12,11 @@ import {
   Swords,
   Wand2,
 } from "lucide-react";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
+import { useEffect } from "react";
 import { InstallApp } from "@/components/InstallApp";
+import { useAuth } from "@/hooks/use-auth";
+import { OAUTH_RETURN_KEY } from "@/pages/Auth";
 
 const SYSTEMS = [
   {
@@ -75,6 +78,29 @@ const FEATURES = [
 ];
 
 export default function Landing() {
+  const { isLoading: authLoading, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+
+  // Signed-in visitors continue into the app instead of the marketing page.
+  // After a Google OAuth round-trip the browser hard-redirects to "/" (the
+  // deployed host only serves the SPA at the root), so this also resolves the
+  // destination stashed by the auth page once the session token is exchanged.
+  useEffect(() => {
+    if (authLoading) return;
+    if (!isAuthenticated) return;
+    let dest = "/dashboard";
+    try {
+      const pending = sessionStorage.getItem(OAUTH_RETURN_KEY);
+      if (pending && pending.startsWith("/") && !pending.startsWith("//")) {
+        dest = pending;
+      }
+      sessionStorage.removeItem(OAUTH_RETURN_KEY);
+    } catch {
+      // storage unavailable — fall back to the default destination
+    }
+    navigate(dest, { replace: true });
+  }, [authLoading, isAuthenticated, navigate]);
+
   return (
     <div className="min-h-screen bg-[#f7f5f0] text-stone-900">
       {/* Nav */}

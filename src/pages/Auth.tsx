@@ -36,6 +36,12 @@ function resolveRedirectAfterAuth(
 
 const GOOGLE_FLOW_TIMEOUT_MS = 15000;
 
+/** Key used to carry the post-OAuth destination through the hard redirect back
+ *  to the SPA root. The deployed host only serves the app at "/" on full page
+ *  loads, so the OAuth round-trip must land there; Landing.tsx reads this stash
+ *  and routes to the intended screen once the session token is exchanged. */
+export const OAUTH_RETURN_KEY = "oraculum.oauthReturn";
+
 /** Map common OAuth errors to actionable guidance (credentials live in the
  *  project's API Keys tab — the client can't read them directly). */
 function googleSignInHint(error: unknown): string {
@@ -161,7 +167,16 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
     }, GOOGLE_FLOW_TIMEOUT_MS);
 
     try {
-      const result = await signIn("google", { redirectTo: redirect });
+      // The deployed host serves the SPA only at "/" on full page loads, so the
+      // OAuth round-trip must land at the root, where ConvexAuthProvider picks
+      // up and exchanges the ?code= session token. Stash the real destination
+      // so Landing.tsx can continue into it once the session is established.
+      try {
+        sessionStorage.setItem(OAUTH_RETURN_KEY, redirect);
+      } catch {
+        // storage unavailable — fall back to the default destination
+      }
+      const result = await signIn("google", { redirectTo: "/" });
       const oauthUrl = result?.redirect;
       if (!oauthUrl) {
         // Not an OAuth flow — the auth-state effect handles navigation.
