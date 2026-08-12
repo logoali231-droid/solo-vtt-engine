@@ -14,18 +14,23 @@ import { emailOtp } from "./auth/emailOtp";
  * values are resolved against it; absolute ones must share its origin), so a
  * Google sign-in would land the browser on the backend domain and hit
  * "No matching routes found". This keeps that default behaviour and
- * additionally allows the app's own origin via the AUTH_APP_ORIGIN
+ * additionally allows the app's own origin(s) via the AUTH_APP_ORIGIN
  * environment variable (set it in the project's Keys/API keys tab, e.g.
- * `https://my-app.example.com`). Anything else falls back to SITE_URL — never
- * an unlisted origin — so this can't be abused as an open redirect.
+ * `https://my-app.example.com`; several origins may be listed separated by
+ * commas, so a preview origin and the deployed origin can both be allowed).
+ * Anything else falls back to SITE_URL — never an unlisted origin — so this
+ * can't be abused as an open redirect.
  */
 function resolveRedirectTarget(redirectTo: string): string {
   const siteUrl = (process.env.SITE_URL ?? "").replace(/\/+$/, "");
-  const appOrigin = (process.env.AUTH_APP_ORIGIN ?? "").replace(/\/+$/, "");
+  const appOrigins = (process.env.AUTH_APP_ORIGIN ?? "")
+    .split(",")
+    .map((origin) => origin.trim().replace(/\/+$/, ""))
+    .filter(Boolean);
   if (redirectTo.startsWith("?") || redirectTo.startsWith("/")) {
     return redirectTo;
   }
-  for (const origin of [siteUrl, appOrigin]) {
+  for (const origin of [siteUrl, ...appOrigins]) {
     if (
       origin &&
       (redirectTo === origin ||
