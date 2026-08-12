@@ -1,0 +1,49 @@
+{
+  "id": "/",
+  "name": "Oraculum — Solo Tabletop RPG Engine",
+  "short_name": "Oraculum",
+  "description": "A solo digital tabletop RPG engine: create a deep character with D&D 5e Tasha's Cauldron, Pathfinder 2e or GURPS rules, then play out a living campaign on a dark VTT with a built-in dice engine and AI game master.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui", "browser"],
+  "orientation": "any",
+  "background_color": "#020617",
+  "theme_color": "#0f172a",
+  "lang": "en",
+  "categories": ["games", "entertainment"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Character Library",
+      "short_name": "Library",
+      "description": "Open your saved characters and adventures",
+      "url": "/dashboard",
+      "icons": [
+        {
+          "src": "/icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ]
+}
