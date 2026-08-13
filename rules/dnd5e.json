@@ -3,7 +3,7 @@
   "schema_version": 1,
   "system": "dnd5e",
   "system_name": "Dungeons & Dragons 5th Edition (with Tasha's Cauldron of Everything)",
-  "generated_at": "2026-08-13T12:13:26.077Z",
+  "generated_at": "2026-08-13T12:47:41.891Z",
   "description": "Complete consolidated D&D 5e rules database for the Oraculum solo VTT engine: core races, subraces, TCoE custom lineage, all classes (including Artificer) with TCoE subclasses, backgrounds, feats, point-buy/standard-array ability generation, spell slot progression, weapons, armor, spells, enchanting, encounter tables and conditions.",
   "core_mechanics": {
     "dice_engine": "Every roll uses Math.floor(Math.random() * sides) + 1. Ability checks, saving throws and attack rolls are 1d20 + modifier + proficiency bonus vs a Target Difficulty Class (DC). A natural 20 on the kept die is a critical success, a natural 1 a critical failure (in the binary d20 resolution). With Advantage roll two d20 and keep the higher; with Disadvantage keep the lower; if both apply they cancel to a single roll.",

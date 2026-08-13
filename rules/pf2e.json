@@ -3,7 +3,7 @@
   "schema_version": 1,
   "system": "pf2e",
   "system_name": "Pathfinder 2nd Edition",
-  "generated_at": "2026-08-13T12:13:26.077Z",
+  "generated_at": "2026-08-13T12:47:41.891Z",
   "description": "Complete consolidated Pathfinder 2e rules database for the Oraculum solo VTT engine: ancestries, heritages, backgrounds, ancestry/general/skill feats, the twelve Player Core classes, weapons, armor, adventuring gear, the 4-tier proficiency system, the 3-action economy, the four-degrees-of-success evaluation matrix, encounter tables and conditions.",
   "core_mechanics": {
     "dice_engine": "Every roll uses Math.floor(Math.random() * sides) + 1. Checks are 1d20 + ability modifier + proficiency bonus vs a DC.",
