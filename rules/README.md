@@ -54,6 +54,39 @@ shape, so even they can no longer break a schema-inference parser.
 If your trainer prefers newline-delimited JSON, upload the matching
 `alpaca-*.jsonl` file instead.
 
+### Combining datasets (rules + your narrative/session data)
+
+Unsloth Studio accepts **one** file upload. When you want to train on the
+rules corpus **plus** your own narrative data (e.g. exported play sessions),
+merge them into a single file first with `scripts/merge-training.ts`:
+
+```bash
+bun run scripts/merge-training.ts \
+  rules/alpaca-all.jsonl \
+  rules/narrative-sessions.jsonl \
+  -o rules/training-mixed.jsonl
+```
+
+It accepts JSON arrays and JSONL files in two shapes — Alpaca
+(`instruction`/`input`/`output`) and ChatML (`messages: [{role, content}]`,
+converted automatically: player move → `instruction`, system prompt + prior
+context → `input`, GM narration → `output`). Rows are deduplicated, validated
+against the strict Alpaca schema, and written out as both `.jsonl` and `.json`.
+
+To control the mix (e.g. 20% rules / 80% narrative), pass `--ratios`:
+
+```bash
+bun run scripts/merge-training.ts \
+  rules/alpaca-all.jsonl rules/narrative-sessions.jsonl \
+  --ratios "rules/alpaca-all.jsonl:0.2,rules/narrative-sessions.jsonl:0.8" \
+  -o rules/training-mixed.jsonl
+```
+
+Upload the single output file (`rules/training-mixed.jsonl`) to Unsloth
+Studio. The narrative rows carry the system prompt in `input`, so the model
+learns to obey the in-game GM instructions (length presets, second person,
+rule-faithful narration) as well as the rules themselves.
+
 ## Master file schema
 
 Every master file follows the same shape:
