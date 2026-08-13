@@ -2,17 +2,36 @@ import { action } from "./_generated/server.js";
 import { v } from "convex/values";
 import { dndRulesContext, pf2eRulesContext } from "../lib/rpg/data/adventure-samples";
 import { GM_AUTHORITY_RULES } from "../lib/rpg/cheatGuard";
-import { parseHordeStatus } from "../lib/rpg/gm/providers";
+import {
+  maxTokensFor,
+  narratorLengthRule,
+  openingLengthRule,
+  parseHordeStatus,
+} from "../lib/rpg/gm/providers";
 
 /** Shared storytelling voice — mirrors gm/live.ts so the server action and the
  *  client-side providers narrate the same warm, reactive, generous way. The
- *  key contract: the narrator must visibly react to what the player wrote. */
-const GM_VOICE_RULES = [
-  "VOICE: You are a warm, masterful tabletop GM telling a story to one dear friend — cinematic, immediate and emotionally alive. Use concrete sensory detail (light, sound, smell, texture, weather), varied sentence rhythm, and real feeling: fear, hunger, awe, grief, humor. The world feels inhabited, and it feels like it is responding to THIS player, right now.",
-  "REACT: Always react directly to what the player just wrote. Mirror their exact action, question or idea back into the scene, honor its intent, and give it visible consequences — an NPC's changed face, a shift in the air, a door standing ajar. Never ignore, genericize or soften the player's move, and never write a reply that could have been written without knowing what they said.",
-  "LENGTH: Write one substantial passage of 3-6 paragraphs — enough to live in the moment. No padding, no recaps, no filler: every sentence advances or deepens the scene. Vary your endings: sometimes a single evocative question, sometimes a charged beat or a choice laid bare. Do not end every reply with a question.",
-  "NO OOC: Never use bullet points, lists, headings, emojis, dice notation, or out-of-character commentary. Stay in the fiction.",
-].join(" ");
+ *  key contract: the narrator must visibly react to what the player wrote.
+ *  Length follows the player's Narrator Length setting. */
+function gmVoiceRules(length: string): string {
+  const normalized: "short" | "long" | "epic" | "dynamic" =
+    length === "short" || length === "long" || length === "epic"
+      ? length
+      : "dynamic";
+  return [
+    "VOICE: You are a warm, masterful tabletop GM telling a story to one dear friend — cinematic, immediate and emotionally alive. Use concrete sensory detail (light, sound, smell, texture, weather), varied sentence rhythm, and real feeling: fear, hunger, awe, grief, humor. The world feels inhabited, and it feels like it is responding to THIS player, right now.",
+    "REACT: Always react directly to what the player just wrote. Mirror their exact action, question or idea back into the scene, honor its intent, and give it visible consequences — an NPC's changed face, a shift in the air, a door standing ajar. Never ignore, genericize or soften the player's move, and never write a reply that could have been written without knowing what they said.",
+    narratorLengthRule(normalized),
+    "ENDINGS: Vary your endings: sometimes a single evocative question, sometimes a charged beat or a choice laid bare. Do not end every reply with a question.",
+    "NO OOC: Never use bullet points, lists, headings, emojis, dice notation, or out-of-character commentary. Stay in the fiction.",
+  ].join(" ");
+}
+
+function normalizeLength(length?: string): "short" | "long" | "epic" | "dynamic" {
+  return length === "short" || length === "long" || length === "epic"
+    ? length
+    : "dynamic";
+}
 
 // Live Game Master completion endpoint — multi-provider router.
 //   - "openai" (default): OpenAI chat completions. The key lives server-side:
@@ -83,6 +102,7 @@ async function hordeGenerate(
   user: string,
   model: string,
   apiKey: string,
+  length: "short" | "long" | "epic" | "dynamic" = "dynamic",
 ): Promise<{ ok: boolean; text?: string; code?: string; detail?: string }> {
   // The v2 API requires an `apikey` header; anonymous users use the special
   // 0000000000 token. A free registered key at aihorde.net raises priority.
@@ -98,7 +118,7 @@ async function hordeGenerate(
       body: JSON.stringify({
         prompt: hordePrompt(system, user),
         params: {
-          max_length: 850,
+          max_length: maxTokensFor(length),
           temperature: 1,
           n: 1,
           top_p: 0.9,
@@ -165,9 +185,11 @@ export const generate = action({
     provider: v.optional(v.string()), // "auto" | "openai" | "horde"
     apiKey: v.optional(v.string()), // optional AI Horde key (priority); OpenAI uses the env key
     opening: v.optional(v.boolean()), // true = generate the campaign's AI opening scene
+    length: v.optional(v.string()), // "short" | "long" | "epic" | "dynamic" — narrator length preset
   },
   handler: async (_ctx, args) => {
     const lang = args.language === "pt-BR" ? "pt-BR" : "en";
+    const length = normalizeLength(args.length);
     const provider =
       args.provider === "openai" || args.provider === "horde"
         ? args.provider
@@ -179,8 +201,8 @@ export const generate = action({
       ? [
           "You are the opening narrator for a solo tabletop RPG running inside Oraculum, a strict rules engine.",
           GM_AUTHORITY_RULES,
-          GM_VOICE_RULES,
-          "Write the opening scene of this campaign: a vivid second-person passage of 3-5 paragraphs rich with sensory detail.",
+          gmVoiceRules(length),
+          openingLengthRule(length),
           "Ground the scene in the ADVENTURE STATE and RECENT HISTORY (the player's campaign briefing) below — honor the chosen tone, genre, setting, style, villain, stakes and company.",
           "Place the hero at the threshold of the story, show the setting and the first thread, then leave the scene in motion.",
           "Do not end with a question. Do not summarize the plot. Never roll dice yourself; the engine rolls.",
@@ -198,7 +220,7 @@ export const generate = action({
           GM_AUTHORITY_RULES,
           "The player supplies actions and dice results; you narrate them in vivid second-person prose. Never roll dice yourself; the engine rolls.",
           "Respect the mechanics in the payload exactly: honor success/failure/critical outcomes, DCs, HP, spell slots, conditions and resources. Keep continuity with the history.",
-          GM_VOICE_RULES,
+          gmVoiceRules(length),
           lang === "pt-BR"
             ? "Narre sempre em português brasileiro, com tom envolvente e imagens vívidas."
             : "Always respond in English.",
@@ -238,7 +260,7 @@ export const generate = action({
     if (provider === "horde") {
       const model =
         args.model && args.model !== "gpt-4o-mini" ? args.model : HORDE_DEFAULT_MODEL;
-      return hordeGenerate(system, user, model, args.apiKey ?? "");
+      return hordeGenerate(system, user, model, args.apiKey ?? "", length);
     }
 
     // OpenAI backend — key is read server-side only.
@@ -257,7 +279,7 @@ export const generate = action({
         body: JSON.stringify({
           model: args.model || "gpt-4o-mini",
           temperature: 1,
-          max_tokens: 850,
+          max_tokens: maxTokensFor(length),
           messages: [
             { role: "system", content: system },
             { role: "user", content: user },

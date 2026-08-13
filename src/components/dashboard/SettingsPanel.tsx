@@ -7,6 +7,7 @@ import {
   GM_PROVIDERS,
   hordeModelStatus,
   HORDE_RPG_MODELS,
+  NARRATOR_LENGTHS,
   providerOf,
 } from "@/lib/rpg/gm/providers";
 import type { HordeStatusResult } from "@/lib/rpg/gm/providers";
@@ -363,6 +364,35 @@ export default function SettingsPanel() {
           />
         </div>
       )}
+
+      {/* Narrator length */}
+      <div>
+        <p className="mb-1.5 text-[10px] font-bold uppercase tracking-widest text-stone-400">
+          Narrator length
+        </p>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {NARRATOR_LENGTHS.map((l) => (
+            <button
+              key={l.id}
+              type="button"
+              onClick={() => patch({ narratorLength: l.id })}
+              className={cn(
+                "rounded-xl border p-2.5 text-left transition-colors",
+                settings.narratorLength === l.id
+                  ? "border-teal-500 bg-teal-500/10"
+                  : "border-stone-200 bg-white hover:border-stone-300",
+              )}
+            >
+              <p className="text-xs font-bold text-stone-800">{l.label}</p>
+              <p className="mt-0.5 text-[10px] leading-snug text-stone-500">{l.hint}</p>
+            </button>
+          ))}
+        </div>
+        <p className="mt-1.5 text-[10px] leading-relaxed text-stone-400">
+          How long each narration should be. Dynamic adapts to the scene —
+          climactic moments go long, travel and minor beats stay short.
+        </p>
+      </div>
 
       {/* Language + temperature */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

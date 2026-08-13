@@ -337,6 +337,8 @@ export type GmProviderId =
   | "gradio"
   | "horde";
 
+export type GmNarratorLength = "short" | "long" | "epic" | "dynamic";
+
 export interface GmSettings {
   provider: GmProviderId;
   model: string;
@@ -344,6 +346,10 @@ export interface GmSettings {
   baseUrl: string; // used by local / ollama-style endpoints
   language: GmLanguage;
   temperature: number;
+  /** How long the narrator's replies should be:
+   *  short = 2-3 paragraphs · long = 8-10 · epic = 11-15 ·
+   *  dynamic = the model adapts length to the scene's stakes. */
+  narratorLength: GmNarratorLength;
 }
 
 // New players start on AI Horde — 100% free, no key, unlimited community GPUs.
@@ -356,6 +362,7 @@ export const DEFAULT_GM_SETTINGS: GmSettings = {
   baseUrl: "http://localhost:11434",
   language: "en",
   temperature: 1,
+  narratorLength: "dynamic",
 };
 
 // ---------------------------------------------------------------------------

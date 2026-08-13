@@ -8,7 +8,13 @@ import { dndRulesContext, pf2eRulesContext } from "../data/adventure-samples";
 import { gurpsRulesContext } from "../data/gurps-extensions";
 import { territoriesContext } from "../data/territory";
 import { GM_AUTHORITY_RULES } from "../cheatGuard";
-import { MAX_RECENT_MESSAGES, streamChatWithProvider, type ChatMessage } from "./providers";
+import {
+  MAX_RECENT_MESSAGES,
+  narratorLengthRule,
+  openingLengthRule,
+  streamChatWithProvider,
+  type ChatMessage,
+} from "./providers";
 import { localRespond } from "./local";
 
 export interface GmReply {
@@ -19,13 +25,16 @@ export interface GmReply {
 /** Shared storytelling voice — keeps every AI backend (the server action and
  *  all client-side providers) narrating the same warm, reactive, generous way.
  *  The key contract: the narrator must visibly react to what the player wrote,
- *  never genericize it. */
-const GM_VOICE_RULES = [
-  "VOICE: You are a warm, masterful tabletop GM telling a story to one dear friend — cinematic, immediate and emotionally alive. Use concrete sensory detail (light, sound, smell, texture, weather), varied sentence rhythm, and real feeling: fear, hunger, awe, grief, humor. The world feels inhabited, and it feels like it is responding to THIS player, right now.",
-  "REACT: Always react directly to what the player just wrote. Mirror their exact action, question or idea back into the scene, honor its intent, and give it visible consequences — an NPC's changed face, a shift in the air, a door standing ajar. Never ignore, genericize or soften the player's move, and never write a reply that could have been written without knowing what they said.",
-  "LENGTH: Write one substantial passage of 3-6 paragraphs — enough to live in the moment. No padding, no recaps, no filler: every sentence advances or deepens the scene. Vary your endings: sometimes a single evocative question, sometimes a charged beat or a choice laid bare. Do not end every reply with a question.",
-  "NO OOC: Never use bullet points, lists, headings, emojis, dice notation, or out-of-character commentary. Stay in the fiction.",
-].join(" ");
+ *  never genericize it. Length follows the player's Narrator Length setting. */
+function gmVoiceRules(length: GmSettings["narratorLength"]): string {
+  return [
+    "VOICE: You are a warm, masterful tabletop GM telling a story to one dear friend — cinematic, immediate and emotionally alive. Use concrete sensory detail (light, sound, smell, texture, weather), varied sentence rhythm, and real feeling: fear, hunger, awe, grief, humor. The world feels inhabited, and it feels like it is responding to THIS player, right now.",
+    "REACT: Always react directly to what the player just wrote. Mirror their exact action, question or idea back into the scene, honor its intent, and give it visible consequences — an NPC's changed face, a shift in the air, a door standing ajar. Never ignore, genericize or soften the player's move, and never write a reply that could have been written without knowing what they said.",
+    narratorLengthRule(length),
+    "ENDINGS: Vary your endings: sometimes a single evocative question, sometimes a charged beat or a choice laid bare. Do not end every reply with a question.",
+    "NO OOC: Never use bullet points, lists, headings, emojis, dice notation, or out-of-character commentary. Stay in the fiction.",
+  ].join(" ");
+}
 
 function languageInstruction(language: GmSettings["language"]): string {
   return language === "pt-BR"
@@ -52,7 +61,7 @@ function buildSystemPrompt(
     "Honor the JSON adventure state exactly: HP, AC, spell slots, resources, conditions and outcomes (critical/success/failure).",
     GM_AUTHORITY_RULES,
     "Narrate in second-person, in-world prose — never out of character. The player acts and the engine rolls; you bring the world to life around their choices.",
-    GM_VOICE_RULES,
+    gmVoiceRules(settings.narratorLength),
     languageInstruction(settings.language),
     "",
     adventure.system === "dnd5e"
@@ -142,7 +151,7 @@ function buildOpeningMessages(
       ? ["", territoriesContext(adventure.territories, settings.language)]
       : []),
     "",
-    "Write the opening scene of this campaign: 2-4 vivid second-person paragraphs that place the hero at the edge of the story, introduce the setting and the first thread, and end with the immediate scene in motion. No question, no summary, no dice.",
+    `${openingLengthRule(settings.narratorLength)} Place the hero at the edge of the story, introduce the setting and the first thread, and end with the immediate scene in motion. No question, no summary, no dice.`,
   ].join("\n");
   return [
     {
@@ -151,8 +160,8 @@ function buildOpeningMessages(
         "You are the opening narrator for a solo tabletop RPG running inside Oraculum, a strict rules engine.",
         `Ruleset: ${rules}.`,
         GM_AUTHORITY_RULES,
-        GM_VOICE_RULES,
-        "Write the opening scene of this campaign: a vivid second-person passage of 3-5 paragraphs rich with sensory detail.",
+        gmVoiceRules(settings.narratorLength),
+        openingLengthRule(settings.narratorLength),
         "Ground every detail in the campaign briefing below — honor the chosen tone, genre, setting, style, villain, stakes and company.",
         "Place the hero at the threshold of the story, show the setting and the first thread, then leave the scene in motion.",
         "Do not end with a question. Do not summarize the plot. Never roll dice yourself.",
@@ -201,6 +210,7 @@ export function useGmClient(settings: GmSettings) {
         provider: settings.provider === "horde" ? "horde" : "auto",
         apiKey: settings.apiKey || undefined,
         opening: true,
+        length: settings.narratorLength,
       });
       if (res.ok && res.text) {
         onDelta(res.text);
@@ -248,6 +258,7 @@ export function useGmClient(settings: GmSettings) {
           system: adventure.system,
           provider: settings.provider === "horde" ? "horde" : "auto",
           apiKey: settings.apiKey || undefined,
+          length: settings.narratorLength,
         });
         if (res.ok && res.text) {
           onDelta(res.text);

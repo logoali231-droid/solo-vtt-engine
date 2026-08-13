@@ -253,6 +253,67 @@ export const MAX_HISTORY_TOKENS = 3200;
 export const MAX_LOREBOOK_TOKENS = 800;
 export const MAX_RECENT_MESSAGES = 16;
 
+// ---------------------------------------------------------------------------
+// Narrator length presets — shared by every provider and the Convex action
+// ---------------------------------------------------------------------------
+
+export const NARRATOR_LENGTHS: {
+  id: GmSettings["narratorLength"];
+  label: string;
+  hint: string;
+}[] = [
+  { id: "short", label: "Short · 2-3", hint: "Tight beats" },
+  { id: "long", label: "Long · 8-10", hint: "Deep scenes" },
+  { id: "epic", label: "Epic · 11-15", hint: "Novelistic" },
+  { id: "dynamic", label: "Dynamic", hint: "Adapts to the moment" },
+];
+
+/** Token budget per length preset — keeps long replies from being cut short. */
+export function maxTokensFor(length: GmSettings["narratorLength"]): number {
+  switch (length) {
+    case "short":
+      return 500;
+    case "long":
+      return 1200;
+    case "epic":
+      return 1800;
+    default:
+      return 850;
+  }
+}
+
+/** LENGTH instruction for in-game narration, per preset. */
+export function narratorLengthRule(
+  length: GmSettings["narratorLength"],
+): string {
+  switch (length) {
+    case "short":
+      return "LENGTH: Write a tight passage of 2-3 paragraphs — vivid but economical. Every sentence must earn its place; no padding, no recaps.";
+    case "long":
+      return "LENGTH: Write a full passage of 8-10 paragraphs — let the scene breathe and deepen: setting, senses, NPC reactions, interiority, consequences. Never pad with repetition or recap; every paragraph must add something new.";
+    case "epic":
+      return "LENGTH: Write a sweeping passage of 11-15 paragraphs — a novelistic, immersive scene. Build atmosphere and tension in layers: setting, sensory texture, NPCs, stakes, and the player's actions landing with weight. Never pad with repetition; every paragraph must advance or deepen the scene.";
+    default:
+      return "LENGTH: Write a passage of 3-6 paragraphs and dynamically adapt the length to what the scene deserves — go long and immersive (8+ paragraphs) for climactic, emotionally charged or pivotal moments, and stay lean and fast (2-3 paragraphs) for transitions, travel and minor beats. Match the pacing to the moment.";
+  }
+}
+
+/** Opening-scene length instruction (separate from in-game replies). */
+export function openingLengthRule(
+  length: GmSettings["narratorLength"],
+): string {
+  switch (length) {
+    case "short":
+      return "Write the opening scene of this campaign as a tight passage of 2-3 vivid second-person paragraphs.";
+    case "long":
+      return "Write the opening scene of this campaign as a rich passage of 8-10 vivid second-person paragraphs that set the stage in full.";
+    case "epic":
+      return "Write the opening scene of this campaign as a sweeping, novelistic passage of 11-15 vivid second-person paragraphs that establish the world, the tone and the first thread in depth.";
+    default:
+      return "Write the opening scene of this campaign as a vivid second-person passage of 3-5 paragraphs, letting its length fit the tone of the campaign you're starting.";
+  }
+}
+
 /** Rough token estimate (~4 chars per token). */
 export function estimateTokens(text: string): number {
   return Math.ceil(text.length / 4);
@@ -289,6 +350,7 @@ async function openAiCompatible(
   messages: ChatMessage[],
   apiKey?: string,
   temperature = 1,
+  maxTokens = 850,
 ): Promise<string> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -300,7 +362,7 @@ async function openAiCompatible(
     body: JSON.stringify({
       model,
       temperature,
-      max_tokens: 850,
+      max_tokens: maxTokens,
       messages,
     }),
   });
@@ -319,6 +381,7 @@ async function geminiChat(
   messages: ChatMessage[],
   apiKey: string,
   temperature = 1,
+  maxTokens = 850,
 ): Promise<string> {
   const system = messages
     .filter((m) => m.role === "system")
@@ -338,7 +401,7 @@ async function geminiChat(
       body: JSON.stringify({
         systemInstruction: system ? { parts: [{ text: system }] } : undefined,
         contents,
-        generationConfig: { temperature, maxOutputTokens: 850 },
+        generationConfig: { temperature, maxOutputTokens: maxTokens },
       }),
     },
   );
@@ -362,6 +425,7 @@ export async function chatWithProvider(
   messages: ChatMessage[],
 ): Promise<string> {
   const trimmed = trimMessages(messages);
+  const maxTokens = maxTokensFor(settings.narratorLength);
   switch (settings.provider) {
     case "groq":
       return openAiCompatible(
@@ -370,6 +434,7 @@ export async function chatWithProvider(
         trimmed,
         settings.apiKey,
         settings.temperature,
+        maxTokens,
       );
     case "openrouter":
       return openAiCompatible(
@@ -378,6 +443,7 @@ export async function chatWithProvider(
         trimmed,
         settings.apiKey,
         settings.temperature,
+        maxTokens,
       );
     case "ollama":
       return openAiCompatible(
@@ -386,6 +452,7 @@ export async function chatWithProvider(
         trimmed,
         undefined,
         settings.temperature,
+        maxTokens,
       );
     case "gradio":
       return openAiCompatible(
@@ -394,11 +461,12 @@ export async function chatWithProvider(
         trimmed,
         undefined,
         settings.temperature,
+        maxTokens,
       );
     case "huggingface":
       return huggingFaceChat(settings, trimmed);
     case "gemini":
-      return geminiChat(settings.model, trimmed, settings.apiKey, settings.temperature);
+      return geminiChat(settings.model, trimmed, settings.apiKey, settings.temperature, maxTokens);
     case "horde":
       return hordeRequest(settings, trimmed);
     case "builtin":
@@ -413,6 +481,7 @@ async function huggingFaceChat(
   messages: ChatMessage[],
 ): Promise<string> {
   const direct = `https://api-inference.huggingface.co/models/${encodeURIComponent(settings.model)}/v1/chat/completions`;
+  const maxTokens = maxTokensFor(settings.narratorLength);
   try {
     return await openAiCompatible(
       direct,
@@ -420,6 +489,7 @@ async function huggingFaceChat(
       messages,
       settings.apiKey,
       settings.temperature,
+      maxTokens,
     );
   } catch {
     return openAiCompatible(
@@ -428,6 +498,7 @@ async function huggingFaceChat(
       messages,
       settings.apiKey,
       settings.temperature,
+      maxTokens,
     );
   }
 }
@@ -488,7 +559,7 @@ async function hordeRequest(
     body: JSON.stringify({
       prompt: hordePrompt(trimMessages(messages)),
       params: {
-        max_length: 850,
+        max_length: maxTokensFor(settings.narratorLength),
         temperature: settings.temperature,
         n: 1,
         top_p: 0.9,
@@ -604,7 +675,7 @@ async function streamOpenAI(
     body: JSON.stringify({
       model: settings.model || "default",
       temperature: settings.temperature,
-      max_tokens: 850,
+      max_tokens: maxTokensFor(settings.narratorLength),
       stream: true,
       messages,
     }),
@@ -622,6 +693,7 @@ async function streamGemini(
   apiKey: string,
   onDelta: (chunk: string) => void,
   temperature: number,
+  maxTokens = 850,
 ): Promise<string> {
   const system = messages
     .filter((m) => m.role === "system")
@@ -641,7 +713,7 @@ async function streamGemini(
       body: JSON.stringify({
         systemInstruction: system ? { parts: [{ text: system }] } : undefined,
         contents,
-        generationConfig: { temperature, maxOutputTokens: 850 },
+        generationConfig: { temperature, maxOutputTokens: maxTokens },
       }),
     },
   );
@@ -660,6 +732,7 @@ export async function streamChatWithProvider(
   onDelta: (chunk: string) => void,
 ): Promise<string> {
   const trimmed = trimMessages(messages);
+  const maxTokens = maxTokensFor(settings.narratorLength);
   switch (settings.provider) {
     case "groq":
       return streamOpenAI("https://api.groq.com/openai/v1/chat/completions", settings, trimmed, onDelta);
@@ -672,7 +745,7 @@ export async function streamChatWithProvider(
     case "huggingface":
       return streamHuggingFace(settings, trimmed, onDelta);
     case "gemini":
-      return streamGemini(settings.model, trimmed, settings.apiKey, onDelta, settings.temperature);
+      return streamGemini(settings.model, trimmed, settings.apiKey, onDelta, settings.temperature, maxTokens);
     case "horde":
       return hordeRequest(settings, trimmed, onDelta);
     case "builtin":
