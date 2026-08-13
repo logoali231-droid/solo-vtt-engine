@@ -127,6 +127,7 @@ import {
   GURPS_SHOP_ARMORS,
   GURPS_SHOP_GEAR,
 } from "../src/lib/rpg/data/gurps-shop";
+import { GM_AUTHORITY_RULES } from "../src/lib/rpg/cheatGuard";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -353,6 +354,159 @@ const gurps: Record<string, unknown> = {
 };
 
 // ---------------------------------------------------------------------------
+// Alpaca-format training corpora (for Unsloth Studio / SFT trainers)
+//
+// Unsloth Studio's default reader expects the Alpaca schema: a JSON array of
+// objects with ONLY the plain-text columns "instruction", "input" and
+// "output". The master files above are a rules DATABASE (nested objects,
+// mixed types) — they are NOT training-ready. These files are: every row is
+// { "instruction": string, "input": string, "output": string } — no nested
+// objects, no mixed types, identical keys in every row.
+// ---------------------------------------------------------------------------
+
+type AlpacaRow = { instruction: string; input: string; output: string };
+
+function alpaca(instruction: string, output: string, input = ""): AlpacaRow {
+  return { instruction, input, output };
+}
+
+/** Render a data entry as readable plain text (functions are dropped). */
+function fmt(entry: Record<string, unknown>): string {
+  const parts: string[] = [];
+  for (const [key, value] of Object.entries(entry)) {
+    if (key === "id") continue;
+    const label = key.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase());
+    if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+      parts.push(`${label}: ${value}`);
+    } else if (value !== undefined && value !== null) {
+      parts.push(`${label}: ${JSON.stringify(value)}`);
+    }
+  }
+  return parts.join("\n");
+}
+
+function addAll(rows: AlpacaRow[], category: string, items: Record<string, unknown>[]): void {
+  for (const item of items) {
+    const name = typeof item.name === "string" ? item.name : String(item.id ?? "");
+    rows.push(alpaca(`${category}: ${name}`, fmt(item)));
+  }
+}
+
+function gurpsAlpacaRows(): AlpacaRow[] {
+  const rows: AlpacaRow[] = [];
+  rows.push(alpaca("Explain the complete GURPS rules as implemented in Oraculum.", String(gurps.rules_text)));
+  rows.push(alpaca("How do GURPS skill checks resolve in Oraculum?", `${gurps.core_mechanics.dice_engine}\n\n${gurps.core_mechanics.skill_math}`));
+  rows.push(alpaca("How do GURPS criticals work in Oraculum?", String(gurps.core_mechanics.criticals)));
+  rows.push(alpaca("How do GURPS attributes and character points work in Oraculum?", String(gurps.core_mechanics.attributes)));
+  rows.push(alpaca("How do conditions affect a GURPS character in Oraculum?", String(gurps.core_mechanics.conditions)));
+  rows.push(alpaca("What is the GURPS Life & Livelihood extension?", String(gurps.core_mechanics.life_and_livelihood)));
+  rows.push(alpaca("What is the GM authority contract in Oraculum?", GM_AUTHORITY_RULES));
+  const cat = (label: string) => (items: Record<string, unknown>[]) => addAll(rows, label, items);
+  cat("GURPS skill")(GURPS_SKILLS);
+  cat("GURPS extension skill")(GURPS_EXTENSION_SKILLS);
+  cat("GURPS advantage")(GURPS_ADVANTAGES);
+  cat("GURPS disadvantage")(GURPS_DISADVANTAGES);
+  cat("GURPS armor")(GURPS_ARMORS);
+  cat("GURPS wealth tier")(GURPS_WEALTH_TIERS);
+  cat("GURPS job")(GURPS_JOBS);
+  cat("GURPS business")(GURPS_BUSINESSES);
+  cat("GURPS relationship stage")(GURPS_RELATIONSHIP_STAGES);
+  cat("GURPS cyberware")(GURPS_CYBERWARE);
+  cat("GURPS hacking target")(GURPS_HACK_TARGETS);
+  cat("GURPS holding")(GURPS_HOLDINGS);
+  cat("GURPS university")(GURPS_UNIVERSITIES);
+  cat("GURPS degree")(GURPS_DEGREES);
+  cat("GURPS social circle")(GURPS_SOCIAL_CIRCLES);
+  cat("GURPS social event")(GURPS_SOCIAL_EVENTS);
+  cat("GURPS noble title")(GURPS_NOBLE_TITLES);
+  cat("GURPS court position")(GURPS_COURT_POSITIONS);
+  cat("GURPS netdeck")(GURPS_NETDECKS);
+  cat("GURPS netrunning program")(GURPS_PROGRAMS);
+  cat("GURPS corporate rank")(GURPS_CORP_LADDER);
+  cat("GURPS cyber gear")(GURPS_CYBER_GEAR);
+  cat("GURPS ICE")(GURPS_ICE);
+  cat("GURPS netrun")(GURPS_NETRUNS);
+  cat("GURPS magic college")(GURPS_MAGIC_COLLEGES);
+  cat("GURPS spell")(GURPS_SPELLS);
+  cat("GURPS reagent")(GURPS_REAGENTS);
+  cat("GURPS alchemy recipe")(GURPS_ALCHEMY_RECIPES);
+  cat("GURPS smithing recipe")(GURPS_FORGE_RECIPES);
+  cat("GURPS terrain")(GURPS_TERRAINS);
+  cat("GURPS weather")(GURPS_WEATHER);
+  cat("GURPS shop weapon")(GURPS_SHOP_WEAPONS);
+  cat("GURPS shop armor")(GURPS_SHOP_ARMORS);
+  cat("GURPS shop gear")(GURPS_SHOP_GEAR);
+  cat("GURPS condition")(CONDITIONS);
+  cat("GURPS monster")(ENEMY_TABLES.gurps);
+  return rows;
+}
+
+function dnd5eAlpacaRows(): AlpacaRow[] {
+  const rows: AlpacaRow[] = [];
+  rows.push(alpaca("Explain the complete D&D 5e rules as implemented in Oraculum.", String(dnd5e.rules_text)));
+  rows.push(alpaca("How do D&D 5e checks resolve in Oraculum?", String(dnd5e.core_mechanics.dice_engine)));
+  rows.push(alpaca("How does ability generation work in D&D 5e in Oraculum?", String(dnd5e.core_mechanics.ability_generation)));
+  rows.push(alpaca("What is Tasha's Origin Customization in Oraculum?", String(dnd5e.core_mechanics.tasha_customization)));
+  rows.push(alpaca("How do D&D 5e spell slots work in Oraculum?", String(dnd5e.core_mechanics.spell_slots)));
+  rows.push(alpaca("How do conditions affect a D&D 5e character in Oraculum?", String(dnd5e.core_mechanics.conditions)));
+  rows.push(alpaca("How does enchanting work in Oraculum's D&D 5e?", String(dnd5e.core_mechanics.enchanting)));
+  rows.push(alpaca("What is the GM authority contract in Oraculum?", GM_AUTHORITY_RULES));
+  const cat = (label: string) => (items: Record<string, unknown>[]) => addAll(rows, label, items);
+  cat("D&D 5e skill")(DND_SKILLS);
+  cat("D&D 5e race")(RACES);
+  cat("D&D 5e subrace")(SUBRACES);
+  cat("D&D 5e background")(BACKGROUNDS);
+  cat("D&D 5e feat")(FEATS);
+  cat("D&D 5e weapon")(WEAPONS);
+  cat("D&D 5e armor")(ARMORS);
+  cat("D&D 5e class")(CLASSES);
+  cat("D&D 5e spell")(SPELLS);
+  cat("D&D 5e condition")(CONDITIONS);
+  cat("D&D 5e monster")(ENEMY_TABLES.dnd5e);
+  // Golden rule→narration examples (output is already a plain-text string).
+  for (const section of [dndTestCases.mecanicas, dndTestCases.atributos, dndTestCases.combate]) {
+    for (const c of section) rows.push(alpaca(c.instruction, c.output));
+  }
+  return rows;
+}
+
+function pf2eAlpacaRows(): AlpacaRow[] {
+  const rows: AlpacaRow[] = [];
+  rows.push(alpaca("Explain the complete Pathfinder 2e rules as implemented in Oraculum.", String(pf2e.rules_text)));
+  rows.push(alpaca("How does the four-degrees-of-success matrix work in Pathfinder 2e in Oraculum?", String(pf2e.core_mechanics.degrees_of_success)));
+  rows.push(alpaca("How do proficiency tiers work in Pathfinder 2e in Oraculum?", String(pf2e.core_mechanics.proficiency_tiers)));
+  rows.push(alpaca("How does the three-action economy work in Pathfinder 2e in Oraculum?", String(pf2e.core_mechanics.action_economy)));
+  rows.push(alpaca("How do conditions affect a Pathfinder 2e character in Oraculum?", String(pf2e.core_mechanics.conditions)));
+  rows.push(alpaca("What is the GM authority contract in Oraculum?", GM_AUTHORITY_RULES));
+  const cat = (label: string) => (items: Record<string, unknown>[]) => addAll(rows, label, items);
+  cat("Pathfinder 2e skill")(PF2E_SKILLS);
+  cat("Pathfinder 2e ancestry")(PF2E_ANCESTRIES);
+  cat("Pathfinder 2e heritage")(PF2E_HERITAGES);
+  cat("Pathfinder 2e background")(PF2E_BACKGROUNDS);
+  cat("Pathfinder 2e feat")(PF2E_FEATS);
+  cat("Pathfinder 2e class")(PF2E_CLASSES);
+  cat("Pathfinder 2e weapon")(PF2E_WEAPONS);
+  cat("Pathfinder 2e armor")(PF2E_ARMORS);
+  cat("Pathfinder 2e gear")(PF2E_GEAR);
+  cat("Pathfinder 2e condition")(CONDITIONS);
+  cat("Pathfinder 2e monster")(ENEMY_TABLES.pf2e);
+  // Reference corpus — outputs are objects; stringify them to plain text.
+  for (const entry of pf2eDataset) {
+    rows.push(alpaca(entry.instruction, typeof entry.output === "string" ? entry.output : JSON.stringify(entry.output)));
+  }
+  return rows;
+}
+
+function writeAlpaca(fileName: string, rows: AlpacaRow[]): void {
+  mkdirSync(OUT_DIR, { recursive: true });
+  const json = JSON.stringify(rows, null, 2);
+  writeFileSync(join(OUT_DIR, fileName), json, "utf8");
+  console.log(
+    `  ✓ ${fileName} (${rows.length} rows, ${(Buffer.byteLength(json, "utf8") / 1024).toFixed(1)} KB)`,
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Write everything
 // ---------------------------------------------------------------------------
 
@@ -360,4 +514,9 @@ console.log("Building master rules JSON → rules/");
 writeMaster("dnd5e.json", dnd5e);
 writeMaster("pf2e.json", pf2e);
 writeMaster("gurps.json", gurps);
+
+console.log("Building Alpaca training corpora → rules/");
+writeAlpaca("alpaca-gurps.json", gurpsAlpacaRows());
+writeAlpaca("alpaca-dnd5e.json", dnd5eAlpacaRows());
+writeAlpaca("alpaca-pf2e.json", pf2eAlpacaRows());
 console.log("Done.");

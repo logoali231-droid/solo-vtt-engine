@@ -3,7 +3,7 @@
   "schema_version": 1,
   "system": "gurps",
   "system_name": "GURPS (Generic Universal RolePlaying System, 4th-edition style)",
-  "generated_at": "2026-08-13T12:47:41.891Z",
+  "generated_at": "2026-08-13T13:26:56.478Z",
   "description": "Complete consolidated GURPS rules database for the Oraculum solo VTT engine: attributes (ST/DX/IQ/HT), the full skill list with controlling attributes and difficulties, advantages and disadvantages with character-point costs, armor with DR, the 3d6 roll-under resolution with margins, the Life & Livelihood extension (jobs, wealth tiers, businesses, relationships, education, social life), the fantasy expansion (six magic colleges, alchemy, smithing, travel, weather), the cyber expansion (gear, ICE, netrunning, programs, the corporate ladder), the shop tables (weapons, armor, gear, quality tiers), the bestiary and conditions.",
   "core_mechanics": {
     "dice_engine": "Every roll uses Math.floor(Math.random() * sides) + 1. Skill checks roll 3d6 and must roll UNDER or EQUAL to the effective skill target (roll-under bell curve). The Margin of Success/Failure is target − total (positive = success margin, negative = failure margin).",
