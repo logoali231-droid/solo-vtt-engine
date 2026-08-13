@@ -336,7 +336,10 @@ export function getPf2eDerived(c: Pf2eCharacter): Pf2eDerived {
 
   const hpMax = ancestry.hp + klass.hp + mods.con;
   const armor = PF2E_ARMOR_MAP[c.armorId];
-  const armorRank: PfRank = c.saveRanks.str === "untrained" && c.armorId !== "none" ? "trained" : c.saveRanks.str; // reuse a rank slot heuristically
+  // Armor proficiency is its own rank in PF2e — every class in this app is
+  // trained in at least light armor, so wearing armor grants the trained
+  // bonus and going unarmored applies the untrained rank (no item bonus).
+  const armorRank: PfRank = c.armorId !== "none" ? "trained" : "untrained";
   const dexToAc = Math.min(mods.dex, armor.dexCap ?? 99);
   const ac = 10 + dexToAc + pfTierBonus(armorRank, level) + armor.acBonus;
   const perception = pfTierBonus(c.perceptionRank, level) + mods.wis;

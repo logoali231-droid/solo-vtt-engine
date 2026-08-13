@@ -53,9 +53,12 @@ export default function SettingsPanel() {
     }
   };
 
-  // Auto-check once when the horde provider becomes active.
+  // Auto-check once when the horde provider becomes active. checkHorde is
+  // async — it only sets state after the network/Convex call settles, so this
+  // is a fetch-on-mount pattern, not a synchronous cascade.
   useEffect(() => {
     if (settings.provider === "horde" && !hordeStatus) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- async fetch guard
       void checkHorde();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import type {
   GurpsCharacter,
   GurpsLifeMode,
@@ -126,10 +126,13 @@ export default function GurpsGearPanel({
   const modeDef = GURPS_LIFE_MODES.find((m) => m.id === mode) ?? GURPS_LIFE_MODES[3];
   const points = gurpsPointTotal(c);
 
-  const [stock, setStock] = useState<GurpsShopItem[]>(() => generateGurpsShop(c, mode));
-  useEffect(() => {
-    setStock(generateGurpsShop(c, mode));
-  }, [points, mode]);
+  // The shop regenerates when the hero, the Life Mode tag or the stock
+  // version changes — derived state, no effect needed.
+  const [stockVersion, setStockVersion] = useState(0);
+  // stockVersion intentionally forces a re-roll on the manual “Restock” button —
+  // generateGurpsShop is random, so re-running it must be a state change.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const stock = useMemo(() => generateGurpsShop(c, mode), [c, mode, stockVersion]);
 
   const equippedArmor = GURPS_ARMOR_MAP[c.armorId];
   const canAfford = (price: number) => (wallet ? wallet.gp >= price : true);
@@ -239,7 +242,7 @@ export default function GurpsGearPanel({
           </div>
           <button
             type="button"
-            onClick={() => setStock(generateGurpsShop(c, mode))}
+            onClick={() => setStockVersion((v) => v + 1)}
             className="flex shrink-0 items-center gap-1 rounded-lg border border-amber-700/60 px-2.5 py-1.5 text-[10px] font-semibold text-amber-300 transition-colors hover:border-amber-500 hover:text-amber-200"
             aria-label="Restock the shop"
           >

@@ -93,6 +93,9 @@ function Carousel({
 
   React.useEffect(() => {
     if (!api) return
+    // Sync the Embla instance to parent state once mounted and on re-init —
+    // the canonical shadcn Carousel pattern (intentional effect-side update).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     onSelect(api)
     api.on("reInit", onSelect)
     api.on("select", onSelect)

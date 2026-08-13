@@ -11,7 +11,7 @@
 // Domains: Arcana (6 original colleges) · Alchemy · Crafting · Wilderness.
 // ============================================================================
 
-import type { GurpsCharacter, GurpsLifeMode } from "../types";
+import type { GurpsCharacter } from "../types";
 
 /** GURPS skill level from attribute + difficulty + invested points
  *  (inlined to keep this module free of the core data module — the same

@@ -7,7 +7,7 @@
 // ranks, DC and advantage/disadvantage all apply).
 // ============================================================================
 
-import { getDndDerived, getGurpsDerived, getPf2eDerived } from "./character";
+import { getDndDerived, getGurpsDerived } from "./character";
 import { GURPS_SKILL_MAP } from "./data/gurps";
 import { PF2E_SKILL_MAP } from "./data/pf2e";
 import type {

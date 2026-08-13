@@ -263,10 +263,6 @@ export function gurpsWealthMultFor(tierId: string | undefined): number {
 
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-");
 
-function pick<T>(arr: T[]): T | undefined {
-  return arr.length > 0 ? arr[Math.floor(Math.random() * arr.length)] : undefined;
-}
-
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
@@ -310,7 +306,6 @@ export function generateGurpsShop(
   const items: GurpsShopItem[] = [];
   const points = gurpsPointTotal(c);
   const quality = qualityFor(points);
-  const qBonus = quality === "masterwork" ? 2 : quality === "fine" ? 1 : 0;
 
   const trained = new Set(c.skills.map((s) => s.id));
   const trainedCombat = COMBAT_SKILLS.filter((s) => trained.has(s));

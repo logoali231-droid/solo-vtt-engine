@@ -65,14 +65,11 @@ import {
   GURPS_ALCHEMY_MAP,
   GURPS_ALCHEMY_RECIPES,
   GURPS_FORGE_MAP,
-  GURPS_FORGE_RECIPES,
   GURPS_MAGIC_COLLEGE_MAP,
   GURPS_REAGENT_MAP,
   GURPS_SPELL_MAP,
   GURPS_SPELLS,
-  GURPS_TERRAIN_MAP,
   GURPS_TERRAINS,
-  GURPS_WEATHER_MAP,
   gurpsAlchemyLevel,
   gurpsForageYield,
   gurpsHuntYield,
@@ -84,10 +81,8 @@ import {
   gurpsTravelSpeed,
 } from "./data/gurps-fantasy";
 import {
-  GURPS_CYBER_GEAR,
   GURPS_GEAR_MAP,
   GURPS_NETRUN_MAP,
-  GURPS_NETRUNS,
   gurpsHackingLevel,
   gurpsNetrunResult,
 } from "./data/gurps-cyber";
@@ -172,11 +167,6 @@ function loc(en: string, pt?: string) {
 /** Whether the text names one of the given keywords (case-insensitive). */
 function has(text: string, words: string[]): boolean {
   return words.some((w) => text.includes(w));
-}
-
-/** Word-boundary match on whole words/phrases (avoids "corp" hitting "corpse"). */
-function hasWord(text: string, patterns: string[]): boolean {
-  return patterns.some((p) => new RegExp(`\\b${p}\\b`, "i").test(text));
 }
 
 /** True for success or critical-success (narrows the outcome type). */
@@ -923,8 +913,8 @@ export function resolveLifeCommand(
         kind: "flat",
         outcome: {
           narration: L(
-            `You study under a ${college.name} master and master ${spell.name} — ${fmtGp(-college.trainingCost)}. Say \"cast ${spell.name}\" to use it.`,
-            `Você estuda com um mestre de ${college.name} e domina ${spell.name} — ${fmtGp(-college.trainingCost)}. Diga \"cast ${spell.name}\" para usá-lo.`,
+            `You study under a ${college.name} master and master ${spell.name} — ${fmtGp(-college.trainingCost)}. Say "cast ${spell.name}" to use it.`,
+            `Você estuda com um mestre de ${college.name} e domina ${spell.name} — ${fmtGp(-college.trainingCost)}. Diga "cast ${spell.name}" para usá-lo.`,
           ),
           walletDelta: -college.trainingCost,
           extPatch: { spells: [...ext.spells, spell.id] },
@@ -938,8 +928,8 @@ export function resolveLifeCommand(
         kind: "flat",
         outcome: {
           narration: L(
-            `You don't know ${spell.name} — learn it first (\"learn ${spell.name}\").`,
-            `Você não conhece ${spell.name} — aprenda primeiro (\"learn ${spell.name}\").`,
+            `You don't know ${spell.name} — learn it first ("learn ${spell.name}").`,
+            `Você não conhece ${spell.name} — aprenda primeiro ("learn ${spell.name}").`,
           ),
         },
       };
@@ -1010,8 +1000,8 @@ export function resolveLifeCommand(
           kind: "flat",
           outcome: {
             narration: L(
-              `You need ${names} to brew ${rec.name} — buy reagents first (\"buy ${names.split(", ")[0]}\").`,
-              `Você precisa de ${names} para preparar ${rec.name} — compre reagentes primeiro (\"buy ${names.split(", ")[0]}\").`,
+              `You need ${names} to brew ${rec.name} — buy reagents first ("buy ${names.split(", ")[0]}").`,
+              `Você precisa de ${names} para preparar ${rec.name} — compre reagentes primeiro ("buy ${names.split(", ")[0]}").`,
             ),
           },
         };

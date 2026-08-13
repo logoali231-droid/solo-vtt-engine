@@ -156,7 +156,8 @@ export default function DndSheet({ character: c, derived: d, onRoll, onUseFeatur
                     label: `${ABILITY_LABELS[s.ability]} Saving Throw`,
                     kind: "save",
                     ability: s.ability,
-                    proficient: true,
+                    // Only proficient saves add the proficiency bonus.
+                    proficient: s.proficient,
                     flashOfGenius: flashAvailable,
                   })
                 }

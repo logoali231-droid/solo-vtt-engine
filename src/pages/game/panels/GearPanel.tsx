@@ -32,7 +32,7 @@ import {
   Trash2,
   Wand2,
 } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 
 interface Props {
@@ -57,12 +57,14 @@ interface Props {
 
 export default function GearPanel({ character: c, derived: d, inventory, onInventoryChange, onSetWeapon, onSetArmor, onToggleShield, onAttack, wallet, onWalletChange, onSetMagicWeapon, onSetMagicArmor, onSetMagicShield, onEnchant, onEnchantProperty, onStripProperty }: Props) {
   const armor = ARMOR_MAP[c.armorId];
-  // The shop stock is regenerated when the hero levels up or changes class —
-  // better level means better (and pricier) gear on the shelves.
-  const [stock, setStock] = useState<DndShopItem[]>(() => generateDndShop(c));
-  useEffect(() => {
-    setStock(generateDndShop(c));
-  }, [c.level, c.classId, c.subclassId]);
+  // The shop stock regenerates whenever the hero changes (level, class,
+  // subclass) and on manual restock — derived state, no effect needed.
+  const [stockVersion, setStockVersion] = useState(0);
+  // stockVersion intentionally forces a re-roll on the manual “Restock” button —
+  // generateDndShop is random, so re-running it must be a state change, not a
+  // pure recompute.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const stock = useMemo(() => generateDndShop(c), [c, stockVersion]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -254,9 +256,23 @@ export default function GearPanel({ character: c, derived: d, inventory, onInven
           {/* Property Infusion — minor weapon properties, resolved by the dice engine */}
           {onEnchantProperty && (
             <div className="mt-3 border-t border-violet-500/20 pt-2">
-              <p className="mb-1.5 text-[10px] font-bold uppercase tracking-widest text-violet-300/80">
-                Property Infusion — weapon only
-              </p>
+              <div className="mb-1.5 flex items-center justify-between gap-2">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-violet-300/80">
+                  Property Infusion — weapon only
+                </p>
+                {c.weaponProperty && onStripProperty && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onStripProperty();
+                      toast("Property stripped from the weapon — the slot is free.");
+                    }}
+                    className="shrink-0 rounded border border-red-500/40 px-1.5 py-0.5 text-[9px] font-bold text-red-400 transition-colors hover:bg-red-500/10"
+                  >
+                    Strip property
+                  </button>
+                )}
+              </div>
               <div className="flex flex-col gap-1.5">
                 {ENCHANT_PROPERTIES.map((prop) => {
                   const locked = c.level < prop.minLevel;
@@ -305,7 +321,7 @@ export default function GearPanel({ character: c, derived: d, inventory, onInven
       <ShopSection
         character={c}
         stock={stock}
-        onRestock={() => setStock(generateDndShop(c))}
+        onRestock={() => setStockVersion((v) => v + 1)}
         wallet={wallet}
         onWalletChange={onWalletChange}
         inventory={inventory}

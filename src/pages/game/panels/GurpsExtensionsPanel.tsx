@@ -10,7 +10,6 @@ import type {
 import { gurpsLifeModeOf, GURPS_LIFE_MODES } from "@/lib/rpg/types";
 import type { GurpsDerived } from "@/lib/rpg/character";
 import {
-  GURPS_BUSINESSES,
   GURPS_BUSINESS_MAP,
   GURPS_CORP_LADDER,
   GURPS_CORP_RANK_MAP,
@@ -18,27 +17,21 @@ import {
   GURPS_COURT_POSITION_MAP,
   GURPS_CYBERWARE,
   GURPS_CYBERWARE_MAP,
-  GURPS_DEGREES,
   GURPS_DEGREE_MAP,
   GURPS_HACK_MAP,
   GURPS_HACK_TARGETS,
   GURPS_HOLDINGS,
   GURPS_HOLDING_MAP,
-  GURPS_JOBS,
   GURPS_JOB_MAP,
   GURPS_NETDECKS,
   GURPS_NETDECK_MAP,
   GURPS_NOBLE_TITLES,
   GURPS_PROGRAMS,
   GURPS_PROGRAM_MAP,
-  GURPS_RELATIONSHIP_MAP,
   GURPS_RELATIONSHIP_STAGES,
-  GURPS_SOCIAL_CIRCLES,
   GURPS_SOCIAL_CIRCLE_MAP,
-  GURPS_SOCIAL_EVENTS,
   GURPS_SOCIAL_EVENT_MAP,
   GURPS_TITLE_MAP,
-  GURPS_UNIVERSITIES,
   GURPS_UNIVERSITY_MAP,
   GURPS_WEALTH_MAP,
   GURPS_WEALTH_TIERS,
@@ -75,7 +68,6 @@ import {
   Cpu,
   Crown,
   GraduationCap,
-  Hammer,
   Heart,
   Landmark,
   Minus,
@@ -87,27 +79,22 @@ import {
   Trophy,
   Users,
   Zap,
-  FlaskConical,
 } from "lucide-react";
 import {
   GURPS_CYBER_GEAR,
   GURPS_GEAR_KIND_LABELS,
   GURPS_GEAR_MAP,
-  GURPS_NETRUN_MAP,
   GURPS_NETRUNS,
   gurpsHackingLevel,
   gurpsNetrunResult,
 } from "@/lib/rpg/data/gurps-cyber";
 import {
-  GURPS_ALCHEMY_MAP,
   GURPS_ALCHEMY_RECIPES,
-  GURPS_FORGE_MAP,
   GURPS_FORGE_RECIPES,
   GURPS_MAGIC_COLLEGE_MAP,
   GURPS_MAGIC_COLLEGES,
   GURPS_REAGENT_MAP,
   GURPS_REAGENTS,
-  GURPS_SPELL_MAP,
   GURPS_SPELLS,
   gurpsAlchemyLevel,
   gurpsMaxFp,
@@ -398,7 +385,7 @@ export default function GurpsExtensionsPanel({
       return;
     }
     onExt({ spells: [...ext.spells, spell.id] });
-    report(`${spell.name} learned from a ${college.name} master (${college.trainingCost} gp). Say \"cast ${spell.name}\" in chat to use it.`);
+    report(`${spell.name} learned from a ${college.name} master (${college.trainingCost} gp). Say "cast ${spell.name}" in chat to use it.`);
   };
   const castSpell = (spell: GurpsSpellDef) => {
     if (spell.energy > fpAvailable) {

@@ -9,7 +9,6 @@ import {
 import { CONDITIONS, CONDITION_MAP } from "@/lib/rpg/data/conditions";
 import { ARMOR_MAP, CLASS_MAP, WEAPON_MAP } from "@/lib/rpg/data/dnd";
 import {
-  ENCHANT_PROPERTIES,
   ENCHANT_PROPERTY_MAP,
   ENCHANT_TIERS,
   enchantCost,
@@ -56,7 +55,7 @@ import {
   saveToLibrary,
 } from "@/lib/rpg/storage";
 import { generateOpening } from "@/lib/rpg/gm/local";
-import { generateEncounter, randomEnemy, type EncounterDifficulty } from "@/lib/rpg/data/enemies";
+import { randomEnemy } from "@/lib/rpg/data/enemies";
 import { useGmClient } from "@/lib/rpg/gm/live";
 import {
   shouldSummarize,
@@ -115,6 +114,7 @@ import { Sheet, SheetContent } from "@/components/ui/sheet";
 import PuzzleDialog from "./center/PuzzleDialog";
 
 const COND_EFFECTS = Object.fromEntries(CONDITIONS.map((cd) => [cd.id, cd.effects]));
+
 interface Props {
   character: Character;
   initialAdventure?: AdventureState | null; // resume a specific saved session
@@ -294,8 +294,12 @@ export default function GameBoard({
   const system = adventure.system;
   const c = adventure.character as Character;
 
+  // Auto-save is debounced so streaming GM tokens (which update `adventure`
+  // many times per second) don't hammer localStorage synchronously on the
+  // main thread.
   useEffect(() => {
-    saveAdventure(adventure);
+    const timer = setTimeout(() => saveAdventure(adventure), 400);
+    return () => clearTimeout(timer);
   }, [adventure]);
 
   useEffect(() => {
@@ -382,7 +386,6 @@ export default function GameBoard({
         aiIntroBusy.current = false;
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [adventure.aiIntroPending, adventure.gmMode, adventure.logs.length, regenerateOpening]);
 
   // -------------------------------------------------------------------------
@@ -1137,12 +1140,15 @@ export default function GameBoard({
       const d = getDndDerived(dnd);
       const attack =
         d.attacks.find((a) => attackDice.label.startsWith(a.name)) ?? d.attacks[0];
-      const count = attack.count;
+      // A critical hit doubles the weapon's damage DICE (the flat ability +
+      // enchantment bonus is never doubled in D&D 5e).
+      const crit = attackDice.outcome === "critical-success";
+      const count = attack.count * (crit ? 2 : 1);
       const dmgRolls = rollDice(count, attack.sides);
       // Magic-weapon enchantment adds to damage exactly like the attack roll.
       const bonus = d.mods[attack.ability] + (attack.enchant ?? 0);
       rolls.push(...dmgRolls);
-      labels.push(`${count}d${attack.sides}`);
+      labels.push(`${count}d${attack.sides}${crit ? " (crit)" : ""}`);
       // Negative ability modifiers DO reduce damage (a -2 STR hit lands weak);
       // the rules floor the result at 1 — they never zero the penalty out.
       // (5e: minimum 1 on a hit; PF2e: same minimum-damage rule.)
@@ -1189,12 +1195,17 @@ export default function GameBoard({
     } else if (system === "pf2e") {
       const pf = char as Pf2eCharacter;
       const klass = PF2E_CLASS_MAP[pf.classId];
-      const r = rollDice(1, 8);
+      // PF2e: a critical success doubles ALL damage — the dice AND the
+      // key-ability modifier (unlike D&D 5e, which only doubles the dice).
+      const crit = attackDice.outcome === "critical-success";
+      const dieCount = crit ? 2 : 1;
+      const r = rollDice(dieCount, 8);
       rolls.push(...r);
-      labels.push("1d8");
+      labels.push(`${dieCount}d8${crit ? " (crit)" : ""}`);
       // Same rule as D&D: the key-ability modifier applies even when negative,
       // floored at 1 damage on a successful hit.
-      damageTotal = Math.max(1, sum(r) + getPf2eDerived(pf).mods[klass.keyAbility]);
+      const mod = getPf2eDerived(pf).mods[klass.keyAbility];
+      damageTotal = Math.max(1, sum(r) + mod * (crit ? 2 : 1));
     } else {
       const gp = char as GurpsCharacter;
       const st = gp.attributes.st;
@@ -1318,12 +1329,14 @@ export default function GameBoard({
         return;
       }
 
-      // Damage: D&D 5e / PF2e critical hits double the dice; GURPS keeps its table.
+      // Damage: D&D 5e crits double the dice only; PF2e crits double the dice
+      // AND the flat bonus; GURPS keeps its own damage table.
       const parsed = parseDice(comp.damage);
-      const critDouble = snap.system !== "gurps" && dice.outcome === "critical-success";
-      const count = critDouble ? parsed.count * 2 : parsed.count;
+      const crit = snap.system !== "gurps" && dice.outcome === "critical-success";
+      const pfCrit = snap.system === "pf2e" && crit;
+      const count = crit ? parsed.count * 2 : parsed.count;
       const rolls = rollDice(count, parsed.sides);
-      const total = Math.max(1, sum(rolls) + parsed.flat);
+      const total = Math.max(1, sum(rolls) + parsed.flat * (pfCrit ? 2 : 1));
       const notation = `${count}d${parsed.sides}${parsed.flat !== 0 ? (parsed.flat > 0 ? `+${parsed.flat}` : parsed.flat) : ""}`;
       const dmgDice = buildDiceResult({
         system: snap.system,
@@ -2219,25 +2232,37 @@ export default function GameBoard({
           ? { ...ch, state: { ...ch.state, hpDamage: Math.max(0, ch.state.hpDamage - n) } }
           : ch,
       ),
+    // Spell slots cycle 0 → max so a 2-slot caster can spend one without
+    // zeroing both at once.
     onToggleSpellSlot: (i) =>
       updateChar((ch) => {
         if (ch.system !== "dnd5e") return ch;
         const used = [...(ch.state.spellSlotsUsed ?? [])];
-        used[i] = used[i] === 1 ? 0 : 1;
+        const max = getDndDerived(ch).spellSlots[i] ?? 1;
+        used[i] = (used[i] ?? 0) >= max ? 0 : (used[i] ?? 0) + 1;
         return { ...ch, state: { ...ch.state, spellSlotsUsed: used } };
       }),
     onTogglePact: () =>
-      updateChar((ch) =>
-        ch.system === "dnd5e"
-          ? { ...ch, state: { ...ch.state, pactUsed: ch.state.pactUsed > 0 ? 0 : 1 } }
-          : ch,
-      ),
+      updateChar((ch) => {
+        if (ch.system !== "dnd5e") return ch;
+        const max = getDndDerived(ch).pact?.count ?? 1;
+        return {
+          ...ch,
+          state: { ...ch.state, pactUsed: ch.state.pactUsed >= max ? 0 : ch.state.pactUsed + 1 },
+        };
+      }),
     onToggleInfusion: () =>
-      updateChar((ch) =>
-        ch.system === "dnd5e"
-          ? { ...ch, state: { ...ch.state, infusionsUsed: ch.state.infusionsUsed > 0 ? 0 : 1 } }
-          : ch,
-      ),
+      updateChar((ch) => {
+        if (ch.system !== "dnd5e") return ch;
+        const max = getDndDerived(ch).infusions;
+        return {
+          ...ch,
+          state: {
+            ...ch.state,
+            infusionsUsed: ch.state.infusionsUsed >= max ? 0 : ch.state.infusionsUsed + 1,
+          },
+        };
+      }),
     onUseResource: (id) => {
       const snap = adventureRef.current;
       if (snap.system !== "dnd5e") return;
