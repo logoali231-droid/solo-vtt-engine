@@ -245,6 +245,36 @@ export default function SettingsPanel() {
             a worker is hosting it right now. This checks the live network.
           </p>
 
+          {/* Optional Horde key — anonymous (0000000000) works; a free account
+              key buys queue priority via Kudos. */}
+          <div className="mt-3 rounded-lg border border-emerald-500/20 bg-emerald-900/40 p-2.5">
+            <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-emerald-300">
+              AI Horde API key (Optional)
+            </p>
+            <input
+              type="password"
+              value={settings.apiKey}
+              onChange={(e) => patch({ apiKey: e.target.value })}
+              placeholder="Place your Horde AI key here (Optional)"
+              autoComplete="off"
+              className="h-9 w-full rounded-lg border border-emerald-500/30 bg-emerald-950 px-3 font-mono text-xs text-emerald-100 outline-none transition-colors placeholder:text-emerald-200/40 focus:border-emerald-400"
+            />
+            <p className="mt-1.5 text-[10px] leading-relaxed text-emerald-200/60">
+              No key needed — anonymous requests work (they use the
+              0000000000 token). A free account key from{" "}
+              <a
+                href="https://aihorde.net"
+                target="_blank"
+                rel="noreferrer"
+                className="font-semibold text-emerald-300 underline decoration-emerald-500/40 underline-offset-2 hover:text-emerald-200"
+              >
+                aihorde.net
+              </a>{" "}
+              earns Kudos and jumps your requests ahead in the queue. Stored only
+              in this browser.
+            </p>
+          </div>
+
           {/* Selected model verdict */}
           {hordeStatus && (
             <div className="mt-2 rounded-lg border border-emerald-500/20 bg-emerald-900/40 p-2.5">
