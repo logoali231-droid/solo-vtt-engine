@@ -47,10 +47,12 @@ import {
   loadAdventure,
   loadAdsSettings,
   loadGmSettings,
+  loadLearnedFacts,
   loadLorebook,
   saveAdventure,
   saveAdsSettings,
   saveGmSettings,
+  saveLearnedFacts,
   saveLorebook,
   saveToLibrary,
 } from "@/lib/rpg/storage";
@@ -62,6 +64,10 @@ import {
   summarizeConversation,
 } from "@/lib/rpg/gm/providers";
 import { compileLorebook } from "@/lib/rpg/lorebook";
+import {
+  compileLearnedContext,
+  learnFromInteraction,
+} from "@/lib/rpg/learning";
 import { playDiceRoll } from "@/lib/rpg/sfx";
 import { speak, speakDice, useA11yApplied } from "@/lib/rpg/a11y";
 import { detectSkillCheck } from "@/lib/rpg/skillDetect";
@@ -86,6 +92,7 @@ import type {
   GmTurn,
   GurpsCharacter,
   InventoryItem,
+  LearnedFact,
   LogEntry,
   LorebookEntry,
   Pf2eCharacter,
@@ -240,6 +247,11 @@ export default function GameBoard({
   const [lorebook, setLorebook] = useState<LorebookEntry[]>(() =>
     loadLorebook(fingerprint(character)),
   );
+  // Code-based GM learning — facts mechanically extracted from interactions,
+  // persisted per campaign, injected into every GM prompt (see learning.ts).
+  const [learnedFacts, setLearnedFacts] = useState<LearnedFact[]>(() =>
+    loadLearnedFacts(fingerprint(character)),
+  );
   const [adventure, setAdventure] = useState<AdventureState>(() => {
     if (initialAdventure) {
       return fingerprint(initialAdventure.character) === fingerprint(character)
@@ -281,6 +293,7 @@ export default function GameBoard({
   const adventureRef = useRef(adventure);
   const settingsRef = useRef(settings);
   const loreRef = useRef(lorebook);
+  const learnedRef = useRef(learnedFacts);
   const puzzleRef = useRef<PuzzleSpec | null>(null);
   // Keep refs in sync after every render — event handlers read them, so refs
   // must never be touched during render (React Compiler rule).
@@ -288,6 +301,7 @@ export default function GameBoard({
     adventureRef.current = adventure;
     settingsRef.current = settings;
     loreRef.current = lorebook;
+    learnedRef.current = learnedFacts;
     puzzleRef.current = puzzle;
   });
 
@@ -313,6 +327,10 @@ export default function GameBoard({
   useEffect(() => {
     saveLorebook(fingerprint(c), lorebook);
   }, [c, lorebook]);
+
+  useEffect(() => {
+    saveLearnedFacts(fingerprint(c), learnedFacts);
+  }, [c, learnedFacts]);
 
   const derived = useMemo(() => {
     if (c.system === "dnd5e") return getDndDerived(c as DnDCharacter);
@@ -422,6 +440,7 @@ export default function GameBoard({
         const snap = adventureRef.current;
         const recent = snap.logs.slice(-6).map((l) => l.text);
         const lore = compileLorebook(loreRef.current, recent, turn.playerText ?? "");
+        const learned = compileLearnedContext(learnedRef.current);
         const entryId = uid();
         setAdventure((prev) => ({
           ...prev,
@@ -429,7 +448,7 @@ export default function GameBoard({
           updatedAt: Date.now(),
         }));
         const reply = await gm.streamRespond(
-          { ...turn, lorebook: lore || undefined },
+          { ...turn, lorebook: lore || undefined, learned: learned || undefined },
           snap,
           (acc) => {
             setAdventure((prev) => ({
@@ -456,6 +475,19 @@ export default function GameBoard({
               ? "GM ao vivo indisponível — o narrador local assumiu."
               : "Live GM unavailable — switched to the local narrator.",
           );
+        }
+        // Code-based learning: mechanically extract facts from this interaction
+        // (declared stances, resolved outcomes, NPCs, kills) and remember them
+        // for every future prompt. Runs in both live and local GM modes.
+        const nextFacts = learnFromInteraction({
+          playerText: turn.playerText,
+          dice: turn.dice,
+          gmText: finalText,
+          adventure: snap,
+          existing: learnedRef.current,
+        });
+        if (nextFacts !== learnedRef.current) {
+          setLearnedFacts(nextFacts);
         }
       } finally {
         setGmBusy(false);
@@ -2538,6 +2570,9 @@ export default function GameBoard({
               xp: adventure.xp ?? 0,
               gold: adventure.gold ?? 0,
               memory: adventure.memory,
+              learned: compileLearnedContext(learnedFacts) || undefined,
+              learnedCount: learnedFacts.length,
+              onClearLearned: () => setLearnedFacts([]),
               level: charLevel(c),
               maxLevel: system === "gurps" ? charLevel(c) : 20,
               xpNeeded: system === "gurps" ? 0 : xpNeededFor(charLevel(c), system),
@@ -2718,6 +2753,9 @@ export default function GameBoard({
                   xp: adventure.xp ?? 0,
                   gold: adventure.gold ?? 0,
                   memory: adventure.memory,
+                  learned: compileLearnedContext(learnedFacts) || undefined,
+                  learnedCount: learnedFacts.length,
+                  onClearLearned: () => setLearnedFacts([]),
                   level: charLevel(c),
                   maxLevel: system === "gurps" ? charLevel(c) : 20,
                   xpNeeded: system === "gurps" ? 0 : xpNeededFor(charLevel(c), system),

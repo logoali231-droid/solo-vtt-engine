@@ -186,6 +186,8 @@ export const generate = action({
     apiKey: v.optional(v.string()), // optional AI Horde key (priority); OpenAI uses the env key
     opening: v.optional(v.boolean()), // true = generate the campaign's AI opening scene
     length: v.optional(v.string()), // "short" | "long" | "epic" | "dynamic" — narrator length preset
+    learned: v.optional(v.string()), // compiled learned-memory facts (code-based GM learning)
+    memory: v.optional(v.string()), // auto-generated session summary recap
   },
   handler: async (_ctx, args) => {
     const lang = args.language === "pt-BR" ? "pt-BR" : "en";
@@ -229,6 +231,12 @@ export const generate = action({
             : args.system === "pf2e"
               ? `\n\nPATHFINDER 2E RULES & REFERENCE CORPUS (grounds every narration in the real rules):\n${pf2eRulesContext()}`
               : null,
+          args.learned
+            ? `\n\nLEARNED MEMORY (facts the engine has observed about this player and campaign across interactions. Treat them as established and let them shape your narration — echo callbacks, honor declared preferences, stay consistent with named NPCs and past outcomes):\n${args.learned}`
+            : null,
+          args.memory
+            ? `\n\nSESSION MEMORY (condensed recap of the story so far — keep continuity with it):\n${args.memory}`
+            : null,
         ]
           .filter((x): x is string => !!x)
           .join(" ");

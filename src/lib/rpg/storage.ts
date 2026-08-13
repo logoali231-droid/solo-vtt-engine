@@ -4,6 +4,7 @@ import type {
   AdsSettings,
   Character,
   GmSettings,
+  LearnedFact,
   LorebookEntry,
   SavedCharacterRecord,
 } from "./types";
@@ -16,6 +17,7 @@ const ADVENTURES_KEY = "oraculum.adventures.v1"; // saved-session library
 const SETTINGS_KEY = "oraculum.gmSettings.v1";
 const LOREBOOK_KEY = "oraculum.lorebook.v1"; // legacy global array
 const LOREBOOK_V2_KEY = "oraculum.lorebook.v2"; // per-campaign map
+const LEARNED_KEY = "oraculum.learned.v1"; // per-campaign learned-memory facts
 const LIBRARY_KEY = "oraculum.library.v1";
 const ADS_KEY = "oraculum.adsSettings.v1";
 
@@ -238,6 +240,39 @@ export function saveLorebook(campaignKey: string, entries: LorebookEntry[]): voi
     localStorage.setItem(
       LOREBOOK_V2_KEY,
       JSON.stringify({ ...map, [campaignKey]: entries }),
+    );
+  } catch {
+    // non-fatal
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Learned memory (code-based GM learning — per-campaign, like the lorebook)
+// ---------------------------------------------------------------------------
+
+function loadLearnedMap(): Record<string, LearnedFact[]> {
+  try {
+    const raw = localStorage.getItem(LEARNED_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? (parsed as Record<string, LearnedFact[]>) : {};
+  } catch {
+    return {};
+  }
+}
+
+export function loadLearnedFacts(campaignKey: string): LearnedFact[] {
+  const map = loadLearnedMap();
+  const facts = map[campaignKey];
+  return Array.isArray(facts) ? facts : [];
+}
+
+export function saveLearnedFacts(campaignKey: string, facts: LearnedFact[]): void {
+  try {
+    const map = loadLearnedMap();
+    localStorage.setItem(
+      LEARNED_KEY,
+      JSON.stringify({ ...map, [campaignKey]: facts }),
     );
   } catch {
     // non-fatal

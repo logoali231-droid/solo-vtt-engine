@@ -39,6 +39,10 @@ export interface CampaignPanelData {
   xp: number;
   gold: number;
   memory?: string;
+  /** Compiled learned-memory context — facts the engine extracted from play. */
+  learned?: string;
+  learnedCount?: number;
+  onClearLearned?: () => void;
   level: number;
   maxLevel: number;
   xpNeeded: number;

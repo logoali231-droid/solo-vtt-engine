@@ -410,6 +410,34 @@ export interface LorebookEntry {
   updatedAt: number;
 }
 
+// ---------------------------------------------------------------------------
+// Learned memory (code-based GM learning — see lib/rpg/learning.ts)
+// Facts the engine mechanically extracts from interactions and injects into
+// every GM prompt, so the AI visibly remembers and adapts without any
+// fine-tuning.
+// ---------------------------------------------------------------------------
+
+export type LearnedFactCategory =
+  | "preference"
+  | "behavior"
+  | "outcome"
+  | "npc"
+  | "combat";
+
+export interface LearnedFact {
+  id: string;
+  category: LearnedFactCategory;
+  /** Human-readable third-person fact, e.g. "The hero refuses to kill innocents." */
+  text: string;
+  /** 0..1 — repetition strengthens, staleness decays. */
+  confidence: number;
+  firstSeen: number;
+  lastSeen: number;
+  count: number;
+  /** Dedup/merge key (category + normalized text). */
+  key: string;
+}
+
 export interface SavedCharacterRecord {
   id: string;
   label: string;
@@ -1092,6 +1120,8 @@ export interface GmTurn {
   dice?: DiceResult;
   action?: string;
   lorebook?: string; // compiled lorebook context for the live GM
+  /** Compiled learned-memory context (see lib/rpg/learning.ts). */
+  learned?: string;
   /** Structured puzzle spec — the AI narrates the flavor, the rules stay local. */
   puzzle?: string;
 }

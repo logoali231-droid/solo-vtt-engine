@@ -48,6 +48,8 @@ function buildSystemPrompt(
   payload: string,
   history: string[],
   lorebook: string,
+  learned: string,
+  memory: string,
 ): string {
   const rules =
     adventure.system === "dnd5e"
@@ -72,6 +74,12 @@ function buildSystemPrompt(
     "",
     lorebook
       ? `WORLD LOREBOOK (facts about this campaign — use them when relevant):\n${lorebook}`
+      : "",
+    learned
+      ? `LEARNED MEMORY (facts the engine has observed about this player and campaign across interactions. Treat them as established and let them shape your narration — echo callbacks, honor declared preferences, stay consistent with named NPCs and past outcomes):\n${learned}`
+      : "",
+    memory
+      ? `SESSION MEMORY (condensed recap of the story so far — keep continuity with it):\n${memory}`
       : "",
     adventure.territories?.length
       ? territoriesContext(adventure.territories, settings.language)
@@ -259,13 +267,23 @@ export function useGmClient(settings: GmSettings) {
           provider: settings.provider === "horde" ? "horde" : "auto",
           apiKey: settings.apiKey || undefined,
           length: settings.narratorLength,
+          learned: turn.learned || undefined,
+          memory: adventure.memory || undefined,
         });
         if (res.ok && res.text) {
           onDelta(res.text);
           return { text: res.text, usedFallback: false };
         }
       } else {
-        const system = buildSystemPrompt(settings, adventure, payload, history, turn.lorebook ?? "");
+        const system = buildSystemPrompt(
+          settings,
+          adventure,
+          payload,
+          history,
+          turn.lorebook ?? "",
+          turn.learned ?? "",
+          adventure.memory ?? "",
+        );
         const messages = [
           { role: "system" as const, content: system },
           { role: "user" as const, content: buildUserPrompt(turn) },

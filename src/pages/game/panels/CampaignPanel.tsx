@@ -20,6 +20,10 @@ interface Props {
   xp: number;
   gold: number;
   memory?: string;
+  /** Compiled learned-memory context — facts the engine extracted from play. */
+  learned?: string;
+  learnedCount?: number;
+  onClearLearned?: () => void;
   level: number;
   maxLevel: number;
   xpNeeded: number;
@@ -43,6 +47,9 @@ export default function CampaignPanel({
   xp,
   gold,
   memory,
+  learned,
+  learnedCount,
+  onClearLearned,
   level,
   maxLevel,
   xpNeeded,
@@ -232,6 +239,39 @@ export default function CampaignPanel({
             <Brain className="size-3.5" /> {pt ? "Memória da sessão" : "Session memory"}
           </p>
           <p className="whitespace-pre-wrap text-[11px] leading-relaxed text-violet-200/70">{memory}</p>
+        </div>
+      )}
+
+      {/* Learned memory — code-based GM learning, extracted from play */}
+      {learned && (
+        <div className="rounded-xl border border-emerald-800/40 bg-emerald-950/20 p-3">
+          <div className="mb-1.5 flex items-center justify-between gap-2">
+            <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-emerald-300">
+              <Brain className="size-3.5" />
+              {pt ? "O que o GM aprendeu" : "What the GM learned"}
+              {typeof learnedCount === "number" && learnedCount > 0 && (
+                <span className="rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[9px] font-semibold text-emerald-300">
+                  {learnedCount}
+                </span>
+              )}
+            </p>
+            {onClearLearned && (
+              <button
+                type="button"
+                onClick={onClearLearned}
+                title={pt ? "Apagar memória aprendida" : "Clear learned memory"}
+                className="rounded p-1 text-emerald-400/60 transition-colors hover:bg-emerald-500/10 hover:text-emerald-300"
+              >
+                <Trash2 className="size-3.5" />
+              </button>
+            )}
+          </div>
+          <p className="whitespace-pre-wrap text-[11px] leading-relaxed text-emerald-200/70">{learned}</p>
+          <p className="mt-1.5 text-[9px] text-emerald-400/40">
+            {pt
+              ? "Fatos extraídos automaticamente das suas interações e injetados no GM a cada resposta."
+              : "Facts extracted automatically from your interactions and injected into the GM on every reply."}
+          </p>
         </div>
       )}
 
