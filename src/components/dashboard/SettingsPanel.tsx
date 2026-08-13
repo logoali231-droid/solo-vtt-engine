@@ -13,7 +13,7 @@ import {
 import type { HordeStatusResult } from "@/lib/rpg/gm/providers";
 import { loadGmSettings, saveGmSettings } from "@/lib/rpg/storage";
 import type { GmLanguage, GmSettings } from "@/lib/rpg/types";
-import { Loader2, PlugZap, RefreshCw } from "lucide-react";
+import { Ghost, Loader2, PlugZap, RefreshCw, Star } from "lucide-react";
 import { useEffect, useState } from "react";
 
 export default function SettingsPanel() {
@@ -223,9 +223,37 @@ export default function SettingsPanel() {
       {settings.provider === "horde" && (
         <div className="rounded-xl border border-emerald-500/30 bg-emerald-950/50 p-3">
           <div className="flex items-center justify-between gap-2">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-300">
-              AI Horde · model status
-            </p>
+            <div className="flex min-w-0 items-center gap-2">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-300">
+                AI Horde · model status
+              </p>
+              {/* Anonymous vs. priority key badge — reflects the current key state */}
+              <span
+                title={
+                  settings.apiKey
+                    ? "Account key active — Kudos and queue priority."
+                    : "No key — anonymous mode (0000000000 token)."
+                }
+                className={cn(
+                  "inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide",
+                  settings.apiKey
+                    ? "bg-amber-400/20 text-amber-300"
+                    : "bg-emerald-500/15 text-emerald-300",
+                )}
+              >
+                {settings.apiKey ? (
+                  <>
+                    <Star className="size-2.5" />
+                    Priority
+                  </>
+                ) : (
+                  <>
+                    <Ghost className="size-2.5" />
+                    Anonymous
+                  </>
+                )}
+              </span>
+            </div>
             <button
               type="button"
               onClick={() => void checkHorde()}
