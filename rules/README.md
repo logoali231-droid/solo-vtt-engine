@@ -5,15 +5,58 @@ JSON file per RPG system**. These files are plain JSON — no TypeScript, no
 imports, no code — so they can be fed directly to AI training / fine-tuning
 pipelines.
 
+## Files
+
+### Master rule databases (reference / RAG)
+
 | File | System | Contents |
 |------|--------|----------|
 | `gurps.json` | GURPS | Attributes (ST/DX/IQ/HT), full skill list, advantages & disadvantages, armor/DR, 3d6 roll-under math, Life & Livelihood extension (jobs, wealth tiers, businesses, relationships, education, social life), fantasy expansion (6 magic colleges, spells, alchemy, smithing, travel, weather), cyber expansion (gear, ICE, netrunning, programs, corp ladder), shop tables, bestiary, conditions |
 | `dnd5e.json` | D&D 5e (+TCoE) | Skills, races, subraces, TCoE Custom Lineage, backgrounds, feats, all classes incl. **Artificer** and TCoE subclasses, spell-slot tables, weapons, armor, spells, enchanting, encounter tables, bestiary, conditions |
 | `pf2e.json` | Pathfinder 2e | Skills, ancestries, heritages, backgrounds, ancestry/general/skill feats, 12 Player Core classes, weapons, armor, gear, 4-tier proficiency, 4-degrees-of-success matrix, encounter tables, bestiary, conditions |
 
-## Schema
+### Alpaca training corpora (for Unsloth Studio / SFT trainers) — ✅ use these
 
-Every file follows the same shape:
+| File | Contents |
+|------|----------|
+| `alpaca-dnd5e.json` | D&D 5e rules Q&A, every data entry (races, classes, TCoE subclasses, spells, monsters, …), and the golden dice → narration examples |
+| `alpaca-gurps.json` | GURPS rules Q&A and every data entry (skills, advantages, jobs, spells, gear, …) |
+| `alpaca-pf2e.json` | PF2e rules Q&A and every data entry (ancestries, feats, classes, monsters, …) |
+| `alpaca-all.json` | All three systems merged into one file (deduplicated) |
+| `alpaca-*.jsonl` | Same rows as the matching `.json`, one JSON object per line |
+
+## Training with Unsloth Studio (or any Alpaca-format trainer)
+
+**Upload the `alpaca-*.json` / `alpaca-all.json` files — NOT the master
+files.** Unsloth Studio's default reader expects the traditional Alpaca
+schema: only plain-text string columns named `instruction`, `input` and
+`output`. The master files are a rules *database* (nested objects, numbers,
+booleans) and their old nested `training_corpus` made the schema detector fail
+with errors like:
+
+```
+Column(/training_corpus/[]/output/deslocamento) changed from object to number in row 0
+```
+
+Every row in the alpaca corpora is exactly:
+
+```json
+{ "instruction": "…", "input": "…", "output": "…" }
+```
+
+- `instruction`, `input` and `output` are **plain strings** in every single row.
+- No nested objects, no numbers, no booleans — identical keys in every row.
+- `input` is empty for most rows (the prompts are self-contained).
+
+The master files also embed a `training_corpus` key in this same flat Alpaca
+shape, so even they can no longer break a schema-inference parser.
+
+If your trainer prefers newline-delimited JSON, upload the matching
+`alpaca-*.jsonl` file instead.
+
+## Master file schema
+
+Every master file follows the same shape:
 
 ```jsonc
 {
@@ -30,8 +73,9 @@ Every file follows the same shape:
   "rules_text": "…",              // full rules-corpus prompt text fed to the
                                   //   in-game AI GM
   "data": { … },                  // every data table (see table below)
-  "training_corpus": { … }        // D&D/PF2e only: golden rule & narration
-                                  //   examples (instruction → output pairs)
+  "training_corpus": [ … ]        // flat Alpaca rows — every row is
+                                  //   { instruction, input, output } with
+                                  //   plain-string values only
 }
 ```
 
@@ -64,12 +108,15 @@ The files are generated from the live TypeScript rule modules under
 bun run scripts/build-rules-json.ts
 ```
 
+This rewrites all master files, all `alpaca-*.json` files, the combined
+`alpaca-all.json`, and the `.jsonl` variants.
+
 ## Notes
 
 - **Data provenance**: races/classes/feats are the app's own curated
   implementations (original flavor text; rules follow the published systems).
-- **`training_corpus`**: `dnd5e.json` and `pf2e.json` embed golden
-  instruction → output examples used to ground AI narration in the exact dice
-  math (the `dndTestCases` / `pf2eDataset` corpora).
+- **`training_corpus`**: every master file embeds golden instruction → output
+  examples in flat Alpaca shape (D&D/PF2e include the `dndTestCases` /
+  `pf2eDataset` corpora, flattened to plain text).
 - **Conditions** are shared across systems and carry per-system effects
   (e.g. `attackDisadvantage` for dnd5e, `pf2ePenalty`, `gurpsPenalty`).

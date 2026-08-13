@@ -15,6 +15,12 @@
 //                         slot tables, enchanting, bestiary & conditions.
 //   rules/pf2e.json     — all PF2e ancestries/heritages/backgrounds/feats/
 //                         classes, weapons, armor, gear, bestiary & conditions.
+//   rules/alpaca-*.json — Alpaca-format training corpora (every row is
+//                         { "instruction", "input", "output" } — plain
+//                         strings, no nesting), one per system plus a combined
+//                         alpaca-all.json, and .jsonl variants for trainers
+//                         that prefer one JSON object per line. Upload THESE
+//                         (not the master files) to Unsloth Studio.
 // ============================================================================
 
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -209,9 +215,9 @@ const dnd5e: Record<string, unknown> = {
     encounter_difficulties: ENCOUNTER_DIFFICULTIES,
     enemies: ENEMY_TABLES.dnd5e,
   },
-
-  training_corpus: dndTestCases,
 };
+// (dnd5e.training_corpus is attached below — flat Alpaca rows, so the master
+//  file stays safe to feed to schema-inference trainers.)
 
 // ---------------------------------------------------------------------------
 // Pathfinder 2e master
@@ -262,9 +268,9 @@ const pf2e: Record<string, unknown> = {
     encounter_difficulties: ENCOUNTER_DIFFICULTIES,
     enemies: ENEMY_TABLES.pf2e,
   },
-
-  training_corpus: pf2eDataset,
 };
+// (pf2e.training_corpus is attached below — flat Alpaca rows, so the master
+//  file stays safe to feed to schema-inference trainers.)
 
 // ---------------------------------------------------------------------------
 // GURPS master
@@ -392,15 +398,66 @@ function addAll(rows: AlpacaRow[], category: string, items: Record<string, unkno
   }
 }
 
+// ---------------------------------------------------------------------------
+// Golden corpora (shared by the master files AND the alpaca files)
+//
+// Every row is strictly { instruction: string, input: string, output: string }
+// — no nested objects, no numbers/booleans, identical keys in every row. This
+// is the exact schema Unsloth Studio's default Alpaca reader expects, and the
+// reason the old nested `training_corpus` objects broke it with errors like
+// "Column(/training_corpus/[]/output/deslocamento) changed from object to
+// number in row 0".
+// ---------------------------------------------------------------------------
+
+function gurpsGoldenRows(): AlpacaRow[] {
+  return [
+    alpaca("Explain the complete GURPS rules as implemented in Oraculum.", String(gurps.rules_text)),
+    alpaca("How do GURPS skill checks resolve in Oraculum?", `${gurps.core_mechanics.dice_engine}\n\n${gurps.core_mechanics.skill_math}`),
+    alpaca("How do GURPS criticals work in Oraculum?", String(gurps.core_mechanics.criticals)),
+    alpaca("How do GURPS attributes and character points work in Oraculum?", String(gurps.core_mechanics.attributes)),
+    alpaca("How do conditions affect a GURPS character in Oraculum?", String(gurps.core_mechanics.conditions)),
+    alpaca("What is the GURPS Life & Livelihood extension?", String(gurps.core_mechanics.life_and_livelihood)),
+    alpaca("What is the GM authority contract in Oraculum?", GM_AUTHORITY_RULES),
+  ];
+}
+
+function dnd5eGoldenRows(): AlpacaRow[] {
+  const rows: AlpacaRow[] = [
+    alpaca("Explain the complete D&D 5e rules as implemented in Oraculum.", String(dnd5e.rules_text)),
+    alpaca("How do D&D 5e checks resolve in Oraculum?", String(dnd5e.core_mechanics.dice_engine)),
+    alpaca("How does ability generation work in D&D 5e in Oraculum?", String(dnd5e.core_mechanics.ability_generation)),
+    alpaca("What is Tasha's Origin Customization in Oraculum?", String(dnd5e.core_mechanics.tasha_customization)),
+    alpaca("How do D&D 5e spell slots work in Oraculum?", String(dnd5e.core_mechanics.spell_slots)),
+    alpaca("How do conditions affect a D&D 5e character in Oraculum?", String(dnd5e.core_mechanics.conditions)),
+    alpaca("How does enchanting work in Oraculum's D&D 5e?", String(dnd5e.core_mechanics.enchanting)),
+    alpaca("What is the GM authority contract in Oraculum?", GM_AUTHORITY_RULES),
+  ];
+  // Golden rule→narration examples (output is already a plain-text string).
+  for (const section of [dndTestCases.mecanicas, dndTestCases.atributos, dndTestCases.combate]) {
+    for (const c of section) rows.push(alpaca(c.instruction, c.output));
+  }
+  return rows;
+}
+
+function pf2eGoldenRows(): AlpacaRow[] {
+  const rows: AlpacaRow[] = [
+    alpaca("Explain the complete Pathfinder 2e rules as implemented in Oraculum.", String(pf2e.rules_text)),
+    alpaca("How does the four-degrees-of-success matrix work in Pathfinder 2e in Oraculum?", String(pf2e.core_mechanics.degrees_of_success)),
+    alpaca("How do proficiency tiers work in Pathfinder 2e in Oraculum?", String(pf2e.core_mechanics.proficiency_tiers)),
+    alpaca("How does the three-action economy work in Pathfinder 2e in Oraculum?", String(pf2e.core_mechanics.action_economy)),
+    alpaca("How do conditions affect a Pathfinder 2e character in Oraculum?", String(pf2e.core_mechanics.conditions)),
+    alpaca("What is the GM authority contract in Oraculum?", GM_AUTHORITY_RULES),
+  ];
+  // Reference corpus — outputs are objects; stringify them to plain text so
+  // the schema stays flat (no nested output/… columns for the trainer).
+  for (const entry of pf2eDataset) {
+    rows.push(alpaca(entry.instruction, typeof entry.output === "string" ? entry.output : JSON.stringify(entry.output)));
+  }
+  return rows;
+}
+
 function gurpsAlpacaRows(): AlpacaRow[] {
-  const rows: AlpacaRow[] = [];
-  rows.push(alpaca("Explain the complete GURPS rules as implemented in Oraculum.", String(gurps.rules_text)));
-  rows.push(alpaca("How do GURPS skill checks resolve in Oraculum?", `${gurps.core_mechanics.dice_engine}\n\n${gurps.core_mechanics.skill_math}`));
-  rows.push(alpaca("How do GURPS criticals work in Oraculum?", String(gurps.core_mechanics.criticals)));
-  rows.push(alpaca("How do GURPS attributes and character points work in Oraculum?", String(gurps.core_mechanics.attributes)));
-  rows.push(alpaca("How do conditions affect a GURPS character in Oraculum?", String(gurps.core_mechanics.conditions)));
-  rows.push(alpaca("What is the GURPS Life & Livelihood extension?", String(gurps.core_mechanics.life_and_livelihood)));
-  rows.push(alpaca("What is the GM authority contract in Oraculum?", GM_AUTHORITY_RULES));
+  const rows = gurpsGoldenRows();
   const cat = (label: string) => (items: Record<string, unknown>[]) => addAll(rows, label, items);
   cat("GURPS skill")(GURPS_SKILLS);
   cat("GURPS extension skill")(GURPS_EXTENSION_SKILLS);
@@ -442,15 +499,7 @@ function gurpsAlpacaRows(): AlpacaRow[] {
 }
 
 function dnd5eAlpacaRows(): AlpacaRow[] {
-  const rows: AlpacaRow[] = [];
-  rows.push(alpaca("Explain the complete D&D 5e rules as implemented in Oraculum.", String(dnd5e.rules_text)));
-  rows.push(alpaca("How do D&D 5e checks resolve in Oraculum?", String(dnd5e.core_mechanics.dice_engine)));
-  rows.push(alpaca("How does ability generation work in D&D 5e in Oraculum?", String(dnd5e.core_mechanics.ability_generation)));
-  rows.push(alpaca("What is Tasha's Origin Customization in Oraculum?", String(dnd5e.core_mechanics.tasha_customization)));
-  rows.push(alpaca("How do D&D 5e spell slots work in Oraculum?", String(dnd5e.core_mechanics.spell_slots)));
-  rows.push(alpaca("How do conditions affect a D&D 5e character in Oraculum?", String(dnd5e.core_mechanics.conditions)));
-  rows.push(alpaca("How does enchanting work in Oraculum's D&D 5e?", String(dnd5e.core_mechanics.enchanting)));
-  rows.push(alpaca("What is the GM authority contract in Oraculum?", GM_AUTHORITY_RULES));
+  const rows = dnd5eGoldenRows();
   const cat = (label: string) => (items: Record<string, unknown>[]) => addAll(rows, label, items);
   cat("D&D 5e skill")(DND_SKILLS);
   cat("D&D 5e race")(RACES);
@@ -463,21 +512,11 @@ function dnd5eAlpacaRows(): AlpacaRow[] {
   cat("D&D 5e spell")(SPELLS);
   cat("D&D 5e condition")(CONDITIONS);
   cat("D&D 5e monster")(ENEMY_TABLES.dnd5e);
-  // Golden rule→narration examples (output is already a plain-text string).
-  for (const section of [dndTestCases.mecanicas, dndTestCases.atributos, dndTestCases.combate]) {
-    for (const c of section) rows.push(alpaca(c.instruction, c.output));
-  }
   return rows;
 }
 
 function pf2eAlpacaRows(): AlpacaRow[] {
-  const rows: AlpacaRow[] = [];
-  rows.push(alpaca("Explain the complete Pathfinder 2e rules as implemented in Oraculum.", String(pf2e.rules_text)));
-  rows.push(alpaca("How does the four-degrees-of-success matrix work in Pathfinder 2e in Oraculum?", String(pf2e.core_mechanics.degrees_of_success)));
-  rows.push(alpaca("How do proficiency tiers work in Pathfinder 2e in Oraculum?", String(pf2e.core_mechanics.proficiency_tiers)));
-  rows.push(alpaca("How does the three-action economy work in Pathfinder 2e in Oraculum?", String(pf2e.core_mechanics.action_economy)));
-  rows.push(alpaca("How do conditions affect a Pathfinder 2e character in Oraculum?", String(pf2e.core_mechanics.conditions)));
-  rows.push(alpaca("What is the GM authority contract in Oraculum?", GM_AUTHORITY_RULES));
+  const rows = pf2eGoldenRows();
   const cat = (label: string) => (items: Record<string, unknown>[]) => addAll(rows, label, items);
   cat("Pathfinder 2e skill")(PF2E_SKILLS);
   cat("Pathfinder 2e ancestry")(PF2E_ANCESTRIES);
@@ -490,10 +529,6 @@ function pf2eAlpacaRows(): AlpacaRow[] {
   cat("Pathfinder 2e gear")(PF2E_GEAR);
   cat("Pathfinder 2e condition")(CONDITIONS);
   cat("Pathfinder 2e monster")(ENEMY_TABLES.pf2e);
-  // Reference corpus — outputs are objects; stringify them to plain text.
-  for (const entry of pf2eDataset) {
-    rows.push(alpaca(entry.instruction, typeof entry.output === "string" ? entry.output : JSON.stringify(entry.output)));
-  }
   return rows;
 }
 
@@ -506,17 +541,54 @@ function writeAlpaca(fileName: string, rows: AlpacaRow[]): void {
   );
 }
 
+/** JSONL variant: the same rows, one JSON object per line. */
+function writeAlpacaJsonl(fileName: string, rows: AlpacaRow[]): void {
+  mkdirSync(OUT_DIR, { recursive: true });
+  const lines = rows.map((row) => JSON.stringify(row)).join("\n");
+  writeFileSync(join(OUT_DIR, fileName), `${lines}\n`, "utf8");
+  console.log(
+    `  ✓ ${fileName} (${rows.length} rows, ${(Buffer.byteLength(lines, "utf8") / 1024).toFixed(1)} KB)`,
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Write everything
 // ---------------------------------------------------------------------------
 
 console.log("Building master rules JSON → rules/");
+
+// Attach the flat golden corpus to every master file. All three master files
+// now embed `training_corpus` as an array of Alpaca rows ({ instruction, input,
+// output } — plain strings only), so even a master file can be uploaded to an
+// Alpaca-format trainer without the "Column(...) changed from object to number"
+// schema-inference failure.
+dnd5e.training_corpus = dnd5eGoldenRows();
+pf2e.training_corpus = pf2eGoldenRows();
+gurps.training_corpus = gurpsGoldenRows();
+
 writeMaster("dnd5e.json", dnd5e);
 writeMaster("pf2e.json", pf2e);
 writeMaster("gurps.json", gurps);
 
 console.log("Building Alpaca training corpora → rules/");
-writeAlpaca("alpaca-gurps.json", gurpsAlpacaRows());
-writeAlpaca("alpaca-dnd5e.json", dnd5eAlpacaRows());
-writeAlpaca("alpaca-pf2e.json", pf2eAlpacaRows());
+const alpacaDnd = dnd5eAlpacaRows();
+const alpacaGurps = gurpsAlpacaRows();
+const alpacaPf2e = pf2eAlpacaRows();
+writeAlpaca("alpaca-dnd5e.json", alpacaDnd);
+writeAlpaca("alpaca-gurps.json", alpacaGurps);
+writeAlpaca("alpaca-pf2e.json", alpacaPf2e);
+
+// Combined corpus — one file covering all three systems, deduped by
+// instruction (e.g. the shared GM-authority row appears only once).
+const seen = new Set<string>();
+const alpacaAll = [...alpacaDnd, ...alpacaGurps, ...alpacaPf2e].filter((row) =>
+  seen.has(row.instruction) ? false : (seen.add(row.instruction), true),
+);
+writeAlpaca("alpaca-all.json", alpacaAll);
+
+// JSONL variants (one JSON object per line) for trainers that prefer them.
+writeAlpacaJsonl("alpaca-dnd5e.jsonl", alpacaDnd);
+writeAlpacaJsonl("alpaca-gurps.jsonl", alpacaGurps);
+writeAlpacaJsonl("alpaca-pf2e.jsonl", alpacaPf2e);
+writeAlpacaJsonl("alpaca-all.jsonl", alpacaAll);
 console.log("Done.");
