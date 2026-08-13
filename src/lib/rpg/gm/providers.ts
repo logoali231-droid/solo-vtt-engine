@@ -300,7 +300,7 @@ async function openAiCompatible(
     body: JSON.stringify({
       model,
       temperature,
-      max_tokens: 650,
+      max_tokens: 850,
       messages,
     }),
   });
@@ -338,7 +338,7 @@ async function geminiChat(
       body: JSON.stringify({
         systemInstruction: system ? { parts: [{ text: system }] } : undefined,
         contents,
-        generationConfig: { temperature, maxOutputTokens: 650 },
+        generationConfig: { temperature, maxOutputTokens: 850 },
       }),
     },
   );
@@ -488,7 +488,7 @@ async function hordeRequest(
     body: JSON.stringify({
       prompt: hordePrompt(trimMessages(messages)),
       params: {
-        max_length: 600,
+        max_length: 850,
         temperature: settings.temperature,
         n: 1,
         top_p: 0.9,
@@ -604,7 +604,7 @@ async function streamOpenAI(
     body: JSON.stringify({
       model: settings.model || "default",
       temperature: settings.temperature,
-      max_tokens: 650,
+      max_tokens: 850,
       stream: true,
       messages,
     }),
@@ -641,7 +641,7 @@ async function streamGemini(
       body: JSON.stringify({
         systemInstruction: system ? { parts: [{ text: system }] } : undefined,
         contents,
-        generationConfig: { temperature, maxOutputTokens: 650 },
+        generationConfig: { temperature, maxOutputTokens: 850 },
       }),
     },
   );

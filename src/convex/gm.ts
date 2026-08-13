@@ -4,6 +4,16 @@ import { dndRulesContext, pf2eRulesContext } from "../lib/rpg/data/adventure-sam
 import { GM_AUTHORITY_RULES } from "../lib/rpg/cheatGuard";
 import { parseHordeStatus } from "../lib/rpg/gm/providers";
 
+/** Shared storytelling voice — mirrors gm/live.ts so the server action and the
+ *  client-side providers narrate the same warm, reactive, generous way. The
+ *  key contract: the narrator must visibly react to what the player wrote. */
+const GM_VOICE_RULES = [
+  "VOICE: You are a warm, masterful tabletop GM telling a story to one dear friend — cinematic, immediate and emotionally alive. Use concrete sensory detail (light, sound, smell, texture, weather), varied sentence rhythm, and real feeling: fear, hunger, awe, grief, humor. The world feels inhabited, and it feels like it is responding to THIS player, right now.",
+  "REACT: Always react directly to what the player just wrote. Mirror their exact action, question or idea back into the scene, honor its intent, and give it visible consequences — an NPC's changed face, a shift in the air, a door standing ajar. Never ignore, genericize or soften the player's move, and never write a reply that could have been written without knowing what they said.",
+  "LENGTH: Write one substantial passage of 3-6 paragraphs — enough to live in the moment. No padding, no recaps, no filler: every sentence advances or deepens the scene. Vary your endings: sometimes a single evocative question, sometimes a charged beat or a choice laid bare. Do not end every reply with a question.",
+  "NO OOC: Never use bullet points, lists, headings, emojis, dice notation, or out-of-character commentary. Stay in the fiction.",
+].join(" ");
+
 // Live Game Master completion endpoint — multi-provider router.
 //   - "openai" (default): OpenAI chat completions. The key lives server-side:
 //     OPENAI_API_KEY (set in the Keys/API keys UI).
@@ -88,7 +98,7 @@ async function hordeGenerate(
       body: JSON.stringify({
         prompt: hordePrompt(system, user),
         params: {
-          max_length: 650,
+          max_length: 850,
           temperature: 1,
           n: 1,
           top_p: 0.9,
@@ -169,7 +179,8 @@ export const generate = action({
       ? [
           "You are the opening narrator for a solo tabletop RPG running inside Oraculum, a strict rules engine.",
           GM_AUTHORITY_RULES,
-          "Write the opening scene of this campaign: 2-4 vivid second-person paragraphs.",
+          GM_VOICE_RULES,
+          "Write the opening scene of this campaign: a vivid second-person passage of 3-5 paragraphs rich with sensory detail.",
           "Ground the scene in the ADVENTURE STATE and RECENT HISTORY (the player's campaign briefing) below — honor the chosen tone, genre, setting, style, villain, stakes and company.",
           "Place the hero at the threshold of the story, show the setting and the first thread, then leave the scene in motion.",
           "Do not end with a question. Do not summarize the plot. Never roll dice yourself; the engine rolls.",
@@ -185,10 +196,9 @@ export const generate = action({
       : [
           "You are the Game Master for a solo tabletop RPG running inside Oraculum, a strict rules engine.",
           GM_AUTHORITY_RULES,
-          "The player supplies actions and dice results. You provide vivid, second-person narration in 2-5 short paragraphs.",
-          "Respect the mechanics in the payload exactly: honor success/failure/critical outcomes, DCs, HP, spell slots, conditions and resources.",
-          "Keep continuity with the history. Advance a believable fantasy scene. Never roll dice yourself; the engine rolls.",
-          "End each response with a single evocative question or hook for the player's next move.",
+          "The player supplies actions and dice results; you narrate them in vivid second-person prose. Never roll dice yourself; the engine rolls.",
+          "Respect the mechanics in the payload exactly: honor success/failure/critical outcomes, DCs, HP, spell slots, conditions and resources. Keep continuity with the history.",
+          GM_VOICE_RULES,
           lang === "pt-BR"
             ? "Narre sempre em português brasileiro, com tom envolvente e imagens vívidas."
             : "Always respond in English.",
@@ -201,13 +211,24 @@ export const generate = action({
           .filter((x): x is string => !!x)
           .join(" ");
 
+    // The last history line is the player's most recent move — surface it
+    // explicitly so the narrator always reacts to what was just written
+    // instead of treating it as one more log entry.
+    const latestMove = args.opening ? undefined : args.history[args.history.length - 1];
     const user = [
       args.opening ? "OPENING SCENE REQUEST — write the opening of this campaign now." : null,
       "ADVENTURE STATE (strict JSON):",
       args.payload,
       "",
       "RECENT HISTORY:",
-      args.history.slice(-16).join("\n") || "(the adventure just began)",
+      args.history.slice(-16, args.opening ? undefined : -1).join("\n") || "(the adventure just began)",
+      ...(latestMove
+        ? [
+            "",
+            "THE PLAYER'S LATEST MOVE (react to this specifically — mirror it, honor its intent, and let the world visibly respond):",
+            latestMove,
+          ]
+        : []),
       "",
       "Respond with your GM narration only.",
     ]
@@ -236,7 +257,7 @@ export const generate = action({
         body: JSON.stringify({
           model: args.model || "gpt-4o-mini",
           temperature: 1,
-          max_tokens: 650,
+          max_tokens: 850,
           messages: [
             { role: "system", content: system },
             { role: "user", content: user },

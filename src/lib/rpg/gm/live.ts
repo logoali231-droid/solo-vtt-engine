@@ -16,9 +16,20 @@ export interface GmReply {
   usedFallback: boolean;
 }
 
+/** Shared storytelling voice — keeps every AI backend (the server action and
+ *  all client-side providers) narrating the same warm, reactive, generous way.
+ *  The key contract: the narrator must visibly react to what the player wrote,
+ *  never genericize it. */
+const GM_VOICE_RULES = [
+  "VOICE: You are a warm, masterful tabletop GM telling a story to one dear friend — cinematic, immediate and emotionally alive. Use concrete sensory detail (light, sound, smell, texture, weather), varied sentence rhythm, and real feeling: fear, hunger, awe, grief, humor. The world feels inhabited, and it feels like it is responding to THIS player, right now.",
+  "REACT: Always react directly to what the player just wrote. Mirror their exact action, question or idea back into the scene, honor its intent, and give it visible consequences — an NPC's changed face, a shift in the air, a door standing ajar. Never ignore, genericize or soften the player's move, and never write a reply that could have been written without knowing what they said.",
+  "LENGTH: Write one substantial passage of 3-6 paragraphs — enough to live in the moment. No padding, no recaps, no filler: every sentence advances or deepens the scene. Vary your endings: sometimes a single evocative question, sometimes a charged beat or a choice laid bare. Do not end every reply with a question.",
+  "NO OOC: Never use bullet points, lists, headings, emojis, dice notation, or out-of-character commentary. Stay in the fiction.",
+].join(" ");
+
 function languageInstruction(language: GmSettings["language"]): string {
   return language === "pt-BR"
-    ? "Narre sempre em português brasileiro, com tom envolvente e imagens vívidas."
+    ? "Escreva sempre em português brasileiro, em prosa vívida e envolvente — e reaja diretamente ao que o jogador escreveu, nunca com respostas genéricas."
     : "Always respond in English.";
 }
 
@@ -40,8 +51,8 @@ function buildSystemPrompt(
     `Ruleset: ${rules}. The player acts and the engine rolls dice — you never roll yourself.`,
     "Honor the JSON adventure state exactly: HP, AC, spell slots, resources, conditions and outcomes (critical/success/failure).",
     GM_AUTHORITY_RULES,
-    "Narrate in vivid second-person prose, 2-5 short paragraphs, advancing the scene. NPCs have desires and secrets.",
-    "End each response with a single evocative question or hook for the player's next move.",
+    "Narrate in second-person, in-world prose — never out of character. The player acts and the engine rolls; you bring the world to life around their choices.",
+    GM_VOICE_RULES,
     languageInstruction(settings.language),
     "",
     adventure.system === "dnd5e"
@@ -76,9 +87,11 @@ function buildUserPrompt(turn: GmTurn): string {
   }
   if (turn.playerText && turn.dice) {
     // The engine already resolved a check — the AI must narrate that outcome.
-    return `${turn.playerText}\n\n(dice result: ${turn.dice.label} — ${turn.dice.breakdown} — the outcome is already determined, narrate it faithfully)`;
+    return `${turn.playerText}\n\n(dice result: ${turn.dice.label} — ${turn.dice.breakdown} — the outcome is already determined, narrate it faithfully)\n\nReact to the player's move specifically and narrate this resolved outcome with feeling — don't just report the numbers.`;
   }
-  if (turn.playerText) return turn.playerText;
+  if (turn.playerText) {
+    return `THE PLAYER'S MOVE:\n${turn.playerText}\n\nReact to this specific move: acknowledge it, show the world visibly responding to it, and carry the scene forward from it. Never give a generic reply that could have been written without reading what they wrote.`;
+  }
   if (turn.action) return `(the player takes the action "${turn.action}")`;
   if (turn.dice) {
     return `(dice result: ${turn.dice.label} — ${turn.dice.breakdown})`;
@@ -138,7 +151,8 @@ function buildOpeningMessages(
         "You are the opening narrator for a solo tabletop RPG running inside Oraculum, a strict rules engine.",
         `Ruleset: ${rules}.`,
         GM_AUTHORITY_RULES,
-        "Write the opening scene of this campaign: 2-4 vivid second-person paragraphs.",
+        GM_VOICE_RULES,
+        "Write the opening scene of this campaign: a vivid second-person passage of 3-5 paragraphs rich with sensory detail.",
         "Ground every detail in the campaign briefing below — honor the chosen tone, genre, setting, style, villain, stakes and company.",
         "Place the hero at the threshold of the story, show the setting and the first thread, then leave the scene in motion.",
         "Do not end with a question. Do not summarize the plot. Never roll dice yourself.",
