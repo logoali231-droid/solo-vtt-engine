@@ -1,0 +1,4568 @@
+{
+  "schema": "oraculum-rules-master",
+  "schema_version": 1,
+  "system": "gurps",
+  "system_name": "GURPS (Generic Universal RolePlaying System, 4th-edition style)",
+  "generated_at": "2026-08-13T12:13:26.077Z",
+  "description": "Complete consolidated GURPS rules database for the Oraculum solo VTT engine: attributes (ST/DX/IQ/HT), the full skill list with controlling attributes and difficulties, advantages and disadvantages with character-point costs, armor with DR, the 3d6 roll-under resolution with margins, the Life & Livelihood extension (jobs, wealth tiers, businesses, relationships, education, social life), the fantasy expansion (six magic colleges, alchemy, smithing, travel, weather), the cyber expansion (gear, ICE, netrunning, programs, the corporate ladder), the shop tables (weapons, armor, gear, quality tiers), the bestiary and conditions.",
+  "core_mechanics": {
+    "dice_engine": "Every roll uses Math.floor(Math.random() * sides) + 1. Skill checks roll 3d6 and must roll UNDER or EQUAL to the effective skill target (roll-under bell curve). The Margin of Success/Failure is target − total (positive = success margin, negative = failure margin).",
+    "criticals": "3-4 is always a critical success; 5 is a critical success at effective skill 15+; 18 always critical-fails; 17 critical-fails at effective skill 15 or less.",
+    "attributes": "Primary attributes ST, DX, IQ, HT are centered on 10. Each ±1 point costs or refunds 10 character points (custom rate). GURPS_ATTRIBUTE_UPGRADE_COST = 10.",
+    "skill_math": "Skill level = controlling attribute + difficulty offset (Easy 0, Average −1, Hard −2) plus the point-investment curve: 1 point → +0, 2 → +1, 4 → +2, then +1 per additional 4 points. Untrained skills default to attribute − 5.",
+    "advantages_disadvantages": "Advantages cost positive points (many are per-level); disadvantages have negative points that refund into the character budget. Examples: Combat Reflexes 15 pts (+1 to active defenses), Luck 15 pts, Weapon Master 45 pts.",
+    "damage": "GURPS thrust and swing damage derive from ST (thrust and swing tables included below in formulas).",
+    "conditions": "Common adverse conditions apply a flat skill penalty: −2 (Poisoned, Prone, Restrained), −3 (Blinded, Stunned).",
+    "life_and_livelihood": "The life-sim extension adds jobs (monthly work roll vs the job's skill), wealth tiers with income and cost of living, businesses with monthly profit rolls, relationships advanced by reaction rolls, education (universities, degrees, exams), social circles and events with a 0-100 reputation, medieval holdings and noble titles, and a cyber layer (netrunning vs Hacking with ICE penalties, programs, the corporate ladder)."
+  },
+  "formulas": {
+    "d6_roll": "function d(sides) {\n  return Math.floor(Math.random() * sides) + 1;\n}",
+    "ability_modifier": "function abilityMod(score) {\n  return Math.floor((score - 10) / 2);\n}",
+    "gurps_3d6_resolution": "function resolve3d6(target) {\n  const rolls = rollDice(3, 6), total = sum(rolls), isCritSuccess = total === 3 || total === 4 || total === 5 && target >= 15, isCritFail = total >= 18 || total === 17 && target <= 15, success = total <= target && !isCritFail, margin = target - total;\n  let outcome;\n  if (isCritSuccess)\n    outcome = \"critical-success\";\n  else if (isCritFail)\n    outcome = \"critical-failure\";\n  else if (success)\n    outcome = \"success\";\n  else\n    outcome = \"failure\";\n  const breakdown = `3d6(${rolls.join(\"+\")}) = ${total} vs target ${target} \\u2192 ${outcome.replace(\"-\", \" \").toUpperCase()}`;\n  return { rolls, total, target, margin, outcome, breakdown };\n}",
+    "thrust_damage": "function gurpsThrust(st) {\n  const s = Math.max(4, Math.min(50, st));\n  let dice = 1, flat = 0;\n  if (s <= 9)\n    flat = s <= 7 ? -4 : s === 8 ? -3 : -2;\n  else if (s <= 11)\n    flat = s === 10 ? -2 : -1;\n  else if (s <= 17)\n    flat = Math.floor((s - 12) / 2);\n  else {\n    dice = 2 + Math.floor((s - 18) / 8);\n    flat = Math.floor((s - 18) % 8 / 2) - 1;\n  }\n  const flatText = flat > 0 ? `+${flat}` : flat < 0 ? `${flat}` : \"\";\n  return { notation: `${dice}d6${flatText}`, flat };\n}",
+    "swing_damage": "function gurpsSwing(st) {\n  const s = Math.max(4, Math.min(50, st));\n  let dice = 1, flat = 0;\n  if (s <= 9)\n    flat = s - 10;\n  else if (s <= 12)\n    flat = s - 10;\n  else if (s <= 17) {\n    dice = 2;\n    flat = Math.floor((s - 13) / 2) - 1;\n  } else {\n    dice = 2 + Math.floor((s - 14) / 8);\n    flat = Math.floor((s - 14) % 8 / 2);\n  }\n  const flatText = flat > 0 ? `+${flat}` : flat < 0 ? `${flat}` : \"\";\n  return { notation: `${dice}d6${flatText}`, flat };\n}",
+    "skill_level": "function gurpsSkillLevel(stat, difficulty, points) {\n  const offset = difficulty === \"easy\" ? 0 : difficulty === \"average\" ? -1 : -2;\n  if (points <= 0)\n    return stat - 5;\n  if (points === 1)\n    return stat + offset;\n  if (points === 2)\n    return stat + offset + 1;\n  if (points === 4)\n    return stat + offset + 2;\n  return stat + offset + 2 + Math.floor((points - 4) / 4);\n}",
+    "skill_upgrade_cost": "function gurpsSkillUpgradeCost(points) {\n  if (points <= 0)\n    return 1;\n  if (points === 1)\n    return 1;\n  if (points === 2)\n    return 2;\n  if (points === 4)\n    return 4;\n  return 4;\n}",
+    "attribute_cost": "function gurpsAttributeCost(attributes) {\n  return (attributes.st - 10) * 10 + (attributes.dx - 10) * 10 + (attributes.iq - 10) * 10 + (attributes.ht - 10) * 10;\n}"
+  },
+  "rules_text": "GURPS LIFE & LIVELIHOOD EXTENSION (original mechanics in GURPS style — 3d6 roll-under vs skill targets, margins of success).\nLIFE MODE TAG — EVERYTHING / MIXED: every era of the life-sim coexists — medieval courts and cyber decks, monasteries and megacorps.\nThe engine rolls every check and resolves the outcome; you narrate the result faithfully.\nJOBS: a monthly work roll vs the job's skill sets the month's pay (critical success = double pay, success = standard, failure = half, critical failure = fired). Degrees can unlock higher jobs.\nECONOMICS: each wealth tier sets monthly income and cost of living; the wallet in ADVENTURE STATE is the mechanical purse the player spends from.\nLOVE: advancing a relationship requires a reaction roll — 3d6 + attraction modifiers vs the stage target (Strangers 6, Acquaintances 9, Friends 12, Romantic 14, Lovers 16, Committed 18).\nBUSINESS: an owned business pays monthly profit on a roll vs its skill (high-risk ventures swing wider — windfalls and disasters are both possible).\nCYBER: hacking rolls vs Hacking + netdeck/program bonuses with a penalty from the target's ICE (Public 0, Personal −2, Corporate −4, Military −7, Black ICE −10). Programs also grant trace-defense bonuses. The corporate ladder promotes on a roll vs the next rank's target (Intern 7, Analyst 9, Associate 11, Manager 13, Director 15, Executive 17).\nMEDIEVAL: a holding pays seasonal income on a successful roll vs its skill. Noble titles add monthly income; court positions pay a salary on a monthly service roll.\nEDUCATION: universities charge tuition per semester (scholarships waive it). Studying rolls 3d6 vs the degree's study skill and fills exam progress (0–100); the final exam rolls vs the university's exam skill at the degree's target. Graduating grants the degree's skill bonus and unlocks its jobs.\nSOCIAL LIFE: reputation runs 0–100. Social circles cost entry and grant a reaction bonus; attending events (feast, ball, gala, rave…) rolls 3d6 vs the event's skill — successes raise reputation, critical failures are scandals that lower it.\nGURPS-STYLE FANTASY / MEDIEVAL EXPANSION (original mechanics — 3d6 roll-under vs skill targets, FP costs, margins of success).\nMAGIC: six original colleges — Pyre (fire), Frost (ice), Gale (wind), Verdant (nature), Veil (illusion), Spirit (mind). Each is a trained skill (IQ/Hard); untrained casters use IQ-4. Casting costs fatigue (FP) and rolls 3d6 vs the college skill. A critical failure triggers a mishap table (backlash, wild surge, attention, burnout, drain, or tainted).\nALCHEMY: brewing rolls 3d6 vs Alchemy (IQ/Hard). Recipes need specific reagents (Ember Moss, Frost Petal, Gale Seed, Rootbark, Moon Salt, Veil Ash) plus base materials in gp; success creates the potion, failure wastes the materials.\nSMITHING: forging rolls 3d6 vs Smith (IQ/Average) with a material cost and a forging time of days; forged gear grants small permanent bonuses.\nTRAVEL: terrain sets miles per day (road 24, trail 16, forest 12, hills 10, mountain 6, swamp 8, desert 12) modified by weather (rain ×0.75, storm ×0.5, fog ×0.75, scorch/blizzard ×0.6). Foraging and hunting roll 3d6 vs Survival and yield food or gp.\nMagic, alchemy, reagents and monster encounters exist only in worlds where the fantasy life is real — honor the LIFE MODE TAG and never invent magical solutions in a world without them.\nGURPS-STYLE CYBER / FUTURISTIC EXPANSION (original mechanics — 3d6 roll-under vs skill targets, margins of success).\nGEAR: energy weapons (Arc Lance 3d burn, Pulse Carbine 4d burn, Shredder SMG 3d+2, Plasma Cutter 4d burn ignoring DR 3), smart armor (Weave Suit DR 2, Ballistic Vest DR 4, Hardsuit DR 8 sealed), sensors (+2 Vision/Hearing, bio-scanners), drones (scout, gun, medic) and vehicles (hoverbike, gridrunner, armored transport). Gear is bought from the wallet and lives in ADVENTURE STATE.\nNETRUNNING: a netrun rolls 3d6 vs Hacking + netdeck bonus + program bonus + gear bonus, with a penalty from the target (Backroom −2, Corp Vaults −4, Military Node −7, Black ICE Core −10). Success collects the paydata (150–2,000 gp); failure trips the ICE — Warden logs a trace, Serpent deals FP damage, Trap Grid hampers the next attempt, and Black ICE on a critical failure deals HP damage.\nChrome (cyberware), netdecks, programs, the corporate ladder and this gear exist only in cyber worlds — honor the LIFE MODE TAG and never invent futuristic solutions in a world without them.\nAlways honor the rolled margin: narrate success proportionally to how far the roll succeeded or failed, and never invent unrolled outcomes.\n\nGURPS-STYLE FANTASY / MEDIEVAL EXPANSION (original mechanics — 3d6 roll-under vs skill targets, FP costs, margins of success).\nMAGIC: six original colleges — Pyre (fire), Frost (ice), Gale (wind), Verdant (nature), Veil (illusion), Spirit (mind). Each is a trained skill (IQ/Hard); untrained casters use IQ-4. Casting costs fatigue (FP) and rolls 3d6 vs the college skill. A critical failure triggers a mishap table (backlash, wild surge, attention, burnout, drain, or tainted).\nALCHEMY: brewing rolls 3d6 vs Alchemy (IQ/Hard). Recipes need specific reagents (Ember Moss, Frost Petal, Gale Seed, Rootbark, Moon Salt, Veil Ash) plus base materials in gp; success creates the potion, failure wastes the materials.\nSMITHING: forging rolls 3d6 vs Smith (IQ/Average) with a material cost and a forging time of days; forged gear grants small permanent bonuses.\nTRAVEL: terrain sets miles per day (road 24, trail 16, forest 12, hills 10, mountain 6, swamp 8, desert 12) modified by weather (rain ×0.75, storm ×0.5, fog ×0.75, scorch/blizzard ×0.6). Foraging and hunting roll 3d6 vs Survival and yield food or gp.\nMagic, alchemy, reagents and monster encounters exist only in worlds where the fantasy life is real — honor the LIFE MODE TAG and never invent magical solutions in a world without them.\n\nGURPS-STYLE CYBER / FUTURISTIC EXPANSION (original mechanics — 3d6 roll-under vs skill targets, margins of success).\nGEAR: energy weapons (Arc Lance 3d burn, Pulse Carbine 4d burn, Shredder SMG 3d+2, Plasma Cutter 4d burn ignoring DR 3), smart armor (Weave Suit DR 2, Ballistic Vest DR 4, Hardsuit DR 8 sealed), sensors (+2 Vision/Hearing, bio-scanners), drones (scout, gun, medic) and vehicles (hoverbike, gridrunner, armored transport). Gear is bought from the wallet and lives in ADVENTURE STATE.\nNETRUNNING: a netrun rolls 3d6 vs Hacking + netdeck bonus + program bonus + gear bonus, with a penalty from the target (Backroom −2, Corp Vaults −4, Military Node −7, Black ICE Core −10). Success collects the paydata (150–2,000 gp); failure trips the ICE — Warden logs a trace, Serpent deals FP damage, Trap Grid hampers the next attempt, and Black ICE on a critical failure deals HP damage.\nChrome (cyberware), netdecks, programs, the corporate ladder and this gear exist only in cyber worlds — honor the LIFE MODE TAG and never invent futuristic solutions in a world without them.",
+  "data": {
+    "skills": [
+      {
+        "id": "brawling",
+        "name": "Brawling",
+        "stat": "dx",
+        "difficulty": "easy"
+      },
+      {
+        "id": "knife",
+        "name": "Knife",
+        "stat": "dx",
+        "difficulty": "easy"
+      },
+      {
+        "id": "shortsword",
+        "name": "Shortsword",
+        "stat": "dx",
+        "difficulty": "average"
+      },
+      {
+        "id": "broadsword",
+        "name": "Broadsword",
+        "stat": "dx",
+        "difficulty": "average"
+      },
+      {
+        "id": "axe-mace",
+        "name": "Axe/Mace",
+        "stat": "dx",
+        "difficulty": "average"
+      },
+      {
+        "id": "spear",
+        "name": "Spear",
+        "stat": "dx",
+        "difficulty": "average"
+      },
+      {
+        "id": "polearm",
+        "name": "Polearm",
+        "stat": "dx",
+        "difficulty": "average"
+      },
+      {
+        "id": "bow",
+        "name": "Bow",
+        "stat": "dx",
+        "difficulty": "average"
+      },
+      {
+        "id": "crossbow",
+        "name": "Crossbow",
+        "stat": "dx",
+        "difficulty": "easy"
+      },
+      {
+        "id": "guns",
+        "name": "Guns",
+        "stat": "dx",
+        "difficulty": "easy"
+      },
+      {
+        "id": "thrown-weapon",
+        "name": "Thrown Weapon",
+        "stat": "dx",
+        "difficulty": "easy"
+      },
+      {
+        "id": "acrobatics",
+        "name": "Acrobatics",
+        "stat": "dx",
+        "difficulty": "hard"
+      },
+      {
+        "id": "climbing",
+        "name": "Climbing",
+        "stat": "dx",
+        "difficulty": "average"
+      },
+      {
+        "id": "stealth",
+        "name": "Stealth",
+        "stat": "dx",
+        "difficulty": "average"
+      },
+      {
+        "id": "driving",
+        "name": "Driving",
+        "stat": "dx",
+        "difficulty": "average"
+      },
+      {
+        "id": "sleight-of-hand",
+        "name": "Sleight of Hand",
+        "stat": "dx",
+        "difficulty": "hard"
+      },
+      {
+        "id": "lockpicking",
+        "name": "Lockpicking",
+        "stat": "iq",
+        "difficulty": "average"
+      },
+      {
+        "id": "traps",
+        "name": "Traps",
+        "stat": "iq",
+        "difficulty": "average"
+      },
+      {
+        "id": "survival",
+        "name": "Survival",
+        "stat": "iq",
+        "difficulty": "average"
+      },
+      {
+        "id": "first-aid",
+        "name": "First Aid",
+        "stat": "iq",
+        "difficulty": "easy"
+      },
+      {
+        "id": "tactics",
+        "name": "Tactics",
+        "stat": "iq",
+        "difficulty": "hard"
+      },
+      {
+        "id": "strategy",
+        "name": "Strategy",
+        "stat": "iq",
+        "difficulty": "hard"
+      },
+      {
+        "id": "current-affairs",
+        "name": "Current Affairs",
+        "stat": "iq",
+        "difficulty": "easy"
+      },
+      {
+        "id": "area-knowledge",
+        "name": "Area Knowledge",
+        "stat": "iq",
+        "difficulty": "easy"
+      },
+      {
+        "id": "hiking",
+        "name": "Hiking",
+        "stat": "ht",
+        "difficulty": "average"
+      },
+      {
+        "id": "running",
+        "name": "Running",
+        "stat": "ht",
+        "difficulty": "hard"
+      },
+      {
+        "id": "swimming",
+        "name": "Swimming",
+        "stat": "ht",
+        "difficulty": "easy"
+      },
+      {
+        "id": "brawling-dx",
+        "name": "—",
+        "stat": "dx",
+        "difficulty": "easy"
+      },
+      {
+        "id": "merchant",
+        "name": "Merchant",
+        "stat": "iq",
+        "difficulty": "average"
+      },
+      {
+        "id": "finance",
+        "name": "Finance",
+        "stat": "iq",
+        "difficulty": "hard"
+      },
+      {
+        "id": "accounting",
+        "name": "Accounting",
+        "stat": "iq",
+        "difficulty": "hard"
+      },
+      {
+        "id": "market-analysis",
+        "name": "Market Analysis",
+        "stat": "iq",
+        "difficulty": "hard"
+      },
+      {
+        "id": "law",
+        "name": "Law",
+        "stat": "iq",
+        "difficulty": "hard"
+      },
+      {
+        "id": "diplomacy",
+        "name": "Diplomacy",
+        "stat": "iq",
+        "difficulty": "average"
+      },
+      {
+        "id": "leadership",
+        "name": "Leadership",
+        "stat": "iq",
+        "difficulty": "average"
+      },
+      {
+        "id": "savoir-faire",
+        "name": "Savoir-Faire",
+        "stat": "iq",
+        "difficulty": "easy"
+      },
+      {
+        "id": "sex-appeal",
+        "name": "Sex Appeal",
+        "stat": "ht",
+        "difficulty": "average"
+      },
+      {
+        "id": "psychology",
+        "name": "Psychology",
+        "stat": "iq",
+        "difficulty": "hard"
+      },
+      {
+        "id": "detect-lies",
+        "name": "Detect Lies",
+        "stat": "iq",
+        "difficulty": "hard"
+      },
+      {
+        "id": "streetwise",
+        "name": "Streetwise",
+        "stat": "iq",
+        "difficulty": "average"
+      },
+      {
+        "id": "administration",
+        "name": "Administration",
+        "stat": "iq",
+        "difficulty": "average"
+      },
+      {
+        "id": "politics",
+        "name": "Politics",
+        "stat": "iq",
+        "difficulty": "average"
+      },
+      {
+        "id": "propaganda",
+        "name": "Propaganda",
+        "stat": "iq",
+        "difficulty": "average"
+      },
+      {
+        "id": "research",
+        "name": "Research",
+        "stat": "iq",
+        "difficulty": "average"
+      },
+      {
+        "id": "computer-operation",
+        "name": "Computer Operation",
+        "stat": "iq",
+        "difficulty": "easy"
+      },
+      {
+        "id": "computer-programming",
+        "name": "Computer Programming",
+        "stat": "iq",
+        "difficulty": "hard"
+      },
+      {
+        "id": "electronics-operation",
+        "name": "Electronics Operation",
+        "stat": "iq",
+        "difficulty": "average"
+      },
+      {
+        "id": "hacking",
+        "name": "Hacking",
+        "stat": "iq",
+        "difficulty": "hard"
+      },
+      {
+        "id": "fast-talk",
+        "name": "Fast-Talk",
+        "stat": "iq",
+        "difficulty": "average"
+      },
+      {
+        "id": "professional-skill",
+        "name": "Professional Skill",
+        "stat": "iq",
+        "difficulty": "average"
+      },
+      {
+        "id": "pyre-magic",
+        "name": "Pyre Magic",
+        "stat": "iq",
+        "difficulty": "hard"
+      },
+      {
+        "id": "frost-magic",
+        "name": "Frost Magic",
+        "stat": "iq",
+        "difficulty": "hard"
+      },
+      {
+        "id": "gale-magic",
+        "name": "Gale Magic",
+        "stat": "iq",
+        "difficulty": "hard"
+      },
+      {
+        "id": "verdant-magic",
+        "name": "Verdant Magic",
+        "stat": "iq",
+        "difficulty": "hard"
+      },
+      {
+        "id": "veil-magic",
+        "name": "Veil Magic",
+        "stat": "iq",
+        "difficulty": "hard"
+      },
+      {
+        "id": "spirit-magic",
+        "name": "Spirit Magic",
+        "stat": "iq",
+        "difficulty": "hard"
+      },
+      {
+        "id": "alchemy",
+        "name": "Alchemy",
+        "stat": "iq",
+        "difficulty": "hard"
+      },
+      {
+        "id": "smith",
+        "name": "Smith",
+        "stat": "iq",
+        "difficulty": "average"
+      }
+    ],
+    "extension_skills": [
+      {
+        "id": "merchant",
+        "name": "Merchant",
+        "stat": "iq",
+        "difficulty": "average"
+      },
+      {
+        "id": "finance",
+        "name": "Finance",
+        "stat": "iq",
+        "difficulty": "hard"
+      },
+      {
+        "id": "accounting",
+        "name": "Accounting",
+        "stat": "iq",
+        "difficulty": "hard"
+      },
+      {
+        "id": "market-analysis",
+        "name": "Market Analysis",
+        "stat": "iq",
+        "difficulty": "hard"
+      },
+      {
+        "id": "law",
+        "name": "Law",
+        "stat": "iq",
+        "difficulty": "hard"
+      },
+      {
+        "id": "diplomacy",
+        "name": "Diplomacy",
+        "stat": "iq",
+        "difficulty": "average"
+      },
+      {
+        "id": "leadership",
+        "name": "Leadership",
+        "stat": "iq",
+        "difficulty": "average"
+      },
+      {
+        "id": "savoir-faire",
+        "name": "Savoir-Faire",
+        "stat": "iq",
+        "difficulty": "easy"
+      },
+      {
+        "id": "sex-appeal",
+        "name": "Sex Appeal",
+        "stat": "ht",
+        "difficulty": "average"
+      },
+      {
+        "id": "psychology",
+        "name": "Psychology",
+        "stat": "iq",
+        "difficulty": "hard"
+      },
+      {
+        "id": "detect-lies",
+        "name": "Detect Lies",
+        "stat": "iq",
+        "difficulty": "hard"
+      },
+      {
+        "id": "streetwise",
+        "name": "Streetwise",
+        "stat": "iq",
+        "difficulty": "average"
+      },
+      {
+        "id": "administration",
+        "name": "Administration",
+        "stat": "iq",
+        "difficulty": "average"
+      },
+      {
+        "id": "politics",
+        "name": "Politics",
+        "stat": "iq",
+        "difficulty": "average"
+      },
+      {
+        "id": "propaganda",
+        "name": "Propaganda",
+        "stat": "iq",
+        "difficulty": "average"
+      },
+      {
+        "id": "research",
+        "name": "Research",
+        "stat": "iq",
+        "difficulty": "average"
+      },
+      {
+        "id": "computer-operation",
+        "name": "Computer Operation",
+        "stat": "iq",
+        "difficulty": "easy"
+      },
+      {
+        "id": "computer-programming",
+        "name": "Computer Programming",
+        "stat": "iq",
+        "difficulty": "hard"
+      },
+      {
+        "id": "electronics-operation",
+        "name": "Electronics Operation",
+        "stat": "iq",
+        "difficulty": "average"
+      },
+      {
+        "id": "hacking",
+        "name": "Hacking",
+        "stat": "iq",
+        "difficulty": "hard"
+      },
+      {
+        "id": "fast-talk",
+        "name": "Fast-Talk",
+        "stat": "iq",
+        "difficulty": "average"
+      },
+      {
+        "id": "professional-skill",
+        "name": "Professional Skill",
+        "stat": "iq",
+        "difficulty": "average"
+      },
+      {
+        "id": "pyre-magic",
+        "name": "Pyre Magic",
+        "stat": "iq",
+        "difficulty": "hard"
+      },
+      {
+        "id": "frost-magic",
+        "name": "Frost Magic",
+        "stat": "iq",
+        "difficulty": "hard"
+      },
+      {
+        "id": "gale-magic",
+        "name": "Gale Magic",
+        "stat": "iq",
+        "difficulty": "hard"
+      },
+      {
+        "id": "verdant-magic",
+        "name": "Verdant Magic",
+        "stat": "iq",
+        "difficulty": "hard"
+      },
+      {
+        "id": "veil-magic",
+        "name": "Veil Magic",
+        "stat": "iq",
+        "difficulty": "hard"
+      },
+      {
+        "id": "spirit-magic",
+        "name": "Spirit Magic",
+        "stat": "iq",
+        "difficulty": "hard"
+      },
+      {
+        "id": "alchemy",
+        "name": "Alchemy",
+        "stat": "iq",
+        "difficulty": "hard"
+      },
+      {
+        "id": "smith",
+        "name": "Smith",
+        "stat": "iq",
+        "difficulty": "average"
+      }
+    ],
+    "armors": [
+      {
+        "id": "none",
+        "name": "No Armor",
+        "dr": 0
+      },
+      {
+        "id": "leather-jacket",
+        "name": "Leather Jacket",
+        "dr": 1,
+        "note": "Torso, arms"
+      },
+      {
+        "id": "light-kevlar",
+        "name": "Concealable Vest",
+        "dr": 2,
+        "note": "Torso (modern/cyber)"
+      },
+      {
+        "id": "chainmail",
+        "name": "Chainmail Hauberk",
+        "dr": 3,
+        "note": "Torso"
+      },
+      {
+        "id": "heavy-kevlar",
+        "name": "Tactical Kevlar",
+        "dr": 4,
+        "note": "Torso, arms (cyber)"
+      },
+      {
+        "id": "plate",
+        "name": "Plate Cuirass",
+        "dr": 5,
+        "note": "Torso"
+      },
+      {
+        "id": "knight",
+        "name": "Full Plate",
+        "dr": 6,
+        "note": "Whole body"
+      }
+    ],
+    "advantages": [
+      {
+        "id": "combat-reflexes",
+        "name": "Combat Reflexes",
+        "points": 15,
+        "summary": "+1 to all Active Defenses, +2 to Fright Checks; never caught flat-footed.",
+        "effects": {
+          "dodge": 1
+        }
+      },
+      {
+        "id": "high-pain-threshold",
+        "name": "High Pain Threshold",
+        "points": 10,
+        "summary": "Ignore pain penalties; +3 to resist knockdown and stunning."
+      },
+      {
+        "id": "danger-sense",
+        "name": "Danger Sense",
+        "points": 15,
+        "summary": "The GM warns you of hidden danger with a premonition."
+      },
+      {
+        "id": "intuition",
+        "name": "Intuition",
+        "points": 15,
+        "summary": "Sense whether a proposed course of action is good or bad."
+      },
+      {
+        "id": "luck",
+        "name": "Luck",
+        "points": 15,
+        "summary": "Reroll one failed roll once per hour of play."
+      },
+      {
+        "id": "extraordinary-luck",
+        "name": "Extraordinary Luck",
+        "points": 30,
+        "summary": "Reroll failed rolls as often as every ten minutes."
+      },
+      {
+        "id": "daredevil",
+        "name": "Daredevil",
+        "points": 15,
+        "summary": "+1 to all rolls when you take a genuine risk."
+      },
+      {
+        "id": "common-sense",
+        "name": "Common Sense",
+        "points": 10,
+        "summary": "The GM may warn you when you are about to act foolishly."
+      },
+      {
+        "id": "serendipity",
+        "name": "Serendipity",
+        "points": 15,
+        "summary": "Unlikely coincidences and lucky breaks favor you."
+      },
+      {
+        "id": "weapon-master",
+        "name": "Weapon Master",
+        "points": 45,
+        "summary": "+1 damage per die with your signature weapons."
+      },
+      {
+        "id": "trained-by-master",
+        "name": "Trained by a Master",
+        "points": 30,
+        "summary": "Cinematic martial-arts feats and free rapid strikes."
+      },
+      {
+        "id": "ambidexterity",
+        "name": "Ambidexterity",
+        "points": 5,
+        "summary": "No off-hand penalty for either hand."
+      },
+      {
+        "id": "enhanced-dodge",
+        "name": "Enhanced Dodge",
+        "points": 15,
+        "summary": "+1 to Dodge.",
+        "effects": {
+          "dodge": 1
+        }
+      },
+      {
+        "id": "enhanced-parry",
+        "name": "Enhanced Parry",
+        "points": 5,
+        "summary": "+1 to Parry with your chosen skill."
+      },
+      {
+        "id": "perfect-balance",
+        "name": "Perfect Balance",
+        "points": 15,
+        "summary": "+6 to Balance, Climbing and tightrope rolls."
+      },
+      {
+        "id": "catfall",
+        "name": "Catfall",
+        "points": 10,
+        "summary": "Ignore damage from falls up to 20 yards on a DX roll."
+      },
+      {
+        "id": "acute-vision",
+        "name": "Acute Vision",
+        "points": 2,
+        "summary": "+1 to Vision rolls per level.",
+        "perLevel": true
+      },
+      {
+        "id": "acute-hearing",
+        "name": "Acute Hearing",
+        "points": 2,
+        "summary": "+1 to Hearing rolls per level.",
+        "perLevel": true
+      },
+      {
+        "id": "night-vision",
+        "name": "Night Vision",
+        "points": 1,
+        "summary": "Ignore one level of darkness penalties per level.",
+        "perLevel": true
+      },
+      {
+        "id": "fearlessness",
+        "name": "Fearlessness",
+        "points": 2,
+        "summary": "+1 to Fright Checks per level.",
+        "perLevel": true
+      },
+      {
+        "id": "strong-will",
+        "name": "Strong Will",
+        "points": 4,
+        "summary": "+1 to Will per level — resist mental coercion.",
+        "perLevel": true,
+        "effects": {
+          "will": 1
+        }
+      },
+      {
+        "id": "high-manual-dexterity",
+        "name": "High Manual Dexterity",
+        "points": 5,
+        "summary": "+3 to fine-manipulation tasks in your hands."
+      },
+      {
+        "id": "flexibility",
+        "name": "Flexibility",
+        "points": 5,
+        "summary": "+3 to Escape and Climbing rolls."
+      },
+      {
+        "id": "double-jointed",
+        "name": "Double-Jointed",
+        "points": 15,
+        "summary": "+5 to Escape and Contortionist; limber beyond belief."
+      },
+      {
+        "id": "fit",
+        "name": "Fit",
+        "points": 5,
+        "summary": "+1 to HT rolls; recover FP twice as fast."
+      },
+      {
+        "id": "very-fit",
+        "name": "Very Fit",
+        "points": 15,
+        "summary": "+2 to HT rolls; recover FP three times as fast."
+      },
+      {
+        "id": "hard-to-kill",
+        "name": "Hard to Kill",
+        "points": 5,
+        "summary": "+1 per level to survive death; die less easily.",
+        "perLevel": true
+      },
+      {
+        "id": "rapid-healing",
+        "name": "Rapid Healing",
+        "points": 5,
+        "summary": "Recover from injury twice as fast."
+      },
+      {
+        "id": "eidetic-memory",
+        "name": "Eidetic Memory",
+        "points": 5,
+        "summary": "Roll to recall anything you have ever experienced."
+      },
+      {
+        "id": "photographic-memory",
+        "name": "Photographic Memory",
+        "points": 10,
+        "summary": "Near-perfect recall of everything you see or read."
+      },
+      {
+        "id": "language-talent",
+        "name": "Language Talent",
+        "points": 10,
+        "summary": "Learn new languages in a fraction of the time."
+      },
+      {
+        "id": "voice",
+        "name": "Voice",
+        "points": 10,
+        "summary": "+2 to all social skill rolls that use speech."
+      },
+      {
+        "id": "charisma",
+        "name": "Charisma",
+        "points": 5,
+        "summary": "+1 to reaction rolls per level; leadership magnetism.",
+        "perLevel": true
+      },
+      {
+        "id": "attractive",
+        "name": "Attractive",
+        "points": 4,
+        "summary": "+1 to reaction rolls from those who find you appealing."
+      },
+      {
+        "id": "handsome",
+        "name": "Handsome / Beautiful",
+        "points": 12,
+        "summary": "+2 to reaction rolls; +4 from the attracted sex."
+      },
+      {
+        "id": "business-acumen",
+        "name": "Business Acumen",
+        "points": 10,
+        "summary": "+1 per level to Finance, Market Analysis and Merchant.",
+        "perLevel": true
+      },
+      {
+        "id": "artificer-talent",
+        "name": "Artificer Talent",
+        "points": 10,
+        "summary": "+1 per level to invention, engineering and smithing skills.",
+        "perLevel": true
+      },
+      {
+        "id": "social-chameleon",
+        "name": "Social Chameleon",
+        "points": 5,
+        "summary": "No penalty when acting outside your class or role."
+      },
+      {
+        "id": "single-minded",
+        "name": "Single-Minded",
+        "points": 5,
+        "summary": "+3 to complete one chosen task while focused."
+      },
+      {
+        "id": "absolute-direction",
+        "name": "Absolute Direction",
+        "points": 5,
+        "summary": "Always know which way is north; never lost."
+      },
+      {
+        "id": "absolute-timing",
+        "name": "Absolute Timing",
+        "points": 5,
+        "summary": "Know the time precisely at any moment."
+      },
+      {
+        "id": "less-sleep",
+        "name": "Less Sleep",
+        "points": 2,
+        "summary": "Need one fewer hour of sleep per level (min 0).",
+        "perLevel": true
+      },
+      {
+        "id": "longevity",
+        "name": "Longevity",
+        "points": 2,
+        "summary": "Age noticeably slower than your peers."
+      },
+      {
+        "id": "alcohol-tolerance",
+        "name": "Alcohol Tolerance",
+        "points": 1,
+        "summary": "Ignore penalties from intoxication; no hangovers."
+      },
+      {
+        "id": "deep-sleeper",
+        "name": "Deep Sleeper",
+        "points": 1,
+        "summary": "Sleep through almost any noise or disturbance."
+      },
+      {
+        "id": "immovable-stance",
+        "name": "Immovable Stance",
+        "points": 15,
+        "summary": "Cannot be knocked down or shoved from your footing."
+      },
+      {
+        "id": "unfazeable",
+        "name": "Unfazeable",
+        "points": 15,
+        "summary": "Immune to mental stun and intimidation."
+      },
+      {
+        "id": "indomitable",
+        "name": "Indomitable",
+        "points": 15,
+        "summary": "+5 to resist mental coercion of any kind."
+      },
+      {
+        "id": "resistant-disease",
+        "name": "Resistant to Disease",
+        "points": 5,
+        "summary": "+3 to resist all disease."
+      },
+      {
+        "id": "resistant-poison",
+        "name": "Resistant to Poison",
+        "points": 5,
+        "summary": "+3 to resist all poison."
+      },
+      {
+        "id": "temperature-tolerance",
+        "name": "Temperature Tolerance",
+        "points": 1,
+        "summary": "Comfortable in more extreme heat or cold per level.",
+        "perLevel": true
+      },
+      {
+        "id": "gizmos",
+        "name": "Gizmos",
+        "points": 5,
+        "summary": "Retroactively have a small gadget you need per level.",
+        "perLevel": true
+      },
+      {
+        "id": "independent-income",
+        "name": "Independent Income",
+        "points": 1,
+        "summary": "Income per level without working.",
+        "perLevel": true
+      },
+      {
+        "id": "wealthy",
+        "name": "Wealthy",
+        "points": 20,
+        "summary": "Comfortable or better income tier and starting wealth."
+      },
+      {
+        "id": "very-wealthy",
+        "name": "Very Wealthy",
+        "points": 30,
+        "summary": "Affluent income tier and lavish starting wealth."
+      },
+      {
+        "id": "zeroed",
+        "name": "Zeroed",
+        "points": 10,
+        "summary": "No official records of your existence exist."
+      },
+      {
+        "id": "blessed",
+        "name": "Blessed",
+        "points": 10,
+        "summary": "Divine favor — critical successes happen more often."
+      },
+      {
+        "id": "oracle",
+        "name": "Oracle",
+        "points": 15,
+        "summary": "Vague prophetic visions guide your choices."
+      },
+      {
+        "id": "mind-shield",
+        "name": "Mind Shield",
+        "points": 4,
+        "summary": "+1 per level to resist mental attacks and probes.",
+        "perLevel": true
+      },
+      {
+        "id": "tough-skin",
+        "name": "Tough Skin",
+        "points": 3,
+        "summary": "DR 1 per level — cannot stack with worn armor.",
+        "perLevel": true,
+        "effects": {
+          "dr": 1
+        }
+      },
+      {
+        "id": "damage-resistance",
+        "name": "Damage Resistance",
+        "points": 5,
+        "summary": "DR 1 per level — stacks with worn armor.",
+        "perLevel": true,
+        "effects": {
+          "dr": 1
+        }
+      }
+    ],
+    "disadvantages": [
+      {
+        "id": "addiction",
+        "name": "Addiction",
+        "points": -5,
+        "summary": "A consuming habit you must feed or suffer withdrawal."
+      },
+      {
+        "id": "alcoholism",
+        "name": "Alcoholism",
+        "points": -15,
+        "summary": "Self-control roll to avoid drinking; impairment while intoxicated."
+      },
+      {
+        "id": "bad-temper",
+        "name": "Bad Temper",
+        "points": -10,
+        "summary": "Self-control roll to avoid violent outbursts when provoked."
+      },
+      {
+        "id": "bad-smell",
+        "name": "Bad Smell",
+        "points": -10,
+        "summary": "-2 on reactions and social rolls in close proximity."
+      },
+      {
+        "id": "bloodlust",
+        "name": "Bloodlust",
+        "points": -10,
+        "summary": "Self-control roll to avoid killing disabled enemies."
+      },
+      {
+        "id": "code-of-honor",
+        "name": "Code of Honor",
+        "points": -10,
+        "summary": "Personal creed you will not break, even at great cost."
+      },
+      {
+        "id": "compulsive-carousing",
+        "name": "Compulsive Carousing",
+        "points": -5,
+        "summary": "Self-control roll to avoid drinking and partying."
+      },
+      {
+        "id": "compulsive-gambling",
+        "name": "Compulsive Gambling",
+        "points": -5,
+        "summary": "Self-control roll to avoid betting on anything."
+      },
+      {
+        "id": "compulsive-liar",
+        "name": "Compulsive Liar",
+        "points": -15,
+        "summary": "Self-control roll to avoid lying, even when pointless."
+      },
+      {
+        "id": "curious",
+        "name": "Curious",
+        "points": -5,
+        "summary": "Self-control roll to avoid investigating every mystery."
+      },
+      {
+        "id": "deafness",
+        "name": "Deafness",
+        "points": -20,
+        "summary": "No hearing at all — no Hearing rolls, -4 to perception."
+      },
+      {
+        "id": "dependents",
+        "name": "Dependents",
+        "points": -10,
+        "summary": "People who rely on you — and need rescuing."
+      },
+      {
+        "id": "duty",
+        "name": "Duty",
+        "points": -5,
+        "summary": "Obligations to an employer, guild or cause."
+      },
+      {
+        "id": "enemy",
+        "name": "Enemy",
+        "points": -10,
+        "summary": "Someone powerful and determined who hunts you."
+      },
+      {
+        "id": "flashbacks",
+        "name": "Flashbacks",
+        "points": -5,
+        "summary": "Disabling memories trigger on trauma; Will roll to stay in control."
+      },
+      {
+        "id": "greed",
+        "name": "Greed",
+        "points": -15,
+        "summary": "Self-control roll to avoid risky plays for profit."
+      },
+      {
+        "id": "honesty",
+        "name": "Honesty",
+        "points": -10,
+        "summary": "Cannot knowingly break the law."
+      },
+      {
+        "id": "impulsiveness",
+        "name": "Impulsiveness",
+        "points": -10,
+        "summary": "Self-control roll to avoid acting before you think."
+      },
+      {
+        "id": "intolerance",
+        "name": "Intolerance",
+        "points": -5,
+        "summary": "Deep bias against a group; -3 on reactions with them."
+      },
+      {
+        "id": "jealousy",
+        "name": "Jealousy",
+        "points": -10,
+        "summary": "Self-control roll to avoid sabotaging rivals."
+      },
+      {
+        "id": "kleptomania",
+        "name": "Kleptomania",
+        "points": -15,
+        "summary": "Self-control roll to avoid stealing, even with no need."
+      },
+      {
+        "id": "light-sleeper",
+        "name": "Light Sleeper",
+        "points": -5,
+        "summary": "Awakened by any disturbance; only truly rest in perfect silence."
+      },
+      {
+        "id": "lunacy",
+        "name": "Lunacy",
+        "points": -10,
+        "summary": "When the moon is full, you lose control of yourself."
+      },
+      {
+        "id": "megalomania",
+        "name": "Megalomania",
+        "points": -10,
+        "summary": "You are destined to rule the world; delusions of grandeur."
+      },
+      {
+        "id": "nervous-stomach",
+        "name": "Nervous Stomach",
+        "points": -5,
+        "summary": "Vomit under extreme stress or gore."
+      },
+      {
+        "id": "nightmares",
+        "name": "Nightmares",
+        "points": -5,
+        "summary": "Terrifying dreams; rest poorly and lose FP."
+      },
+      {
+        "id": "no-sense-of-humor",
+        "name": "No Sense of Humor",
+        "points": -10,
+        "summary": "Literal-minded and deadpan; -2 on social reactions."
+      },
+      {
+        "id": "obsession",
+        "name": "Obsession",
+        "points": -5,
+        "summary": "A single driving obsession you pursue relentlessly."
+      },
+      {
+        "id": "overconfidence",
+        "name": "Overconfidence",
+        "points": -5,
+        "summary": "Self-control roll to avoid taking foolish risks."
+      },
+      {
+        "id": "pacifism",
+        "name": "Pacifism",
+        "points": -10,
+        "summary": "Cannot kill — at worst, cannot fight at all."
+      },
+      {
+        "id": "paranoia",
+        "name": "Paranoia",
+        "points": -10,
+        "summary": "Everyone is out to get you. Treat everyone with suspicion."
+      },
+      {
+        "id": "phobia",
+        "name": "Phobia (pick one)",
+        "points": -5,
+        "summary": "Crippling fear of a specific thing — cower or flee on failure."
+      },
+      {
+        "id": "post-combat-shakes",
+        "name": "Post-Combat Shakes",
+        "points": -5,
+        "summary": "Trembling and -2 on tasks for a while after battle."
+      },
+      {
+        "id": "poverty",
+        "name": "Poverty",
+        "points": -10,
+        "summary": "Barely any money; no starting wealth to speak of."
+      },
+      {
+        "id": "pyromania",
+        "name": "Pyromania",
+        "points": -5,
+        "summary": "Self-control roll to avoid setting things on fire."
+      },
+      {
+        "id": "self-centered",
+        "name": "Self-Centered",
+        "points": -5,
+        "summary": "You look out for number one, to everyone's cost."
+      },
+      {
+        "id": "shyness",
+        "name": "Shyness",
+        "points": -10,
+        "summary": "-2 on social rolls with strangers; painful in crowds."
+      },
+      {
+        "id": "sleepwalker",
+        "name": "Sleepwalker",
+        "points": -5,
+        "summary": "You wander and act while asleep."
+      },
+      {
+        "id": "slow-healing",
+        "name": "Slow Healing",
+        "points": -5,
+        "summary": "Take twice as long to recover from injury."
+      },
+      {
+        "id": "smell-blindness",
+        "name": "Smell Blindness",
+        "points": -5,
+        "summary": "No sense of smell."
+      },
+      {
+        "id": "squeamish",
+        "name": "Squeamish",
+        "points": -10,
+        "summary": "-2 on rolls near blood and gore."
+      },
+      {
+        "id": "stubbornness",
+        "name": "Stubbornness",
+        "points": -5,
+        "summary": "Self-control roll to back down from a position."
+      },
+      {
+        "id": "truthfulness",
+        "name": "Truthfulness",
+        "points": -5,
+        "summary": "Self-control roll to tell a lie, even a useful one."
+      },
+      {
+        "id": "unluckiness",
+        "name": "Unluckiness",
+        "points": -10,
+        "summary": "Once per session, the GM turns your success into failure."
+      },
+      {
+        "id": "weakness",
+        "name": "Weakness (common)",
+        "points": -10,
+        "summary": "Take damage when exposed to a common substance (e.g. sunlight)."
+      },
+      {
+        "id": "wealth-poor",
+        "name": "Poor",
+        "points": -15,
+        "summary": "Severe money troubles; starting wealth one-fifth of normal."
+      },
+      {
+        "id": "weirdness-magnet",
+        "name": "Weirdness Magnet",
+        "points": -15,
+        "summary": "Strange and supernatural events follow you everywhere."
+      },
+      {
+        "id": "workaholic",
+        "name": "Workaholic",
+        "points": -5,
+        "summary": "Cannot relax; self-control roll to stop working."
+      },
+      {
+        "id": "xenophilia",
+        "name": "Xenophilia",
+        "points": -5,
+        "summary": "Irresistible fascination with the alien and unknown."
+      }
+    ],
+    "attribute_upgrade_cost": 10,
+    "wealth_tiers": [
+      {
+        "id": "dead-broke",
+        "name": "Dead Broke",
+        "incomeMult": 0,
+        "costOfLivingMult": 0.5,
+        "startingWealthMult": 0,
+        "summary": "No money, no income. You survive on charity, theft or luck."
+      },
+      {
+        "id": "poor",
+        "name": "Poor",
+        "incomeMult": 0.5,
+        "costOfLivingMult": 0.6,
+        "startingWealthMult": 0.2,
+        "summary": "Hand to mouth. Every coin spent is a coin earned twice."
+      },
+      {
+        "id": "struggling",
+        "name": "Struggling",
+        "incomeMult": 0.75,
+        "costOfLivingMult": 0.8,
+        "startingWealthMult": 0.5,
+        "summary": "A working life. Enough to eat, rarely enough to save."
+      },
+      {
+        "id": "average",
+        "name": "Average",
+        "incomeMult": 1,
+        "costOfLivingMult": 1,
+        "startingWealthMult": 1,
+        "summary": "The standard of the setting — a modest, honest living."
+      },
+      {
+        "id": "comfortable",
+        "name": "Comfortable",
+        "incomeMult": 1.5,
+        "costOfLivingMult": 1.2,
+        "startingWealthMult": 2,
+        "summary": "Savings in the bank and a roof that never leaks."
+      },
+      {
+        "id": "wealthy",
+        "name": "Wealthy",
+        "incomeMult": 2.5,
+        "costOfLivingMult": 1.6,
+        "startingWealthMult": 5,
+        "summary": "Money opens doors. You rarely think about the price."
+      },
+      {
+        "id": "very-wealthy",
+        "name": "Very Wealthy",
+        "incomeMult": 5,
+        "costOfLivingMult": 2.2,
+        "startingWealthMult": 20,
+        "summary": "An enterprise, an estate, or a fortune in trust."
+      },
+      {
+        "id": "filthy-rich",
+        "name": "Filthy Rich",
+        "incomeMult": 10,
+        "costOfLivingMult": 3,
+        "startingWealthMult": 100,
+        "summary": "A personal staff, properties in three cities, and influence."
+      },
+      {
+        "id": "multimillionaire",
+        "name": "Multimillionaire",
+        "incomeMult": 25,
+        "costOfLivingMult": 4,
+        "startingWealthMult": 1000,
+        "summary": "You buy things other people cannot even price."
+      }
+    ],
+    "jobs": [
+      {
+        "id": "field-hand",
+        "name": "Field Hand",
+        "domain": "medieval",
+        "skill": "professional-skill",
+        "fallbackStat": "st",
+        "payMult": 0.5,
+        "summary": "Back-breaking seasonal labor on another's land."
+      },
+      {
+        "id": "physician",
+        "name": "Court Physician",
+        "domain": "medieval",
+        "skill": "first-aid",
+        "fallbackStat": "ht",
+        "payMult": 1.8,
+        "summary": "Leeches, poultices, and a reputation that outlives your patients."
+      },
+      {
+        "id": "cook",
+        "name": "Castle Cook",
+        "domain": "medieval",
+        "skill": "professional-skill",
+        "fallbackStat": "iq",
+        "payMult": 0.9,
+        "summary": "Twelve-course feasts and the sharpest knives in the keep."
+      },
+      {
+        "id": "falconer",
+        "name": "Royal Falconer",
+        "domain": "medieval",
+        "skill": "professional-skill",
+        "fallbackStat": "iq",
+        "payMult": 1.1,
+        "summary": "Hawks, hunting days, and the ear of the hunt-master."
+      },
+      {
+        "id": "forester",
+        "name": "Forester",
+        "domain": "medieval",
+        "skill": "survival",
+        "fallbackStat": "iq",
+        "payMult": 0.8,
+        "summary": "The king's woods, the king's deer, and the poachers between."
+      },
+      {
+        "id": "mason",
+        "name": "Master Mason",
+        "domain": "medieval",
+        "skill": "professional-skill",
+        "fallbackStat": "iq",
+        "payMult": 1.2,
+        "summary": "Cathedrals, keeps, and the geometry of permanence."
+      },
+      {
+        "id": "court-advocate",
+        "name": "Court Advocate",
+        "domain": "medieval",
+        "skill": "law",
+        "fallbackStat": "iq",
+        "payMult": 1.6,
+        "summary": "Pleading cases before judges who already know the verdict."
+      },
+      {
+        "id": "smith",
+        "name": "Smith",
+        "domain": "medieval",
+        "skill": "professional-skill",
+        "fallbackStat": "st",
+        "payMult": 1.4,
+        "summary": "Shoeing horses, mending ploughs, forging blades."
+      },
+      {
+        "id": "merchant-wagon",
+        "name": "Traveling Merchant",
+        "domain": "medieval",
+        "skill": "merchant",
+        "fallbackStat": "iq",
+        "payMult": 1.3,
+        "summary": "Buying cheap and selling dear along the trade roads."
+      },
+      {
+        "id": "guard",
+        "name": "Town Guard",
+        "domain": "medieval",
+        "skill": "spear",
+        "fallbackStat": "st",
+        "payMult": 0.9,
+        "summary": "Patrolling the walls, keeping the peace by presence."
+      },
+      {
+        "id": "soldier",
+        "name": "Mercenary Soldier",
+        "domain": "medieval",
+        "skill": "broadsword",
+        "fallbackStat": "dx",
+        "payMult": 1.2,
+        "summary": "A blade for hire — good money, short life."
+      },
+      {
+        "id": "scribe",
+        "name": "Scribe",
+        "domain": "medieval",
+        "skill": "research",
+        "fallbackStat": "iq",
+        "payMult": 1.1,
+        "summary": "Letters, contracts and records for those who cannot write."
+      },
+      {
+        "id": "minstrel",
+        "name": "Court Minstrel",
+        "domain": "medieval",
+        "skill": "sex-appeal",
+        "fallbackStat": "ht",
+        "payMult": 0.9,
+        "summary": "Songs and tales in halls that pay in coin and favor."
+      },
+      {
+        "id": "clerk",
+        "name": "Office Clerk",
+        "domain": "modern",
+        "skill": "administration",
+        "fallbackStat": "iq",
+        "payMult": 1.1,
+        "summary": "Filing, phones and forms — steady and soul-drying."
+      },
+      {
+        "id": "driver",
+        "name": "Cabbie / Delivery Driver",
+        "domain": "modern",
+        "skill": "driving",
+        "fallbackStat": "dx",
+        "payMult": 0.9,
+        "summary": "The city at your fingertips, fares in your pocket."
+      },
+      {
+        "id": "mechanic",
+        "name": "Auto Mechanic",
+        "domain": "modern",
+        "skill": "professional-skill",
+        "fallbackStat": "iq",
+        "payMult": 1.2,
+        "summary": "Engines, brakes and the honest grime of good work."
+      },
+      {
+        "id": "sales",
+        "name": "Salesperson",
+        "domain": "modern",
+        "skill": "merchant",
+        "fallbackStat": "iq",
+        "payMult": 1,
+        "summary": "Commission is a lottery with a skill-based rig."
+      },
+      {
+        "id": "journalist",
+        "name": "Journalist",
+        "domain": "modern",
+        "skill": "research",
+        "fallbackStat": "iq",
+        "payMult": 1.1,
+        "summary": "Chasing stories, filing copy, dodging libel suits."
+      },
+      {
+        "id": "medic",
+        "name": "Paramedic",
+        "domain": "modern",
+        "skill": "first-aid",
+        "fallbackStat": "ht",
+        "payMult": 1.1,
+        "summary": "First on the scene, last to leave the shift."
+      },
+      {
+        "id": "engineer",
+        "name": "Civil Engineer",
+        "domain": "modern",
+        "skill": "professional-skill",
+        "fallbackStat": "iq",
+        "payMult": 1.6,
+        "summary": "Bridges, towers, and approving the risk of others."
+      },
+      {
+        "id": "professor",
+        "name": "University Professor",
+        "domain": "modern",
+        "skill": "research",
+        "fallbackStat": "iq",
+        "payMult": 1.4,
+        "summary": "Lectures by day, peer-reviewed dread by night."
+      },
+      {
+        "id": "chef",
+        "name": "Restaurant Chef",
+        "domain": "modern",
+        "skill": "professional-skill",
+        "fallbackStat": "iq",
+        "payMult": 1.2,
+        "summary": "A kitchen that runs on screaming and savoir-faire."
+      },
+      {
+        "id": "lawyer",
+        "name": "Lawyer",
+        "domain": "modern",
+        "skill": "law",
+        "fallbackStat": "iq",
+        "payMult": 2,
+        "summary": "Billable hours and the art of the settlement."
+      },
+      {
+        "id": "corp-drone",
+        "name": "Corp Drone",
+        "domain": "cyber",
+        "skill": "administration",
+        "fallbackStat": "iq",
+        "payMult": 1.6,
+        "summary": "A cubicle in a glass tower, chained to the quarterly report."
+      },
+      {
+        "id": "netrunner",
+        "name": "Netrunner",
+        "domain": "cyber",
+        "skill": "hacking",
+        "fallbackStat": "iq",
+        "payMult": 2,
+        "summary": "Stealing data through the Grid — one cred at a time."
+      },
+      {
+        "id": "fixer",
+        "name": "Fixer",
+        "domain": "cyber",
+        "skill": "streetwise",
+        "fallbackStat": "iq",
+        "payMult": 1.7,
+        "summary": "Everyone knows someone who knows someone. That's you."
+      },
+      {
+        "id": "ripperdoc",
+        "name": "Ripperdoc",
+        "domain": "cyber",
+        "skill": "first-aid",
+        "fallbackStat": "ht",
+        "payMult": 1.8,
+        "summary": "Installing chrome and stitching wounds, no questions asked."
+      },
+      {
+        "id": "bounty-hunter",
+        "name": "Bounty Hunter",
+        "domain": "cyber",
+        "skill": "stealth",
+        "fallbackStat": "dx",
+        "payMult": 1.9,
+        "summary": "Collecting heads and warrants in equal measure."
+      },
+      {
+        "id": "corp-sec-engineer",
+        "name": "Corp Security Engineer",
+        "domain": "cyber",
+        "skill": "computer-programming",
+        "fallbackStat": "iq",
+        "payMult": 2.2,
+        "summary": "Building the walls the netrunners chip away at."
+      },
+      {
+        "id": "data-broker",
+        "name": "Data Broker",
+        "domain": "cyber",
+        "skill": "market-analysis",
+        "fallbackStat": "iq",
+        "payMult": 2.1,
+        "summary": "Buying secrets cheap and selling them at market price."
+      },
+      {
+        "id": "sim-diver",
+        "name": "Sim Diver",
+        "domain": "cyber",
+        "skill": "computer-operation",
+        "fallbackStat": "iq",
+        "payMult": 1.5,
+        "summary": "Testing virtual worlds by dying in them, professionally."
+      },
+      {
+        "id": "chrome-artist",
+        "name": "Chrome Artist",
+        "domain": "cyber",
+        "skill": "professional-skill",
+        "fallbackStat": "iq",
+        "payMult": 1.9,
+        "summary": "Body-mod work that's part surgery, part street art."
+      },
+      {
+        "id": "shopkeeper",
+        "name": "Shopkeeper",
+        "domain": "business",
+        "skill": "merchant",
+        "fallbackStat": "iq",
+        "payMult": 1.3,
+        "summary": "Your own counter, your own stock, your own hours."
+      },
+      {
+        "id": "money-lender",
+        "name": "Money Lender",
+        "domain": "business",
+        "skill": "finance",
+        "fallbackStat": "iq",
+        "payMult": 1.8,
+        "summary": "Lending at interest — profitable until a client vanishes."
+      },
+      {
+        "id": "contractor",
+        "name": "Contractor",
+        "domain": "business",
+        "skill": "professional-skill",
+        "fallbackStat": "iq",
+        "payMult": 1.4,
+        "summary": "Bidding jobs, meeting deadlines, collecting invoices."
+      },
+      {
+        "id": "entertainer",
+        "name": "Performer",
+        "domain": "business",
+        "skill": "sex-appeal",
+        "fallbackStat": "ht",
+        "payMult": 1.2,
+        "summary": "Stage, screen or street — the crowd is the boss."
+      },
+      {
+        "id": "investor",
+        "name": "Private Investor",
+        "domain": "business",
+        "skill": "finance",
+        "fallbackStat": "iq",
+        "payMult": 2.4,
+        "summary": "Other people's ideas, your money, their risk."
+      }
+    ],
+    "businesses": [
+      {
+        "id": "stall",
+        "name": "Market Stall",
+        "skill": "merchant",
+        "startupCost": 20,
+        "profitBase": 8,
+        "risk": "low",
+        "mode": "all",
+        "summary": "A cart and a corner. Slow, safe, honest."
+      },
+      {
+        "id": "workshop",
+        "name": "Workshop",
+        "skill": "professional-skill",
+        "startupCost": 60,
+        "profitBase": 16,
+        "risk": "low",
+        "mode": "all",
+        "summary": "Tools, a bench, and a reputation for good work."
+      },
+      {
+        "id": "tavern",
+        "name": "Tavern / Bar",
+        "skill": "administration",
+        "startupCost": 150,
+        "profitBase": 30,
+        "risk": "moderate",
+        "mode": "all",
+        "summary": "Rooms, ale and gossip — the heart of any street."
+      },
+      {
+        "id": "trading-house",
+        "name": "Trading House",
+        "skill": "merchant",
+        "startupCost": 300,
+        "profitBase": 55,
+        "risk": "moderate",
+        "mode": "medieval",
+        "summary": "Moving goods in bulk along the trade lanes."
+      },
+      {
+        "id": "startup",
+        "name": "Tech Startup",
+        "skill": "computer-programming",
+        "startupCost": 250,
+        "profitBase": 90,
+        "risk": "high",
+        "mode": "modern",
+        "summary": "An idea, a loft, and a runway of pure adrenaline."
+      },
+      {
+        "id": "smuggling-ring",
+        "name": "Smuggling Ring",
+        "skill": "streetwise",
+        "startupCost": 200,
+        "profitBase": 80,
+        "risk": "high",
+        "mode": "cyber",
+        "summary": "Fast ships, blind guards, and very large margins."
+      }
+    ],
+    "relationship_stages": [
+      {
+        "id": "strangers",
+        "name": "Strangers",
+        "target": 6,
+        "summary": "You have met, barely."
+      },
+      {
+        "id": "acquaintances",
+        "name": "Acquaintances",
+        "target": 9,
+        "summary": "Names, small talk, and shared circles."
+      },
+      {
+        "id": "friends",
+        "name": "Friends",
+        "target": 12,
+        "summary": "Trust, banter, and plans made together."
+      },
+      {
+        "id": "romantic",
+        "name": "Romantic Interest",
+        "target": 14,
+        "summary": "Sparks, stolen glances, and heartbeats."
+      },
+      {
+        "id": "lovers",
+        "name": "Lovers",
+        "target": 16,
+        "summary": "Intimacy, vulnerability, and late-night talks."
+      },
+      {
+        "id": "committed",
+        "name": "Committed Partners",
+        "target": 18,
+        "summary": "A shared future, a shared name, a shared life."
+      }
+    ],
+    "cyberware": [
+      {
+        "id": "datajack",
+        "name": "Datajack",
+        "cost": 25,
+        "summary": "A port at the base of the skull — jack into terminals."
+      },
+      {
+        "id": "cybereye",
+        "name": "Cybereye",
+        "cost": 60,
+        "skillBonus": {
+          "skill": "computer-operation",
+          "bonus": 1
+        },
+        "summary": "HUD overlay, low-light, and a targeting reticle."
+      },
+      {
+        "id": "reflex-chips",
+        "name": "Reflex Chips",
+        "cost": 80,
+        "summary": "Neural timing implants — the world slows down."
+      },
+      {
+        "id": "dermal-plating",
+        "name": "Dermal Plating",
+        "cost": 100,
+        "dr": 1,
+        "summary": "Layered armor woven under the skin."
+      },
+      {
+        "id": "neural-link",
+        "name": "Neural Link",
+        "cost": 140,
+        "skillBonus": {
+          "skill": "hacking",
+          "bonus": 1
+        },
+        "summary": "Direct mind-to-grid interface for deep netrunning."
+      },
+      {
+        "id": "muscle-weave",
+        "name": "Muscle Weave",
+        "cost": 90,
+        "summary": "Synthetic fibers braided through your own muscle."
+      },
+      {
+        "id": "implant-comm",
+        "name": "Implant Comm",
+        "cost": 40,
+        "summary": "A subdermal radio — always in touch."
+      },
+      {
+        "id": "bone-lacing",
+        "name": "Bone Lacing",
+        "cost": 70,
+        "dr": 1,
+        "summary": "Reinforced skeleton that shrugs off impacts."
+      }
+    ],
+    "hack_targets": [
+      {
+        "id": "public",
+        "name": "Public Terminal",
+        "penalty": 0,
+        "summary": "Open kiosks and street nodes — barely locked."
+      },
+      {
+        "id": "personal",
+        "name": "Personal Rig",
+        "penalty": -2,
+        "summary": "A private deck with a basic firewall."
+      },
+      {
+        "id": "corporate",
+        "name": "Corporate Mainframe",
+        "penalty": -4,
+        "summary": "ICE walls, audit logs, and a security team on call."
+      },
+      {
+        "id": "military",
+        "name": "Military Grid",
+        "penalty": -7,
+        "summary": "Hardened nodes, counter-intrusion ICE, no mercy."
+      },
+      {
+        "id": "black-ice",
+        "name": "Black ICE Core",
+        "penalty": -10,
+        "summary": "The legendary core — dangerous to even touch."
+      }
+    ],
+    "holdings": [
+      {
+        "id": "smallholding",
+        "name": "Smallholding",
+        "skill": "professional-skill",
+        "income": 12,
+        "summary": "A few acres, a cottage, and a stubborn mule."
+      },
+      {
+        "id": "orchard",
+        "name": "Orchard & Vineyard",
+        "skill": "professional-skill",
+        "income": 25,
+        "summary": "Fruit trees and vines that pay in golden seasons."
+      },
+      {
+        "id": "mill",
+        "name": "Water Mill",
+        "skill": "professional-skill",
+        "income": 35,
+        "summary": "The village grinds its grain through your wheel."
+      },
+      {
+        "id": "manor",
+        "name": "Manor",
+        "skill": "administration",
+        "income": 60,
+        "summary": "Landed gentry — tenants, fields, and obligations."
+      },
+      {
+        "id": "keep",
+        "name": "Keep & Demesne",
+        "skill": "tactics",
+        "income": 120,
+        "summary": "A fortified seat with sworn men and rich lands."
+      }
+    ],
+    "universities": [
+      {
+        "id": "monastery",
+        "name": "Monastery Scriptorium",
+        "era": "medieval",
+        "tuition": 30,
+        "examSkill": "research",
+        "fallbackStat": "iq",
+        "summary": "Vellum, candlelight, and the patient copying of the great texts."
+      },
+      {
+        "id": "guild-college",
+        "name": "Guild College",
+        "era": "medieval",
+        "tuition": 50,
+        "examSkill": "professional-skill",
+        "fallbackStat": "iq",
+        "summary": "Masters, apprentices, and a syllabus written in tools."
+      },
+      {
+        "id": "crown-university",
+        "name": "Crown University",
+        "era": "medieval",
+        "tuition": 90,
+        "examSkill": "law",
+        "fallbackStat": "iq",
+        "summary": "The kingdom's oldest seat of learning — clerks, jurists, and poets."
+      },
+      {
+        "id": "city-university",
+        "name": "City University",
+        "era": "modern",
+        "tuition": 140,
+        "examSkill": "research",
+        "fallbackStat": "iq",
+        "summary": "Lecture halls, late libraries, and the debt that follows."
+      },
+      {
+        "id": "polytechnic",
+        "name": "Polytechnic Institute",
+        "era": "modern",
+        "tuition": 120,
+        "examSkill": "professional-skill",
+        "fallbackStat": "iq",
+        "summary": "Workshops over oratories — learn by breaking things."
+      },
+      {
+        "id": "corp-academy",
+        "name": "Corp Academy",
+        "era": "cyber",
+        "tuition": 260,
+        "examSkill": "computer-programming",
+        "fallbackStat": "iq",
+        "summary": "Sponsored seats, signed NDAs, and a career pre-assigned."
+      },
+      {
+        "id": "grid-university",
+        "name": "Grid University",
+        "era": "cyber",
+        "tuition": 180,
+        "examSkill": "computer-operation",
+        "fallbackStat": "iq",
+        "summary": "Fully remote lectures beamed straight into the neural link."
+      }
+    ],
+    "degrees": [
+      {
+        "id": "theology",
+        "name": "Theology",
+        "era": "medieval",
+        "studySkill": "research",
+        "fallbackStat": "iq",
+        "examTarget": 11,
+        "semesters": 3,
+        "summary": "Doctrine, scripture, and the patience of the cloister."
+      },
+      {
+        "id": "law-degree",
+        "name": "Law",
+        "era": "medieval",
+        "studySkill": "law",
+        "fallbackStat": "iq",
+        "examTarget": 13,
+        "semesters": 4,
+        "skillBonus": {
+          "skill": "law",
+          "bonus": 1
+        },
+        "unlocks": [
+          "court-advocate",
+          "lawyer"
+        ],
+        "summary": "Contracts, customs, and the arguments that move realms."
+      },
+      {
+        "id": "medicine-degree",
+        "name": "Medicine",
+        "era": "medieval",
+        "studySkill": "first-aid",
+        "fallbackStat": "ht",
+        "examTarget": 13,
+        "semesters": 4,
+        "skillBonus": {
+          "skill": "first-aid",
+          "bonus": 1
+        },
+        "unlocks": [
+          "physician"
+        ],
+        "summary": "Humours, anatomy, and the delicate art of not killing."
+      },
+      {
+        "id": "history",
+        "name": "History & Letters",
+        "era": "medieval",
+        "studySkill": "research",
+        "fallbackStat": "iq",
+        "examTarget": 12,
+        "semesters": 3,
+        "summary": "Chronicles, lineages, and the long memory of kingdoms."
+      },
+      {
+        "id": "economics",
+        "name": "Economics",
+        "era": "modern",
+        "studySkill": "finance",
+        "fallbackStat": "iq",
+        "examTarget": 13,
+        "semesters": 3,
+        "skillBonus": {
+          "skill": "finance",
+          "bonus": 1
+        },
+        "unlocks": [
+          "investor"
+        ],
+        "summary": "Supply, demand, and why the invisible hand is usually broke."
+      },
+      {
+        "id": "engineering-degree",
+        "name": "Engineering",
+        "era": "modern",
+        "studySkill": "professional-skill",
+        "fallbackStat": "iq",
+        "examTarget": 13,
+        "semesters": 4,
+        "skillBonus": {
+          "skill": "professional-skill",
+          "bonus": 1
+        },
+        "unlocks": [
+          "engineer"
+        ],
+        "summary": "Stress, strain, and the mathematics of not collapsing."
+      },
+      {
+        "id": "computer-science",
+        "name": "Computer Science",
+        "era": "cyber",
+        "studySkill": "computer-programming",
+        "fallbackStat": "iq",
+        "examTarget": 13,
+        "semesters": 3,
+        "skillBonus": {
+          "skill": "computer-programming",
+          "bonus": 1
+        },
+        "unlocks": [
+          "corp-sec-engineer"
+        ],
+        "summary": "Algorithms, architecture, and the logic under the Grid."
+      },
+      {
+        "id": "netsec",
+        "name": "Net Security",
+        "era": "cyber",
+        "studySkill": "hacking",
+        "fallbackStat": "iq",
+        "examTarget": 14,
+        "semesters": 3,
+        "skillBonus": {
+          "skill": "hacking",
+          "bonus": 1
+        },
+        "unlocks": [
+          "corp-sec-engineer",
+          "data-broker"
+        ],
+        "summary": "Offense and defense on the Grid — a degree with teeth."
+      }
+    ],
+    "social_circles": [
+      {
+        "id": "tavern",
+        "name": "Tavern Regulars",
+        "era": "medieval",
+        "entryCost": 5,
+        "reactionMod": 1,
+        "summary": "A stool by the fire and a name the whole room knows."
+      },
+      {
+        "id": "guild",
+        "name": "Merchant Guild",
+        "era": "medieval",
+        "entryCost": 60,
+        "reactionMod": 2,
+        "summary": "Trade secrets, contacts, and the price of everything."
+      },
+      {
+        "id": "court",
+        "name": "Court Society",
+        "era": "medieval",
+        "entryCost": 120,
+        "reactionMod": 2,
+        "summary": "Intrigue, dances, and the politics of the great hall."
+      },
+      {
+        "id": "church",
+        "name": "Parish Congregation",
+        "era": "medieval",
+        "entryCost": 10,
+        "reactionMod": 1,
+        "summary": "Soup kitchens, hymns, and quiet influence."
+      },
+      {
+        "id": "social-club",
+        "name": "Social Club",
+        "era": "modern",
+        "entryCost": 80,
+        "reactionMod": 1,
+        "summary": "Golf, gala dinners, and handshakes that matter."
+      },
+      {
+        "id": "union",
+        "name": "Workers' Union",
+        "era": "modern",
+        "entryCost": 20,
+        "reactionMod": 1,
+        "summary": "Solidarity, strikes, and the strength of numbers."
+      },
+      {
+        "id": "gym",
+        "name": "Fitness Scene",
+        "era": "modern",
+        "entryCost": 30,
+        "reactionMod": 0,
+        "summary": "Lifting, posing, and the respect of the strong."
+      },
+      {
+        "id": "netrunners-club",
+        "name": "Netrunner Underground",
+        "era": "cyber",
+        "entryCost": 40,
+        "reactionMod": 2,
+        "summary": "Darknet handles, black-market chrome, and trust by reputation."
+      },
+      {
+        "id": "corp-social",
+        "name": "Corporate Social Circuit",
+        "era": "cyber",
+        "entryCost": 200,
+        "reactionMod": 2,
+        "summary": "Elevator pitches in glass atriums with synth-lattes."
+      },
+      {
+        "id": "street",
+        "name": "Street Scene",
+        "era": "cyber",
+        "entryCost": 10,
+        "reactionMod": 1,
+        "summary": "Street racers, graffiti crews, and the people's network."
+      }
+    ],
+    "social_events": [
+      {
+        "id": "feast",
+        "name": "Great Feast",
+        "era": "medieval",
+        "skill": "savoir-faire",
+        "fallbackStat": "iq",
+        "cost": 15,
+        "repBase": 4,
+        "summary": "Twelve courses, seating politics, and the king's ear."
+      },
+      {
+        "id": "tournament",
+        "name": "Tournament",
+        "era": "medieval",
+        "skill": "broadsword",
+        "fallbackStat": "dx",
+        "cost": 20,
+        "repBase": 6,
+        "summary": "The lists, the crowd, and glory for the bold."
+      },
+      {
+        "id": "market-day",
+        "name": "Market Day",
+        "era": "medieval",
+        "skill": "merchant",
+        "fallbackStat": "iq",
+        "cost": 5,
+        "repBase": 2,
+        "summary": "Booths, banter, and bargaining in the square."
+      },
+      {
+        "id": "ball",
+        "name": "Grand Ball",
+        "era": "modern",
+        "skill": "sex-appeal",
+        "fallbackStat": "ht",
+        "cost": 40,
+        "repBase": 5,
+        "summary": "Orchestras, champagne, and the dance of alliances."
+      },
+      {
+        "id": "gala",
+        "name": "Charity Gala",
+        "era": "modern",
+        "skill": "savoir-faire",
+        "fallbackStat": "iq",
+        "cost": 60,
+        "repBase": 4,
+        "summary": "Auction paddles, flashbulbs, and causes to be seen with."
+      },
+      {
+        "id": "sports-night",
+        "name": "Fight Night",
+        "era": "modern",
+        "skill": "brawling",
+        "fallbackStat": "dx",
+        "cost": 15,
+        "repBase": 3,
+        "summary": "Ringside seats, roar of the crowd, and heavy bets."
+      },
+      {
+        "id": "rave",
+        "name": "Street Rave",
+        "era": "cyber",
+        "skill": "computer-operation",
+        "fallbackStat": "iq",
+        "cost": 10,
+        "repBase": 3,
+        "summary": "Synth-bass, neural strobes, and the night's own wavelength."
+      },
+      {
+        "id": "demo",
+        "name": "Product Demo",
+        "era": "cyber",
+        "skill": "computer-programming",
+        "fallbackStat": "iq",
+        "cost": 25,
+        "repBase": 4,
+        "summary": "Pitch your build to investors with lasers on."
+      },
+      {
+        "id": "auction",
+        "name": "Black Market Auction",
+        "era": "cyber",
+        "skill": "streetwise",
+        "fallbackStat": "iq",
+        "cost": 50,
+        "repBase": 5,
+        "summary": "Chrome, secrets, and bid paddles for the unscrupulous."
+      }
+    ],
+    "noble_titles": [
+      {
+        "id": "esquire",
+        "name": "Esquire",
+        "cost": 80,
+        "incomeMult": 0.2,
+        "summary": "A coat of arms and the right to carry a banner."
+      },
+      {
+        "id": "knight",
+        "name": "Knight",
+        "cost": 200,
+        "incomeMult": 0.5,
+        "summary": "Spurs, an oath, and land in fief."
+      },
+      {
+        "id": "baronet",
+        "name": "Baronet",
+        "cost": 400,
+        "incomeMult": 0.8,
+        "summary": "Hereditary rank, modest lands, real obligations."
+      },
+      {
+        "id": "baron",
+        "name": "Baron",
+        "cost": 900,
+        "incomeMult": 1.5,
+        "summary": "A keep, tenants, and a seat in the king's council."
+      },
+      {
+        "id": "count",
+        "name": "Count",
+        "cost": 1800,
+        "incomeMult": 2.5,
+        "summary": "A county to govern and an army to raise."
+      },
+      {
+        "id": "duke",
+        "name": "Duke",
+        "cost": 3600,
+        "incomeMult": 4,
+        "summary": "The highest honor short of the crown itself."
+      }
+    ],
+    "court_positions": [
+      {
+        "id": "page",
+        "name": "Page",
+        "skill": "savoir-faire",
+        "fallbackStat": "iq",
+        "payMult": 0.4,
+        "summary": "Run messages, pour wine, learn everything."
+      },
+      {
+        "id": "herald",
+        "name": "Royal Herald",
+        "skill": "sex-appeal",
+        "fallbackStat": "ht",
+        "payMult": 0.7,
+        "summary": "Proclaim, announce, and carry the king's voice."
+      },
+      {
+        "id": "marshal",
+        "name": "Court Marshal",
+        "skill": "tactics",
+        "fallbackStat": "iq",
+        "payMult": 1.1,
+        "summary": "Tournaments, guards, and the discipline of the yard."
+      },
+      {
+        "id": "chancellor",
+        "name": "Chancellor",
+        "skill": "administration",
+        "fallbackStat": "iq",
+        "payMult": 1.6,
+        "summary": "The realm's paperwork flows through your desk."
+      },
+      {
+        "id": "spymaster",
+        "name": "Spymaster",
+        "skill": "streetwise",
+        "fallbackStat": "iq",
+        "payMult": 2,
+        "summary": "You know what the king knows — and what he doesn't."
+      }
+    ],
+    "netdecks": [
+      {
+        "id": "civic-deck",
+        "name": "Civic Deck",
+        "cost": 40,
+        "hackBonus": 0,
+        "summary": "Public-access terminal hardware — gets you on the Grid."
+      },
+      {
+        "id": "runner-deck",
+        "name": "Runner Deck",
+        "cost": 120,
+        "hackBonus": 1,
+        "summary": "Custom-rigged for speed and silence."
+      },
+      {
+        "id": "corp-deck",
+        "name": "Corp Deck",
+        "cost": 300,
+        "hackBonus": 2,
+        "summary": "Enterprise hardware with corporate-grade ICE breakers."
+      },
+      {
+        "id": "military-deck",
+        "name": "Military Deck",
+        "cost": 700,
+        "hackBonus": 3,
+        "summary": "War-issue architecture. Owning one is probably illegal."
+      }
+    ],
+    "programs": [
+      {
+        "id": "icebreaker",
+        "name": "Icebreaker",
+        "kind": "attack",
+        "cost": 35,
+        "hackBonus": 1,
+        "summary": "Shatters ICE walls with brute force."
+      },
+      {
+        "id": "stealth-wrap",
+        "name": "Stealth Wrap",
+        "kind": "attack",
+        "cost": 50,
+        "hackBonus": 1,
+        "defenseBonus": 1,
+        "summary": "Muffles your footprint while you dig."
+      },
+      {
+        "id": "data-razor",
+        "name": "Data Razor",
+        "kind": "attack",
+        "cost": 60,
+        "hackBonus": 2,
+        "summary": "Carves through encrypted payloads fast."
+      },
+      {
+        "id": "firewall",
+        "name": "Micro-Firewall",
+        "kind": "defense",
+        "cost": 30,
+        "defenseBonus": 1,
+        "summary": "Personal ICE that eats stray daemons."
+      },
+      {
+        "id": "trace-killer",
+        "name": "Trace Killer",
+        "kind": "defense",
+        "cost": 70,
+        "defenseBonus": 2,
+        "summary": "Erases the breadcrumbs as you run."
+      },
+      {
+        "id": "decryptor",
+        "name": "Decryptor",
+        "kind": "utility",
+        "cost": 25,
+        "hackBonus": 1,
+        "summary": "Opens sealed files and cipher-locked doors."
+      },
+      {
+        "id": "glitch",
+        "name": "Glitch Bomb",
+        "kind": "utility",
+        "cost": 40,
+        "summary": "Jams sensors and spoofs identities."
+      },
+      {
+        "id": "proxy-chain",
+        "name": "Proxy Chain",
+        "kind": "utility",
+        "cost": 45,
+        "defenseBonus": 1,
+        "summary": "Bounces your signal through six dead zones."
+      }
+    ],
+    "corp_ladder": [
+      {
+        "id": "intern",
+        "name": "Intern",
+        "incomeMult": 0.4,
+        "target": 7,
+        "summary": "Unpaid in spirit, coffee in hand."
+      },
+      {
+        "id": "analyst",
+        "name": "Analyst",
+        "incomeMult": 0.9,
+        "target": 9,
+        "summary": "Spreadsheets and the eternal status meeting."
+      },
+      {
+        "id": "associate",
+        "name": "Associate",
+        "incomeMult": 1.4,
+        "target": 11,
+        "summary": "You delegate the bad news now."
+      },
+      {
+        "id": "manager",
+        "name": "Manager",
+        "incomeMult": 2,
+        "target": 13,
+        "summary": "A floor, a budget, and a door that closes."
+      },
+      {
+        "id": "director",
+        "name": "Director",
+        "incomeMult": 3,
+        "target": 15,
+        "summary": "The corner office and the quarterly guillotine."
+      },
+      {
+        "id": "executive",
+        "name": "Executive",
+        "incomeMult": 4.5,
+        "target": 17,
+        "summary": "The company bends around your signature."
+      }
+    ],
+    "standard_income": 50,
+    "cyber_gear": [
+      {
+        "id": "arc-lance",
+        "name": "Arc Lance",
+        "kind": "weapon",
+        "cost": 250,
+        "skill": "guns",
+        "summary": "Energy sidearm — 3d burn, 30 yd.",
+        "effect": "A crackling sidearm: 3d burn damage at up to 30 yd."
+      },
+      {
+        "id": "pulse-carbine",
+        "name": "Pulse Carbine",
+        "kind": "weapon",
+        "cost": 700,
+        "skill": "guns",
+        "summary": "Rifle-grade plasma — 4d burn, 60 yd.",
+        "effect": "A heavy pulse rifle: 4d burn damage at up to 60 yd."
+      },
+      {
+        "id": "shredder-smg",
+        "name": "Shredder SMG",
+        "kind": "weapon",
+        "cost": 400,
+        "skill": "guns",
+        "summary": "Close-quarters storm — 3d+2, 20 yd.",
+        "effect": "A compact storm of flechettes: 3d+2 damage at up to 20 yd."
+      },
+      {
+        "id": "plasma-cutter",
+        "name": "Plasma Cutter",
+        "kind": "weapon",
+        "cost": 300,
+        "skill": "shortsword",
+        "summary": "Melee torch — 4d burn, cuts armor.",
+        "effect": "A welding torch that cuts: 4d burn damage, ignores DR 3 or less."
+      },
+      {
+        "id": "weave-suit",
+        "name": "Weave Suit",
+        "kind": "armor",
+        "cost": 300,
+        "summary": "Concealable smart fabric — DR 2.",
+        "effect": "DR 2, looks like ordinary streetwear."
+      },
+      {
+        "id": "ballistic-vest",
+        "name": "Ballistic Vest",
+        "kind": "armor",
+        "cost": 500,
+        "summary": "Rigid plates — DR 4.",
+        "effect": "DR 4 against all damage to the torso."
+      },
+      {
+        "id": "hardsuit",
+        "name": "Hardsuit",
+        "kind": "armor",
+        "cost": 1500,
+        "summary": "Full sealed shell — DR 8, sealed.",
+        "effect": "DR 8, fully sealed (vacuum, gas, water); slows Move by 1."
+      },
+      {
+        "id": "optic-suite",
+        "name": "Optic Suite",
+        "kind": "sensor",
+        "cost": 450,
+        "summary": "Implanted eyes — +2 Vision.",
+        "effect": "+2 to Vision rolls; low-light and glare-filter modes."
+      },
+      {
+        "id": "audio-suite",
+        "name": "Audio Suite",
+        "kind": "sensor",
+        "cost": 350,
+        "summary": "Implanted ears — +2 Hearing.",
+        "effect": "+2 to Hearing rolls; filters out loud ambient noise."
+      },
+      {
+        "id": "bio-scanner",
+        "name": "Bio Scanner",
+        "kind": "sensor",
+        "cost": 400,
+        "summary": "Palm unit — read life signs through walls.",
+        "effect": "Detects living beings within 15 yd through walls and clutter."
+      },
+      {
+        "id": "scout-drone",
+        "name": "Scout Drone",
+        "kind": "drone",
+        "cost": 500,
+        "skill": "electronics-operation",
+        "summary": "A palm-sized spy — flies, films, relays.",
+        "effect": "Scouts up to 500 yd, relays video; +3 to reconnaissance rolls."
+      },
+      {
+        "id": "gun-drone",
+        "name": "Gun Drone",
+        "kind": "drone",
+        "cost": 900,
+        "skill": "electronics-operation",
+        "summary": "A hovering shooter — 2d+1 per volley.",
+        "effect": "Flies and fires 2d+1 damage per volley; counts as an ally in a fight."
+      },
+      {
+        "id": "medic-drone",
+        "name": "Medic Drone",
+        "kind": "drone",
+        "cost": 700,
+        "skill": "electronics-operation",
+        "summary": "Auto-doc — +2 to First Aid.",
+        "effect": "+2 to First Aid rolls; can stabilize one bleeding ally automatically."
+      },
+      {
+        "id": "hoverbike",
+        "name": "Hoverbike",
+        "kind": "vehicle",
+        "cost": 1200,
+        "skill": "driving",
+        "summary": "Fast, loud, illegal in most districts.",
+        "effect": "A fast ground-effect bike: +2 to Driving in open terrain, poor in tunnels."
+      },
+      {
+        "id": "gridrunner",
+        "name": "Gridrunner",
+        "kind": "vehicle",
+        "cost": 2000,
+        "skill": "driving",
+        "summary": "A quiet armored sedan — DR 4.",
+        "effect": "A civilian car with DR 4; unremarkable and untraceable in traffic."
+      },
+      {
+        "id": "armored-transport",
+        "name": "Armored Transport",
+        "kind": "vehicle",
+        "cost": 6000,
+        "skill": "driving",
+        "summary": "A rolling vault — DR 10, six wheels.",
+        "effect": "DR 10, seats six, survives mines and ambushes."
+      },
+      {
+        "id": "jammer",
+        "name": "Signal Jammer",
+        "kind": "utility",
+        "cost": 350,
+        "skill": "electronics-operation",
+        "summary": "Kills comms and cameras in a bubble.",
+        "effect": "Blocks radio and comms within 30 yd; -2 to enemy coordination rolls."
+      },
+      {
+        "id": "datapad-pro",
+        "name": "Datapad Pro",
+        "kind": "utility",
+        "cost": 200,
+        "skill": "computer-operation",
+        "summary": "A hardened deck-side terminal.",
+        "effect": "+1 to Computer Operation and Research rolls."
+      },
+      {
+        "id": "locksmith-kit",
+        "name": "Locksmith Kit",
+        "kind": "utility",
+        "cost": 250,
+        "skill": "lockpicking",
+        "summary": "Magnetic and thermal pick tools — +1.",
+        "effect": "+1 to Lockpicking and Traps rolls."
+      }
+    ],
+    "ice": [
+      {
+        "id": "warden",
+        "name": "Warden",
+        "summary": "Watchdog ICE — if you fail, it flags your trace for the grid."
+      },
+      {
+        "id": "serpent",
+        "name": "Serpent",
+        "summary": "Attacker ICE — on failure it strikes back with a data-whip (FP damage)."
+      },
+      {
+        "id": "trap-grid",
+        "name": "Trap Grid",
+        "summary": "Slow ICE — on failure it entangles your deck, -2 on the next attempt."
+      },
+      {
+        "id": "black-ice",
+        "name": "Black Ice",
+        "summary": "Lethal ICE — on a critical failure it burns out a program or your interface."
+      }
+    ],
+    "netruns": [
+      {
+        "id": "backroom",
+        "name": "Backroom Data Broker",
+        "penalty": -2,
+        "ice": [
+          "warden"
+        ],
+        "objective": "Extract a client list from a fence's terminal.",
+        "paydata": 150,
+        "summary": "A low-risk milk run on a fixer's private machine."
+      },
+      {
+        "id": "archive-vault",
+        "name": "Corp Archive Vault",
+        "penalty": -4,
+        "ice": [
+          "warden",
+          "serpent"
+        ],
+        "objective": "Steal the schematics for a new chassis line.",
+        "paydata": 400,
+        "summary": "A deep archive behind a mid-level corp's defenses."
+      },
+      {
+        "id": "security-mainframe",
+        "name": "Security Firm Mainframe",
+        "penalty": -4,
+        "ice": [
+          "warden",
+          "trap-grid"
+        ],
+        "objective": "Plant a daemon that will scrub a record.",
+        "paydata": 350,
+        "summary": "In and out of a firm that sells lockdowns to everyone."
+      },
+      {
+        "id": "broadcast-core",
+        "name": "Media Broadcast Core",
+        "penalty": -4,
+        "ice": [
+          "serpent",
+          "trap-grid"
+        ],
+        "objective": "Leak the story the corps buried.",
+        "paydata": 300,
+        "summary": "Bust into the news grid and slip the truth into the feed."
+      },
+      {
+        "id": "military-node",
+        "name": "Military Grid Node",
+        "penalty": -7,
+        "ice": [
+          "warden",
+          "serpent",
+          "trap-grid"
+        ],
+        "objective": "Decoy a satellite handshake for six minutes.",
+        "paydata": 900,
+        "summary": "The army's mesh — everything is watched, everything shoots."
+      },
+      {
+        "id": "black-core",
+        "name": "Black ICE Core",
+        "penalty": -10,
+        "ice": [
+          "warden",
+          "serpent",
+          "black-ice"
+        ],
+        "objective": "Break the black box that ate three runners.",
+        "paydata": 2000,
+        "summary": "The legendary core no runner has ever cracked."
+      }
+    ],
+    "magic_colleges": [
+      {
+        "id": "pyre",
+        "name": "Pyre",
+        "skillId": "pyre-magic",
+        "trainingCost": 40,
+        "summary": "Fire and heat — lances, wards, and the warmth of the hearth."
+      },
+      {
+        "id": "frost",
+        "name": "Frost",
+        "skillId": "frost-magic",
+        "trainingCost": 40,
+        "summary": "Ice and chill — darts, shells of rime, and frozen ground."
+      },
+      {
+        "id": "gale",
+        "name": "Gale",
+        "skillId": "gale-magic",
+        "trainingCost": 40,
+        "summary": "Wind and weather — blades of air, leaping, thunder."
+      },
+      {
+        "id": "verdant",
+        "name": "Verdant",
+        "skillId": "verdant-magic",
+        "trainingCost": 40,
+        "summary": "Growth and life — snares of thorn, mending, the green tongue."
+      },
+      {
+        "id": "veil",
+        "name": "Veil",
+        "skillId": "veil-magic",
+        "trainingCost": 50,
+        "summary": "Illusion and stealth — blinks, phantoms, and silence."
+      },
+      {
+        "id": "spirit",
+        "name": "Spirit",
+        "skillId": "spirit-magic",
+        "trainingCost": 50,
+        "summary": "Mind and soul — reading thoughts, resolve, sight beyond."
+      }
+    ],
+    "spells": [
+      {
+        "id": "ember-lance",
+        "name": "Ember Lance",
+        "college": "pyre",
+        "energy": 1,
+        "castTime": "1 second",
+        "duration": "Instant",
+        "range": "20 yd",
+        "summary": "A searing bolt of fire, 2d burn.",
+        "effect": "Hurled flame: 2d burn damage to one target that is not dodging behind cover."
+      },
+      {
+        "id": "cinder-ward",
+        "name": "Cinder Ward",
+        "college": "pyre",
+        "energy": 2,
+        "castTime": "1 second",
+        "duration": "1 minute",
+        "range": "Self",
+        "summary": "A ring of fire that bars approach.",
+        "effect": "A wall of flame surrounds you: anyone who enters takes 1d+1 burn; you gain DR 1 vs cold."
+      },
+      {
+        "id": "hearth-pulse",
+        "name": "Hearth Pulse",
+        "college": "pyre",
+        "energy": 1,
+        "castTime": "10 seconds",
+        "duration": "1 hour",
+        "range": "Touch",
+        "summary": "Warmth, cooking flame, and light without fuel.",
+        "effect": "A steady, smokeless flame: lights camp, cooks food, and keeps one person warm in the cold."
+      },
+      {
+        "id": "flame-lash",
+        "name": "Flame Lash",
+        "college": "pyre",
+        "energy": 2,
+        "castTime": "1 second",
+        "duration": "1 minute",
+        "range": "5 yd",
+        "summary": "A whip of living fire that entangles and burns.",
+        "effect": "A fire-whip: one target within 5 yd takes 1d+1 burn and must win a ST contest or be held; burning again each turn they stay held."
+      },
+      {
+        "id": "frost-nail",
+        "name": "Frost Nail",
+        "college": "frost",
+        "energy": 1,
+        "castTime": "1 second",
+        "duration": "Instant",
+        "range": "20 yd",
+        "summary": "A razor icicle, 1d+2 cold.",
+        "effect": "A frozen spike: 1d+2 cold damage; a victim reduced below 1/3 HP is slowed (half Move) for a minute."
+      },
+      {
+        "id": "rime-shell",
+        "name": "Rime Shell",
+        "college": "frost",
+        "energy": 2,
+        "castTime": "2 seconds",
+        "duration": "10 minutes",
+        "range": "Self",
+        "summary": "Armor of ice, DR 2, resistant to fire.",
+        "effect": "A crackling shell of ice: DR 2 against all damage, DR 4 against fire. Shatters if it stops 6+ damage in one blow."
+      },
+      {
+        "id": "chilling-grasp",
+        "name": "Chilling Grasp",
+        "college": "frost",
+        "energy": 1,
+        "castTime": "1 second",
+        "duration": "Instant",
+        "range": "Touch",
+        "summary": "Touch that drains heat and strength.",
+        "effect": "Touch attack: 1d cold damage and the target loses 1 FP; a critical success drains 2 FP instead."
+      },
+      {
+        "id": "glaze-veil",
+        "name": "Glaze Veil",
+        "college": "frost",
+        "energy": 1,
+        "castTime": "2 seconds",
+        "duration": "10 minutes",
+        "range": "10 yd",
+        "summary": "Freezes the ground slick under your foes.",
+        "effect": "A 5-yd patch of black ice: anyone crossing must make a DX roll or fall (lose their next action)."
+      },
+      {
+        "id": "wind-blade",
+        "name": "Wind Blade",
+        "college": "gale",
+        "energy": 1,
+        "castTime": "1 second",
+        "duration": "Instant",
+        "range": "15 yd",
+        "summary": "An invisible cutting gust, 1d cut.",
+        "effect": "A razor edge of air: 1d cutting damage that ignores DR 1 or less (cloth and light leather)."
+      },
+      {
+        "id": "sky-leap",
+        "name": "Sky Leap",
+        "college": "gale",
+        "energy": 2,
+        "castTime": "1 second",
+        "duration": "1 second",
+        "range": "Self",
+        "summary": "A gust hurls you up and across.",
+        "effect": "You are launched up to 10 yd in any direction — cross a chasm, reach a ledge, or soften a fall (halve fall damage)."
+      },
+      {
+        "id": "storm-call",
+        "name": "Storm Call",
+        "college": "gale",
+        "energy": 3,
+        "castTime": "2 seconds",
+        "duration": "Instant",
+        "range": "20 yd",
+        "summary": "A thunderclap that deafens and knocks back.",
+        "effect": "Loud thunder: everyone within 5 yd makes a HT roll or is deafened (1 minute) and thrown back 1d yards, taking 1d-2 from the fall."
+      },
+      {
+        "id": "breeze-whisper",
+        "name": "Breeze Whisper",
+        "college": "gale",
+        "energy": 1,
+        "castTime": "1 second",
+        "duration": "1 minute",
+        "range": "100 yd",
+        "summary": "Carries your words — or snuffs a flame.",
+        "effect": "Your whispered words travel on the wind to one ear within 100 yd; you may also snuff candles and small fires."
+      },
+      {
+        "id": "thorn-snare",
+        "name": "Thorn Snare",
+        "college": "verdant",
+        "energy": 1,
+        "castTime": "2 seconds",
+        "duration": "1 minute",
+        "range": "10 yd",
+        "summary": "Roots and thorns entangle a target.",
+        "effect": "A patch of grasping roots: one target must win a DX contest or be held fast; escaping takes a second contest or cutting free."
+      },
+      {
+        "id": "sap-mend",
+        "name": "Sap Mend",
+        "college": "verdant",
+        "energy": 2,
+        "castTime": "3 seconds",
+        "duration": "Instant",
+        "range": "Touch",
+        "summary": "Green fire knits flesh — 1d+1 HP.",
+        "effect": "Wounds close and blood stops: heals 1d+1 HP to one living creature (not undead or constructs)."
+      },
+      {
+        "id": "beast-speech",
+        "name": "Beast Speech",
+        "college": "verdant",
+        "energy": 1,
+        "castTime": "1 second",
+        "duration": "10 minutes",
+        "range": "Self",
+        "summary": "Speak with animals; they react kindly.",
+        "effect": "You understand and can be understood by animals; they react at +2 and will answer simple questions honestly."
+      },
+      {
+        "id": "leaf-cloak",
+        "name": "Leaf Cloak",
+        "college": "verdant",
+        "energy": 1,
+        "castTime": "2 seconds",
+        "duration": "1 hour",
+        "range": "Self",
+        "summary": "Blend into wild growth, +3 Stealth.",
+        "effect": "Leaves and bark cling to you: +3 to Stealth rolls in natural terrain, +1 in settled areas."
+      },
+      {
+        "id": "glimmerstep",
+        "name": "Glimmerstep",
+        "college": "veil",
+        "energy": 2,
+        "castTime": "1 second",
+        "duration": "Instant",
+        "range": "5 yd",
+        "summary": "Blink across a room through shimmering light.",
+        "effect": "You vanish and reappear up to 5 yd away — escape a grapple, cross a barrier, or reach a lever."
+      },
+      {
+        "id": "phantom-shape",
+        "name": "Phantom Shape",
+        "college": "veil",
+        "energy": 2,
+        "castTime": "2 seconds",
+        "duration": "1 minute",
+        "range": "10 yd",
+        "summary": "A false double of you or an ally.",
+        "effect": "An illusory copy of one person stands and moves as you direct: foes must win a Per roll or waste attacks on it."
+      },
+      {
+        "id": "silence-pall",
+        "name": "Silence Pall",
+        "college": "veil",
+        "energy": 1,
+        "castTime": "1 second",
+        "duration": "10 minutes",
+        "range": "Touch",
+        "summary": "Dampen all sound from a person.",
+        "effect": "A bubble of silence around one person: +4 to Stealth and they cannot be heard shouting or screaming."
+      },
+      {
+        "id": "veil-of-dusk",
+        "name": "Veil of Dusk",
+        "college": "veil",
+        "energy": 2,
+        "castTime": "2 seconds",
+        "duration": "1 minute",
+        "range": "Self",
+        "summary": "Woven shadow makes you hard to see.",
+        "effect": "Shadows cling to you: -4 to rolls made to spot you; attacks against you are at -2 unless you act openly."
+      },
+      {
+        "id": "mind-tap",
+        "name": "Mind Tap",
+        "college": "spirit",
+        "energy": 2,
+        "castTime": "2 seconds",
+        "duration": "Concentration",
+        "range": "5 yd",
+        "summary": "Read the surface thoughts of one mind.",
+        "effect": "A Will contest: win and you read the target's surface thoughts; lose and they feel a cold prickle of being watched."
+      },
+      {
+        "id": "iron-resolve",
+        "name": "Iron Resolve",
+        "college": "spirit",
+        "energy": 1,
+        "castTime": "1 second",
+        "duration": "1 scene",
+        "range": "Self",
+        "summary": "Steel your will, +2 Will.",
+        "effect": "Your mind hardens: +2 to Will and to resist fear, torture, and mind-affecting effects for the rest of the scene."
+      },
+      {
+        "id": "wraith-sight",
+        "name": "Wraith Sight",
+        "college": "spirit",
+        "energy": 1,
+        "castTime": "1 second",
+        "duration": "10 minutes",
+        "range": "Self",
+        "summary": "See spirits, hidden auras, and lies.",
+        "effect": "You perceive spirits, magical auras, and invisible beings; +3 to Detect Lies while active."
+      },
+      {
+        "id": "soul-cord",
+        "name": "Soul Cord",
+        "college": "spirit",
+        "energy": 2,
+        "castTime": "3 seconds",
+        "duration": "Concentration",
+        "range": "Touch",
+        "summary": "Hold a dying soul to its body.",
+        "effect": "A dying creature stops bleeding and cannot die while you concentrate; on release they remain stable but unconscious."
+      }
+    ],
+    "reagents": [
+      {
+        "id": "ember-moss",
+        "name": "Ember Moss",
+        "cost": 2,
+        "summary": "Glows faintly warm; holds heat for hours."
+      },
+      {
+        "id": "frost-petal",
+        "name": "Frost Petal",
+        "cost": 2,
+        "summary": "Crysanthemum of ice; cold to the touch."
+      },
+      {
+        "id": "gale-seed",
+        "name": "Gale Seed",
+        "cost": 2,
+        "summary": "Rattles in the pod; whispers when shaken."
+      },
+      {
+        "id": "rootbark",
+        "name": "Rootbark",
+        "cost": 2,
+        "summary": "Tough, astringent bark from deep roots."
+      },
+      {
+        "id": "moon-salt",
+        "name": "Moon Salt",
+        "cost": 3,
+        "summary": "Crystalline salt gathered under the full moon."
+      },
+      {
+        "id": "veil-ash",
+        "name": "Veil Ash",
+        "cost": 3,
+        "summary": "Grey ash from a fire that burned without smoke."
+      }
+    ],
+    "alchemy_recipes": [
+      {
+        "id": "healing-draught",
+        "name": "Healing Draught",
+        "reagents": [
+          "rootbark",
+          "moon-salt"
+        ],
+        "cost": 3,
+        "time": "1 hour",
+        "summary": "Drink to heal 1d+1 HP.",
+        "effect": "Restores 1d+1 HP when drunk."
+      },
+      {
+        "id": "ember-oil",
+        "name": "Ember Oil",
+        "reagents": [
+          "ember-moss"
+        ],
+        "cost": 2,
+        "time": "1 hour",
+        "summary": "Coat a weapon: +1 fire damage on the next hit.",
+        "effect": "The next weapon hit deals +1 fire damage."
+      },
+      {
+        "id": "nightveil-unguent",
+        "name": "Nightveil Unguent",
+        "reagents": [
+          "veil-ash",
+          "frost-petal"
+        ],
+        "cost": 3,
+        "time": "2 hours",
+        "summary": "Rub on skin: +2 Stealth in darkness for an hour.",
+        "effect": "+2 to Stealth in darkness for one hour."
+      },
+      {
+        "id": "truth-tincture",
+        "name": "Truth Tincture",
+        "reagents": [
+          "moon-salt",
+          "rootbark"
+        ],
+        "cost": 4,
+        "time": "2 hours",
+        "summary": "A sip grants +3 to Detect Lies for an hour.",
+        "effect": "+3 to Detect Lies for one hour."
+      },
+      {
+        "id": "ghostlight-tonic",
+        "name": "Ghostlight Tonic",
+        "reagents": [
+          "veil-ash",
+          "moon-salt"
+        ],
+        "cost": 3,
+        "time": "2 hours",
+        "summary": "See invisible beings for 10 minutes.",
+        "effect": "You see invisible and ethereal beings for 10 minutes."
+      },
+      {
+        "id": "iron-bitter",
+        "name": "Iron Bitter",
+        "reagents": [
+          "rootbark",
+          "gale-seed"
+        ],
+        "cost": 3,
+        "time": "1 hour",
+        "summary": "Toughens the drinker: DR 1 for 10 minutes.",
+        "effect": "DR 1 against all damage for 10 minutes."
+      },
+      {
+        "id": "wakewort-draught",
+        "name": "Wakewort Draught",
+        "reagents": [
+          "gale-seed"
+        ],
+        "cost": 2,
+        "time": "30 minutes",
+        "summary": "No sleep for a day — then pay the debt.",
+        "effect": "You need no sleep for 24 hours; afterward you must sleep twice as long or gain 2 FP debt."
+      },
+      {
+        "id": "venom-salve",
+        "name": "Venom Salve",
+        "reagents": [
+          "frost-petal",
+          "veil-ash"
+        ],
+        "cost": 3,
+        "time": "2 hours",
+        "summary": "Coat a blade: HT-2 or take 1d toxic.",
+        "effect": "The next hit forces a HT roll at -2 or the victim takes 1d toxic damage."
+      },
+      {
+        "id": "menders-balm",
+        "name": "Mender's Balm",
+        "reagents": [
+          "rootbark",
+          "ember-moss",
+          "moon-salt"
+        ],
+        "cost": 5,
+        "time": "3 hours",
+        "summary": "Cures poison and disease.",
+        "effect": "Cures one poison or disease afflicting the user."
+      },
+      {
+        "id": "foemans-folly",
+        "name": "Foeman's Folly",
+        "reagents": [
+          "veil-ash",
+          "gale-seed",
+          "moon-salt"
+        ],
+        "cost": 6,
+        "time": "3 hours",
+        "summary": "Dose food or drink: target's next roll is at -2.",
+        "effect": "A creature that consumes it makes its next skill roll at -2."
+      }
+    ],
+    "forge_recipes": [
+      {
+        "id": "smithing-knife",
+        "name": "Smithing Knife",
+        "cost": 5,
+        "time": "1 day",
+        "summary": "A fine blade — +1 to Knife.",
+        "effect": "A well-balanced knife: +1 to Knife skill when used."
+      },
+      {
+        "id": "forged-sword",
+        "name": "Forged Sword",
+        "cost": 15,
+        "time": "3 days",
+        "summary": "A quality blade — +1 damage with Broadsword.",
+        "effect": "A balanced broadsword: +1 damage when used."
+      },
+      {
+        "id": "hunting-bow",
+        "name": "Hunting Bow",
+        "cost": 10,
+        "time": "2 days",
+        "summary": "A reliable bow — +1 to Bow.",
+        "effect": "+1 to Bow skill when used."
+      },
+      {
+        "id": "iron-shield",
+        "name": "Iron Shield",
+        "cost": 12,
+        "time": "2 days",
+        "summary": "A solid shield — +1 Parry.",
+        "effect": "+1 to Parry when carried."
+      },
+      {
+        "id": "chain-repairs",
+        "name": "Chain Repairs",
+        "cost": 5,
+        "time": "1 day",
+        "summary": "Restore armor to full DR.",
+        "effect": "Repairs one damaged armor piece to full DR."
+      },
+      {
+        "id": "armor-plate",
+        "name": "Armor Plate",
+        "cost": 20,
+        "time": "4 days",
+        "summary": "Bolt plates onto armor — DR +1.",
+        "effect": "Permanently increases worn armor's DR by 1 (once per armor)."
+      },
+      {
+        "id": "travelers-kit",
+        "name": "Traveler's Kit",
+        "cost": 8,
+        "time": "1 day",
+        "summary": "Cooking, tinder and repair gear — +1 Survival.",
+        "effect": "+1 to Survival rolls while camping."
+      },
+      {
+        "id": "lock-trap-kit",
+        "name": "Lock & Trap Kit",
+        "cost": 10,
+        "time": "2 days",
+        "summary": "Fine tools — +1 to Lockpicking and Traps.",
+        "effect": "+1 to Lockpicking and Traps rolls."
+      }
+    ],
+    "terrains": [
+      {
+        "id": "road",
+        "name": "Road",
+        "milesPerDay": 24,
+        "note": "Hard-packed, waymarked, relatively safe."
+      },
+      {
+        "id": "trail",
+        "name": "Trail",
+        "milesPerDay": 16,
+        "note": "A footpath through the wild."
+      },
+      {
+        "id": "forest",
+        "name": "Forest",
+        "milesPerDay": 12,
+        "note": "Thick woods, slow going off the paths."
+      },
+      {
+        "id": "hills",
+        "name": "Hills",
+        "milesPerDay": 10,
+        "note": "Rising ground and long valleys."
+      },
+      {
+        "id": "mountain",
+        "name": "Mountains",
+        "milesPerDay": 6,
+        "note": "Passes, scree and thin air."
+      },
+      {
+        "id": "swamp",
+        "name": "Swamp",
+        "milesPerDay": 8,
+        "note": "Mire, reeds and biting insects."
+      },
+      {
+        "id": "desert",
+        "name": "Desert",
+        "milesPerDay": 12,
+        "note": "Water is everything; shade is a rumor."
+      }
+    ],
+    "weather": [
+      {
+        "id": "clear",
+        "name": "Clear",
+        "speedMult": 1,
+        "penalty": 0
+      },
+      {
+        "id": "overcast",
+        "name": "Overcast",
+        "speedMult": 1,
+        "penalty": 0
+      },
+      {
+        "id": "rain",
+        "name": "Rain",
+        "speedMult": 0.75,
+        "penalty": -1
+      },
+      {
+        "id": "storm",
+        "name": "Storm",
+        "speedMult": 0.5,
+        "penalty": -2
+      },
+      {
+        "id": "fog",
+        "name": "Fog",
+        "speedMult": 0.75,
+        "penalty": -1
+      },
+      {
+        "id": "scorch",
+        "name": "Scorching / Blizzard",
+        "speedMult": 0.6,
+        "penalty": -1
+      }
+    ],
+    "shop_quality_labels": {
+      "standard": "Standard",
+      "fine": "Fine",
+      "masterwork": "Masterwork"
+    },
+    "shop_weapons": [
+      {
+        "id": "shop-knife-small",
+        "name": "Small Knife",
+        "skill": "knife",
+        "kind": "thrust",
+        "damageType": "imp",
+        "reach": "C",
+        "price": 3,
+        "weight": "0.5 lb",
+        "eras": [
+          "all"
+        ],
+        "blurb": "Concealable, cheap, and lethal in the right hands."
+      },
+      {
+        "id": "shop-knife-large",
+        "name": "Large Knife",
+        "skill": "knife",
+        "kind": "thrust",
+        "damageType": "imp",
+        "reach": "C, 1",
+        "price": 5,
+        "weight": "1 lb",
+        "eras": [
+          "all"
+        ],
+        "blurb": "A long blade for close work — belt-knife of the professional."
+      },
+      {
+        "id": "shop-shortsword",
+        "name": "Shortsword",
+        "skill": "shortsword",
+        "kind": "swing",
+        "damageType": "cut",
+        "reach": "1",
+        "price": 40,
+        "weight": "2 lb",
+        "eras": [
+          "all"
+        ],
+        "blurb": "Fast and balanced; the city guard's favorite sidearm."
+      },
+      {
+        "id": "shop-broadsword",
+        "name": "Broadsword",
+        "skill": "broadsword",
+        "kind": "swing",
+        "damageType": "cut",
+        "reach": "1",
+        "price": 50,
+        "weight": "3 lb",
+        "eras": [
+          "all"
+        ],
+        "blurb": "The classic blade — heavy enough to cleave, nimble enough to parry."
+      },
+      {
+        "id": "shop-handaxe",
+        "name": "Handaxe",
+        "skill": "axe-mace",
+        "kind": "swing",
+        "damageType": "cut",
+        "reach": "1",
+        "price": 5,
+        "weight": "2 lb",
+        "eras": [
+          "all"
+        ],
+        "blurb": "A splitting axe that doubles as a weapon — and a tool."
+      },
+      {
+        "id": "shop-mace",
+        "name": "Mace",
+        "skill": "axe-mace",
+        "kind": "swing",
+        "damageType": "cr",
+        "reach": "1",
+        "price": 6,
+        "weight": "3 lb",
+        "eras": [
+          "all"
+        ],
+        "blurb": "Blunt force that laughs at armor."
+      },
+      {
+        "id": "shop-spear",
+        "name": "Spear",
+        "skill": "spear",
+        "kind": "thrust",
+        "damageType": "imp",
+        "reach": "1*",
+        "price": 4,
+        "weight": "4 lb",
+        "eras": [
+          "all"
+        ],
+        "blurb": "Holds a line, and can be thrown when the line breaks."
+      },
+      {
+        "id": "shop-halberd",
+        "name": "Halberd",
+        "skill": "polearm",
+        "kind": "swing",
+        "damageType": "cut",
+        "reach": "2, 3",
+        "price": 12,
+        "weight": "6 lb",
+        "eras": [
+          "all"
+        ],
+        "blurb": "Axe, spike and hook on a long shaft — reach is its armor."
+      },
+      {
+        "id": "shop-javelin",
+        "name": "Javelin",
+        "skill": "thrown-weapon",
+        "kind": "thrust",
+        "damageType": "imp",
+        "reach": "1*, thrown",
+        "price": 3,
+        "weight": "2 lb",
+        "eras": [
+          "all"
+        ],
+        "blurb": "A light throwing spear; two more in your off hand."
+      },
+      {
+        "id": "shop-brass-knuckles",
+        "name": "Brass Knuckles",
+        "skill": "brawling",
+        "kind": "thrust",
+        "damageType": "cr",
+        "reach": "C",
+        "price": 2,
+        "weight": "0.5 lb",
+        "eras": [
+          "all"
+        ],
+        "blurb": "Fists, but with intent. +1 damage to punches."
+      },
+      {
+        "id": "shop-longbow",
+        "name": "Longbow",
+        "skill": "bow",
+        "kind": "thrust",
+        "damageType": "imp",
+        "reach": "1, 2 (120 yd)",
+        "price": 20,
+        "weight": "3 lb",
+        "eras": [
+          "all"
+        ],
+        "blurb": "Yew, waxed string, and forty arrows in the quiver."
+      },
+      {
+        "id": "shop-crossbow",
+        "name": "Crossbow",
+        "skill": "crossbow",
+        "kind": "thrust",
+        "damageType": "imp",
+        "reach": "1, 2 (100 yd)",
+        "price": 15,
+        "weight": "6 lb",
+        "eras": [
+          "all"
+        ],
+        "blurb": "A windlass in the field — slow to load, hard to argue with."
+      },
+      {
+        "id": "shop-pistol",
+        "name": "Service Pistol",
+        "skill": "guns",
+        "kind": "fixed",
+        "damageType": "pi",
+        "reach": "1, 2 (90 yd)",
+        "fixedDamage": "2d+2",
+        "price": 25,
+        "weight": "2 lb",
+        "eras": [
+          "modern",
+          "cyber"
+        ],
+        "blurb": "Nine rounds of authority. Standard sidearm of the modern world."
+      },
+      {
+        "id": "shop-rifle",
+        "name": "Combat Rifle",
+        "skill": "guns",
+        "kind": "fixed",
+        "damageType": "pi",
+        "reach": "2, 3 (500 yd)",
+        "fixedDamage": "5d",
+        "price": 60,
+        "weight": "8 lb",
+        "eras": [
+          "modern",
+          "cyber"
+        ],
+        "blurb": "Long-range stopping power for soldiers and professionals."
+      },
+      {
+        "id": "shop-combat-knife",
+        "name": "Combat Knife",
+        "skill": "knife",
+        "kind": "thrust",
+        "damageType": "imp",
+        "reach": "C, 1",
+        "price": 6,
+        "weight": "1 lb",
+        "eras": [
+          "modern",
+          "cyber"
+        ],
+        "blurb": "Hardened steel, serrated back, built for breaching."
+      }
+    ],
+    "shop_armors": [
+      {
+        "id": "shop-armor-leather",
+        "name": "Leather Jacket",
+        "armorId": "leather-jacket",
+        "dr": 1,
+        "price": 10,
+        "weight": "4 lb",
+        "eras": [
+          "all"
+        ],
+        "blurb": "Torso and arms covered in cured hide — the wanderer's default."
+      },
+      {
+        "id": "shop-armor-chain",
+        "name": "Chainmail Hauberk",
+        "armorId": "chainmail",
+        "dr": 3,
+        "price": 30,
+        "weight": "16 lb",
+        "eras": [
+          "medieval",
+          "all"
+        ],
+        "blurb": "Thousands of interlocked rings. Stops cuts, shrugs at arrows."
+      },
+      {
+        "id": "shop-armor-plate",
+        "name": "Plate Cuirass",
+        "armorId": "plate",
+        "dr": 5,
+        "price": 80,
+        "weight": "18 lb",
+        "eras": [
+          "medieval",
+          "all"
+        ],
+        "blurb": "Shaped steel over the torso — the knight's iron shell."
+      },
+      {
+        "id": "shop-armor-fullplate",
+        "name": "Full Plate",
+        "armorId": "knight",
+        "dr": 6,
+        "price": 150,
+        "weight": "50 lb",
+        "eras": [
+          "medieval",
+          "all"
+        ],
+        "blurb": "Head to toe steel. Slow, heavy, nearly invincible."
+      },
+      {
+        "id": "shop-armor-kevlar-lite",
+        "name": "Concealable Vest",
+        "armorId": "light-kevlar",
+        "dr": 2,
+        "price": 25,
+        "weight": "3 lb",
+        "eras": [
+          "modern",
+          "cyber"
+        ],
+        "blurb": "Woven ballistic cloth that hides under a jacket."
+      },
+      {
+        "id": "shop-armor-kevlar",
+        "name": "Tactical Kevlar",
+        "armorId": "heavy-kevlar",
+        "dr": 4,
+        "price": 90,
+        "weight": "8 lb",
+        "eras": [
+          "cyber",
+          "all"
+        ],
+        "blurb": "Plate-lined ballistic armor for the streets that bite back."
+      }
+    ],
+    "shop_gear": [
+      {
+        "id": "shop-gear-backpack",
+        "name": "Backpack",
+        "category": "gear",
+        "price": 5,
+        "weight": "3 lb",
+        "eras": [
+          "all"
+        ],
+        "description": "Canvas pack that holds a week of supplies — and what you find."
+      },
+      {
+        "id": "shop-gear-lantern",
+        "name": "Lantern & Oil",
+        "category": "gear",
+        "price": 3,
+        "weight": "2 lb",
+        "eras": [
+          "all"
+        ],
+        "description": "Hooded lantern with a flask of oil — 6 hours of steady light."
+      },
+      {
+        "id": "shop-gear-rope",
+        "name": "Rope (50 ft)",
+        "category": "gear",
+        "price": 2,
+        "weight": "5 lb",
+        "eras": [
+          "all"
+        ],
+        "description": "Strong hemp rope; climbs, binds and lowers."
+      },
+      {
+        "id": "shop-gear-firstaid",
+        "name": "First Aid Kit",
+        "category": "gear",
+        "price": 8,
+        "weight": "2 lb",
+        "eras": [
+          "all"
+        ],
+        "skillBonus": {
+          "skill": "first-aid",
+          "bonus": 1
+        },
+        "description": "Bandages, salves and splints — +1 to First Aid rolls."
+      },
+      {
+        "id": "shop-gear-rations",
+        "name": "Rations (week)",
+        "category": "gear",
+        "price": 2,
+        "weight": "7 lb",
+        "eras": [
+          "all"
+        ],
+        "description": "Dried meat, hard bread, and the will to eat it."
+      },
+      {
+        "id": "shop-gear-waterskin",
+        "name": "Waterskin",
+        "category": "gear",
+        "price": 1,
+        "weight": "1 lb",
+        "eras": [
+          "all"
+        ],
+        "description": "A quart of water at your hip."
+      },
+      {
+        "id": "shop-gear-tent",
+        "name": "Tent (1 person)",
+        "category": "gear",
+        "price": 6,
+        "weight": "8 lb",
+        "eras": [
+          "all"
+        ],
+        "description": "Waterproof shelter for one — sleep dry, wake ready."
+      },
+      {
+        "id": "shop-gear-lockpicks",
+        "name": "Lockpick Set",
+        "category": "gear",
+        "price": 4,
+        "weight": "0.5 lb",
+        "eras": [
+          "all"
+        ],
+        "skillBonus": {
+          "skill": "lockpicking",
+          "bonus": 1
+        },
+        "description": "Tension wrench and a dozen picks — +1 to Lockpicking rolls."
+      },
+      {
+        "id": "shop-gear-hook",
+        "name": "Grappling Hook",
+        "category": "gear",
+        "price": 3,
+        "weight": "2 lb",
+        "eras": [
+          "all"
+        ],
+        "description": "Steel hook that finds a ledge when you need one."
+      },
+      {
+        "id": "shop-gear-compass",
+        "name": "Compass",
+        "category": "gear",
+        "price": 2,
+        "weight": "0.5 lb",
+        "eras": [
+          "modern",
+          "cyber"
+        ],
+        "description": "Needle points north; never argue with terrain again."
+      },
+      {
+        "id": "shop-gear-phone",
+        "name": "Smartphone",
+        "category": "gear",
+        "price": 15,
+        "weight": "0.5 lb",
+        "eras": [
+          "modern",
+          "cyber"
+        ],
+        "description": "The city's address book, map and pulse in your pocket."
+      },
+      {
+        "id": "shop-gear-laptop",
+        "name": "Field Laptop",
+        "category": "gear",
+        "price": 25,
+        "weight": "3 lb",
+        "eras": [
+          "modern",
+          "cyber"
+        ],
+        "skillBonus": {
+          "skill": "hacking",
+          "bonus": 1
+        },
+        "description": "Portable workstation — +1 to Hacking rolls on the move."
+      },
+      {
+        "id": "shop-gear-briefcase",
+        "name": "Lockbox Briefcase",
+        "category": "gear",
+        "price": 8,
+        "weight": "4 lb",
+        "eras": [
+          "modern",
+          "all"
+        ],
+        "description": "Hardened case with a combination lock; papers stay papers."
+      },
+      {
+        "id": "shop-gear-medkit",
+        "name": "Trauma Medkit",
+        "category": "gear",
+        "price": 20,
+        "weight": "5 lb",
+        "eras": [
+          "modern",
+          "cyber"
+        ],
+        "skillBonus": {
+          "skill": "first-aid",
+          "bonus": 2
+        },
+        "description": "Field surgery in a bag — +2 to First Aid rolls."
+      },
+      {
+        "id": "shop-gear-goggles",
+        "name": "Night-Vision Goggles",
+        "category": "gear",
+        "price": 30,
+        "weight": "1 lb",
+        "eras": [
+          "cyber",
+          "all"
+        ],
+        "description": "The dark is a suggestion. See clearly at night."
+      },
+      {
+        "id": "shop-gear-stealthsuit",
+        "name": "Stealth Suit",
+        "category": "gear",
+        "price": 40,
+        "weight": "3 lb",
+        "eras": [
+          "cyber",
+          "all"
+        ],
+        "skillBonus": {
+          "skill": "stealth",
+          "bonus": 2
+        },
+        "description": "Sound-dampening weave — +2 to Stealth rolls."
+      },
+      {
+        "id": "shop-consum-potion-minor",
+        "name": "Minor Healing Draught",
+        "category": "consumable",
+        "price": 5,
+        "weight": "0.5 lb",
+        "eras": [
+          "medieval",
+          "all"
+        ],
+        "description": "A bitter red tonic that mends 1d of injury."
+      },
+      {
+        "id": "shop-consum-potion",
+        "name": "Healing Draught",
+        "category": "consumable",
+        "price": 10,
+        "weight": "0.5 lb",
+        "eras": [
+          "medieval",
+          "all"
+        ],
+        "description": "Proper alchemy — restores 2d of injury."
+      },
+      {
+        "id": "shop-consum-antidote",
+        "name": "Antidote",
+        "category": "consumable",
+        "price": 8,
+        "weight": "0.5 lb",
+        "eras": [
+          "all"
+        ],
+        "description": "Purges common poisons; +3 to resist one exposure."
+      },
+      {
+        "id": "shop-consum-arrows",
+        "name": "Quiver of Arrows (20)",
+        "category": "consumable",
+        "price": 2,
+        "weight": "2 lb",
+        "eras": [
+          "all"
+        ],
+        "description": "Fletched and ready — keep the longbow singing."
+      },
+      {
+        "id": "shop-consum-stim",
+        "name": "Stim Patch",
+        "category": "consumable",
+        "price": 12,
+        "weight": "0.1 lb",
+        "eras": [
+          "modern",
+          "cyber"
+        ],
+        "description": "Chemicals that burn away fatigue — recover 1 FP once."
+      },
+      {
+        "id": "shop-consum-pistol-ammo",
+        "name": "Pistol Ammo (50)",
+        "category": "consumable",
+        "price": 4,
+        "weight": "1.5 lb",
+        "eras": [
+          "modern",
+          "cyber"
+        ],
+        "description": "Box of jacketed rounds for the service pistol."
+      },
+      {
+        "id": "shop-consum-rifle-ammo",
+        "name": "Rifle Ammo (20)",
+        "category": "consumable",
+        "price": 6,
+        "weight": "2 lb",
+        "eras": [
+          "modern",
+          "cyber"
+        ],
+        "description": "Long-arms ammunition, sealed and dry."
+      },
+      {
+        "id": "shop-life-horse",
+        "name": "Riding Horse",
+        "category": "life",
+        "price": 40,
+        "weight": "—",
+        "eras": [
+          "medieval",
+          "all"
+        ],
+        "description": "A sure-footed mount with saddle and bridle — roads become weeks shorter."
+      },
+      {
+        "id": "shop-life-warhorse",
+        "name": "Warhorse",
+        "category": "life",
+        "price": 120,
+        "weight": "—",
+        "eras": [
+          "medieval",
+          "all"
+        ],
+        "description": "Trained for battle — kicks, rears, and carries you into the line."
+      },
+      {
+        "id": "shop-life-courtoutfit",
+        "name": "Court Outfit",
+        "category": "life",
+        "price": 15,
+        "weight": "2 lb",
+        "eras": [
+          "medieval",
+          "all"
+        ],
+        "description": "Velvet, fur trim and a place at the high table."
+      },
+      {
+        "id": "shop-life-suit",
+        "name": "Business Suit",
+        "category": "life",
+        "price": 15,
+        "weight": "2 lb",
+        "eras": [
+          "modern",
+          "all"
+        ],
+        "description": "Tailored wool — doors open where jeans don't."
+      },
+      {
+        "id": "shop-life-netgear",
+        "name": "Street Net Rig",
+        "category": "life",
+        "price": 45,
+        "weight": "4 lb",
+        "eras": [
+          "cyber",
+          "all"
+        ],
+        "description": "Scratch-built deck and cable kit — +1 to Hacking on the grid."
+      }
+    ],
+    "conditions": [
+      {
+        "id": "blinded",
+        "name": "Blinded",
+        "summary": "Can't see. Attack rolls have disadvantage, attacks against you have advantage, and sight-based checks auto-fail.",
+        "effects": {
+          "attackDisadvantage": true,
+          "attacksAgainstAdvantage": true,
+          "autoFailSightChecks": true,
+          "pf2ePenalty": -2,
+          "gurpsPenalty": -3
+        }
+      },
+      {
+        "id": "poisoned",
+        "name": "Poisoned",
+        "summary": "Attack rolls and ability checks have disadvantage.",
+        "effects": {
+          "attackDisadvantage": true,
+          "abilityCheckDisadvantage": true,
+          "pf2ePenalty": -2,
+          "gurpsPenalty": -2
+        }
+      },
+      {
+        "id": "prone",
+        "name": "Prone",
+        "summary": "Attack rolls have disadvantage; melee attacks against you have advantage, ranged attacks have disadvantage.",
+        "effects": {
+          "attackDisadvantage": true,
+          "attacksAgainstAdvantage": true,
+          "pf2ePenalty": -2,
+          "gurpsPenalty": -2
+        }
+      },
+      {
+        "id": "restrained",
+        "name": "Restrained",
+        "summary": "Attack rolls and Dexterity saves have disadvantage; attacks against you have advantage; speed is 0.",
+        "effects": {
+          "attackDisadvantage": true,
+          "attacksAgainstAdvantage": true,
+          "dexSaveDisadvantage": true,
+          "speedZero": true,
+          "pf2ePenalty": -2,
+          "gurpsPenalty": -2
+        }
+      },
+      {
+        "id": "stunned",
+        "name": "Stunned",
+        "summary": "You can't act; auto-fail Strength/Dexterity saves and ability checks; attacks against you have advantage.",
+        "effects": {
+          "autoFailStrDexSaves": true,
+          "autoFailSightChecks": true,
+          "attacksAgainstAdvantage": true,
+          "abilityCheckDisadvantage": true,
+          "speedZero": true,
+          "pf2ePenalty": -3,
+          "gurpsPenalty": -3
+        }
+      },
+      {
+        "id": "frightened",
+        "name": "Frightened",
+        "summary": "While the source is visible, ability checks and attack rolls have disadvantage.",
+        "effects": {
+          "attackDisadvantage": true,
+          "abilityCheckDisadvantage": true,
+          "pf2ePenalty": -1,
+          "gurpsPenalty": -1
+        }
+      },
+      {
+        "id": "grappled",
+        "name": "Grappled",
+        "summary": "Your speed becomes 0, and attack rolls against anyone but the grappler have disadvantage.",
+        "effects": {
+          "speedZero": true,
+          "pf2ePenalty": -1,
+          "gurpsPenalty": -1
+        }
+      },
+      {
+        "id": "exhausted",
+        "name": "Exhausted",
+        "summary": "Each level: -2 penalty to all ability checks and attack rolls, speed halved.",
+        "effects": {
+          "abilityCheckDisadvantage": true,
+          "attackDisadvantage": true,
+          "pf2ePenalty": -2,
+          "gurpsPenalty": -2
+        }
+      },
+      {
+        "id": "dazed",
+        "name": "Dazed",
+        "summary": "You can take one action per turn. Check penalties apply.",
+        "effects": {
+          "abilityCheckDisadvantage": true,
+          "pf2ePenalty": -1,
+          "gurpsPenalty": -1
+        }
+      },
+      {
+        "id": "incapacitated",
+        "name": "Incapacitated",
+        "summary": "You can't take actions or reactions. Strength and Dexterity saves and checks auto-fail; attacks against you have advantage.",
+        "effects": {
+          "autoFailStrDexSaves": true,
+          "abilityCheckDisadvantage": true,
+          "attacksAgainstAdvantage": true,
+          "speedZero": true,
+          "pf2ePenalty": -3,
+          "gurpsPenalty": -3
+        }
+      },
+      {
+        "id": "deafened",
+        "name": "Deafened",
+        "summary": "You can't hear. Checks and saves that rely on hearing fail automatically, and perception suffers.",
+        "effects": {
+          "pf2ePenalty": -1,
+          "gurpsPenalty": -1
+        }
+      },
+      {
+        "id": "hidden",
+        "name": "Hidden",
+        "summary": "You're out of sight. Attack rolls you make have advantage (unseen attacker).",
+        "effects": {
+          "attackAdvantage": true,
+          "attacksAgainstDisadvantage": true
+        }
+      },
+      {
+        "id": "invisible",
+        "name": "Invisible",
+        "summary": "You can't be seen. Attack rolls you make have advantage, and attacks against you have disadvantage.",
+        "effects": {
+          "attackAdvantage": true,
+          "attacksAgainstDisadvantage": true
+        }
+      }
+    ],
+    "encounter_difficulties": [
+      {
+        "id": "trivial",
+        "label": "Trivial",
+        "scale": 0.6,
+        "hint": "A lone weakling — barely a fight."
+      },
+      {
+        "id": "easy",
+        "label": "Easy",
+        "scale": 0.8,
+        "hint": "A modest threat you can brush aside."
+      },
+      {
+        "id": "standard",
+        "label": "Standard",
+        "scale": 1,
+        "hint": "A fair fight on equal terms."
+      },
+      {
+        "id": "hard",
+        "label": "Hard",
+        "scale": 1.35,
+        "hint": "They outmatch you — bring everything."
+      },
+      {
+        "id": "deadly",
+        "label": "Deadly",
+        "scale": 1.8,
+        "hint": "A genuine risk of death."
+      }
+    ],
+    "enemies": [
+      {
+        "id": "wolf",
+        "name": "Wolf",
+        "ac": 9,
+        "hp": 10,
+        "maxHp": 10,
+        "attackBonus": 12,
+        "damage": "1d6-1",
+        "xp": 1,
+        "gold": 0,
+        "loot": [
+          "wolf pelt"
+        ]
+      },
+      {
+        "id": "thug",
+        "name": "Thug",
+        "ac": 9,
+        "hp": 11,
+        "maxHp": 11,
+        "attackBonus": 11,
+        "damage": "1d6",
+        "xp": 1,
+        "gold": 5,
+        "loot": [
+          "a heavy club"
+        ]
+      },
+      {
+        "id": "bandit-archer",
+        "name": "Bandit Archer",
+        "ac": 9,
+        "hp": 10,
+        "maxHp": 10,
+        "attackBonus": 13,
+        "damage": "1d6+1",
+        "xp": 1,
+        "gold": 6,
+        "loot": [
+          "a shortbow",
+          "10 arrows"
+        ]
+      },
+      {
+        "id": "orc-soldier",
+        "name": "Orc Soldier",
+        "ac": 9,
+        "hp": 13,
+        "maxHp": 13,
+        "attackBonus": 12,
+        "damage": "1d6+2",
+        "xp": 1,
+        "gold": 8,
+        "loot": [
+          "an orcish blade"
+        ]
+      },
+      {
+        "id": "brute",
+        "name": "Brute",
+        "ac": 9,
+        "hp": 15,
+        "maxHp": 15,
+        "attackBonus": 13,
+        "damage": "1d6+3",
+        "xp": 2,
+        "gold": 12,
+        "loot": [
+          "a broken war-hammer"
+        ]
+      },
+      {
+        "id": "guard-lieutenant",
+        "name": "Guard Lieutenant",
+        "ac": 10,
+        "hp": 15,
+        "maxHp": 15,
+        "attackBonus": 14,
+        "damage": "1d6+2",
+        "xp": 2,
+        "gold": 15,
+        "loot": [
+          "a lieutenant's badge"
+        ]
+      },
+      {
+        "id": "wraith",
+        "name": "Wraith",
+        "ac": 9,
+        "hp": 12,
+        "maxHp": 12,
+        "attackBonus": 14,
+        "damage": "1d6+1",
+        "xp": 3,
+        "gold": 0,
+        "loot": [
+          "a silver key that opens nothing nearby"
+        ]
+      },
+      {
+        "id": "troll",
+        "name": "Troll",
+        "ac": 9,
+        "hp": 20,
+        "maxHp": 20,
+        "attackBonus": 15,
+        "damage": "2d6+2",
+        "xp": 3,
+        "gold": 20,
+        "loot": [
+          "a troll heart (regenerative)"
+        ]
+      },
+      {
+        "id": "giant-rat",
+        "name": "Giant Rat",
+        "ac": 8,
+        "hp": 4,
+        "maxHp": 4,
+        "attackBonus": 10,
+        "damage": "1d6-2",
+        "xp": 1,
+        "gold": 0,
+        "loot": [
+          "a chewed bootlace"
+        ]
+      },
+      {
+        "id": "goblin",
+        "name": "Goblin",
+        "ac": 9,
+        "hp": 8,
+        "maxHp": 8,
+        "attackBonus": 11,
+        "damage": "1d6-1",
+        "xp": 1,
+        "gold": 4,
+        "loot": [
+          "a crudely carved tooth"
+        ]
+      },
+      {
+        "id": "skeleton",
+        "name": "Skeleton",
+        "ac": 9,
+        "hp": 10,
+        "maxHp": 10,
+        "attackBonus": 11,
+        "damage": "1d6",
+        "xp": 1,
+        "gold": 2,
+        "loot": [
+          "a brittle bone charm"
+        ]
+      },
+      {
+        "id": "veteran",
+        "name": "Veteran Soldier",
+        "ac": 10,
+        "hp": 14,
+        "maxHp": 14,
+        "attackBonus": 13,
+        "damage": "1d6+2",
+        "xp": 2,
+        "gold": 18,
+        "loot": [
+          "a soldier's pay purse"
+        ]
+      },
+      {
+        "id": "dire-boar",
+        "name": "Dire Boar",
+        "ac": 10,
+        "hp": 18,
+        "maxHp": 18,
+        "attackBonus": 13,
+        "damage": "2d6",
+        "xp": 2,
+        "gold": 0,
+        "loot": [
+          "a huge boar tusk",
+          "tough hide"
+        ]
+      },
+      {
+        "id": "grave-hound",
+        "name": "Grave Hound",
+        "ac": 9,
+        "hp": 13,
+        "maxHp": 13,
+        "attackBonus": 14,
+        "damage": "1d6+2",
+        "xp": 2,
+        "gold": 0,
+        "loot": [
+          "a collar with a sigil that glows at night"
+        ]
+      },
+      {
+        "id": "moss-stalker",
+        "name": "Moss Stalker",
+        "ac": 10,
+        "hp": 15,
+        "maxHp": 15,
+        "attackBonus": 14,
+        "damage": "1d6+2",
+        "xp": 2,
+        "gold": 0,
+        "loot": [
+          "moss that never dries (a rare reagent)"
+        ]
+      },
+      {
+        "id": "hill-wight",
+        "name": "Hill Wight",
+        "ac": 9,
+        "hp": 16,
+        "maxHp": 16,
+        "attackBonus": 13,
+        "damage": "1d6+3",
+        "xp": 2,
+        "gold": 10,
+        "loot": [
+          "a rusted blade that whispers in dreams"
+        ]
+      },
+      {
+        "id": "crown-wyrm",
+        "name": "Crown Wyrm",
+        "ac": 11,
+        "hp": 30,
+        "maxHp": 30,
+        "attackBonus": 15,
+        "damage": "2d6+3",
+        "xp": 5,
+        "gold": 60,
+        "loot": [
+          "a crown-scale",
+          "a hoard key"
+        ]
+      },
+      {
+        "id": "bramble-fiend",
+        "name": "Bramble Fiend",
+        "ac": 10,
+        "hp": 14,
+        "maxHp": 14,
+        "attackBonus": 12,
+        "damage": "1d6+3",
+        "xp": 2,
+        "gold": 0,
+        "loot": [
+          "a thorn that never rots"
+        ]
+      },
+      {
+        "id": "corp-guard",
+        "name": "Corp Security Guard",
+        "ac": 11,
+        "hp": 12,
+        "maxHp": 12,
+        "attackBonus": 12,
+        "damage": "2d6+1",
+        "xp": 2,
+        "gold": 20,
+        "loot": [
+          "a corp badge",
+          "a cred-stick"
+        ]
+      },
+      {
+        "id": "security-drone",
+        "name": "Security Drone",
+        "ac": 10,
+        "hp": 8,
+        "maxHp": 8,
+        "attackBonus": 12,
+        "damage": "2d6",
+        "xp": 2,
+        "gold": 0,
+        "loot": [
+          "a memory chip with patrol logs"
+        ]
+      },
+      {
+        "id": "cyber-thug",
+        "name": "Chrome Thug",
+        "ac": 11,
+        "hp": 16,
+        "maxHp": 16,
+        "attackBonus": 13,
+        "damage": "2d6+1",
+        "xp": 2,
+        "gold": 25,
+        "loot": [
+          "a hydraulic fist",
+          "street cred"
+        ]
+      },
+      {
+        "id": "net-courier",
+        "name": "Grid Courier",
+        "ac": 10,
+        "hp": 10,
+        "maxHp": 10,
+        "attackBonus": 11,
+        "damage": "1d6+2",
+        "xp": 1,
+        "gold": 30,
+        "loot": [
+          "a sealed datachip (paydata)"
+        ]
+      },
+      {
+        "id": "exo-brute",
+        "name": "Exo-Brute",
+        "ac": 12,
+        "hp": 24,
+        "maxHp": 24,
+        "attackBonus": 14,
+        "damage": "2d6+3",
+        "xp": 3,
+        "gold": 40,
+        "loot": [
+          "an exo-frame power cell"
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,3540 @@
+{
+  "schema": "oraculum-rules-master",
+  "schema_version": 1,
+  "system": "pf2e",
+  "system_name": "Pathfinder 2nd Edition",
+  "generated_at": "2026-08-13T12:13:26.077Z",
+  "description": "Complete consolidated Pathfinder 2e rules database for the Oraculum solo VTT engine: ancestries, heritages, backgrounds, ancestry/general/skill feats, the twelve Player Core classes, weapons, armor, adventuring gear, the 4-tier proficiency system, the 3-action economy, the four-degrees-of-success evaluation matrix, encounter tables and conditions.",
+  "core_mechanics": {
+    "dice_engine": "Every roll uses Math.floor(Math.random() * sides) + 1. Checks are 1d20 + ability modifier + proficiency bonus vs a DC.",
+    "proficiency_tiers": "Proficiency ranks add a level-scaled bonus: Untrained +0, Trained 2+level, Expert 4+level, Master 6+level, Legendary 8+level.",
+    "degrees_of_success": "The result is evaluated against the DC on a 4-degree matrix: +10 or more over the DC is a Critical Success, 0 to +9 a Success, -1 to -10 a Failure, and more than 10 below a Critical Failure. A natural 20 shifts the degree one step up, a natural 1 shifts it one step down (never a raw auto-win/loss).",
+    "action_economy": "Each turn the character has 3 actions to spend on actions, strikes, spells and movement; a turn resets the tracker to 3.",
+    "conditions": "Common adverse conditions apply a status penalty: -2 for Blinded/Poisoned/Prone/Restrained, -3 for Stunned; Blinded also gives a -2 penalty and stunned auto-fails checks."
+  },
+  "formulas": {
+    "d20_roll": "function d(sides) {\n  return Math.floor(Math.random() * sides) + 1;\n}",
+    "ability_modifier": "function abilityMod(score) {\n  return Math.floor((score - 10) / 2);\n}",
+    "d20_check_resolution": "function resolveD20Check(opts) {\n  const first = d(20), second = opts.advantage || opts.disadvantage ? d(20) : first, kept = opts.advantage && !opts.disadvantage ? Math.max(first, second) : opts.disadvantage && !opts.advantage ? Math.min(first, second) : first, lines = [...opts.extra ?? []];\n  if (opts.abilityMod !== 0)\n    lines.push({ label: \"Ability\", value: opts.abilityMod, source: \"ability\" });\n  if (opts.bonus && opts.bonus !== 0)\n    lines.push({ label: \"Bonus\", value: opts.bonus, source: \"proficiency\" });\n  const flat = lines.reduce((a, l) => a + l.value, 0), total = kept + flat, nat20 = kept === 20, nat1 = kept === 1;\n  let outcome;\n  if (opts.autoFail)\n    outcome = \"critical-failure\";\n  else if (opts.system === \"pf2e\")\n    outcome = pf2eOutcome(total, opts.dc, kept);\n  else if (nat20)\n    outcome = \"critical-success\";\n  else if (nat1)\n    outcome = \"critical-failure\";\n  else\n    outcome = total >= opts.dc ? \"success\" : \"failure\";\n  const breakdown = `${opts.advantage || opts.disadvantage ? `d20(${first})${opts.disadvantage ? \" \\u21E3\" : \" \\u21E1\"} d20(${second}) \\u2192 keep ${kept}` : `d20(${kept})`} + ${lines.map((l) => `${l.label} ${formatMod(l.value)}`).join(\" + \") || \"0\"} = ${total} vs DC ${opts.dc} \\u2192 ${outcome.replace(\"-\", \" \").toUpperCase()}`;\n  return {\n    rolls: opts.advantage || opts.disadvantage ? [first, second] : [first],\n    kept,\n    modifiers: lines,\n    total,\n    nat20,\n    nat1,\n    outcome,\n    breakdown\n  };\n}",
+    "pf2e_degree_matrix": "function pf2eOutcome(total, dc, kept) {\n  const degrees = total - dc;\n  let base = degrees >= 10 ? \"critical-success\" : degrees >= 0 ? \"success\" : degrees >= -10 ? \"failure\" : \"critical-failure\";\n  if (kept === 20)\n    base = base === \"critical-failure\" ? \"failure\" : base === \"failure\" ? \"success\" : \"critical-success\";\n  else if (kept === 1)\n    base = base === \"critical-success\" ? \"success\" : base === \"success\" ? \"failure\" : \"critical-failure\";\n  return base;\n}",
+    "proficiency_tier_bonus": "function pfTierBonus(rank, level) {\n  switch (rank) {\n    case \"untrained\":\n      return 0;\n    case \"trained\":\n      return 2 + level;\n    case \"expert\":\n      return 4 + level;\n    case \"master\":\n      return 6 + level;\n    case \"legendary\":\n      return 8 + level;\n  }\n}"
+  },
+  "rules_text": "PATHFINDER 2E RULES & REFERENCE CORPUS (golden reference from the Foundry PF2e module data).\nThe engine rolls the dice and resolves outcomes — you only narrate. Use these reference entries to ground narration: NPC stat blocks, hazards, items, actions (each with its action cost and traits), conditions, deities, ancestries and class features.\nPay special attention to the action costs (1/2/3 actions), the four degrees of success, and condition values (e.g. Assustado 1).\nThe corpus is in Portuguese — match the player's language, not the corpus's.\n1. Forneça uma visão geral da estrutura de diretórios do módulo Pathfinder 2e para Foundry VTT contendo bestiários, ações, equipamentos, classes, etc.\n   → {\"tipo\":\"estrutura\",\"diretorios\":[\"abomination-vaults-bestiary\",\"action-macros\",\"actions\",\"ancestry-features\",\"backgrounds\",\"classes\",\"conditions\",\"deities\",\"equipment\",\"equipment-effects\"],\"descricao\":\"O módulo contém dados de bestiários para vários APs, macros de ações, opções de personagem (ancestrais, antecedentes, classes, talentos), mecânicas de jogo (condições, divindades, equipamentos) e baralhos de acerto crítico.\"}\n2. Extraia as estatísticas e habilidades do NPC Beluthus, um devorador de nível 11 do bestiário de Abomination Vaults.\n   → {\"nome\":\"Beluthus\",\"nivel\":11,\"tipo\":\"NPC único, Morto-vivo, Maligno\",\"ac\":31,\"hp\":175,\"cura_negativa\":true,\"salvacoes\":{\"fortitude\":20,\"reflexos\":18,\"vontade\":24},\"habilidades\":{\"forca\":7,\"destreza\":3,\"constituicao\":5,\"inteligencia\":5,\"sabedoria\":4,\"carisma\":5},\"deslocamento\":{\"terrestre\":30,\"voo\":30},\"idiomas\":[\"Ctônio\",\"Comum\",\"Diabólico\",\"Empíreo\",\"Nécril\"],\"imunidades\":[\"sangramento\",\"efeitos de morte\",\"doença\",\"paralisia\",\"veneno\",\"inconsciência\"],\"ataques\":{\"garra\":{\"bonus\":24,\"dano\":\"2d10+13 cortante\",\"efeitos\":[\"drenar vida\"]}},\"magias_inatas\":{\"tradicao\":\"ocultista\",\"cd\":31,\"lista\":[\"Debilidade Mental\",\"Visão Verdadeira\",\"Confusão\",\"Sugestão\",\"Vincular Morto-Vivo\",\"Paralisia\",\"Ferimento\",\"Toque da Morte\"]},\"habilidades_especiais\":[\"Desvio de Magia\",\"Devorar Alma\",\"Drenar Vida\",\"Magias da Alma\"]}\n3. Extraia as estatísticas do Esqueleto Guarda de Deadtide, uma criatura morta-viva de nível -1.\n   → {\"nome\":\"Esqueleto Guarda de Deadtide\",\"nivel\":-1,\"tipo\":\"Morto-vivo, Maligno, Mente vazia\",\"ac\":16,\"hp\":4,\"cura_negativa\":true,\"salvacoes\":{\"fortitude\":2,\"reflexos\":8,\"vontade\":2},\"habilidades\":{\"forca\":2,\"destreza\":4,\"constituicao\":0,\"inteligencia\":-5,\"sabedoria\":0,\"carisma\":0},\"deslocamento\":7.5,\"imunidades\":[\"sangramento\",\"efeitos de morte\",\"doença\",\"paralisia\",\"veneno\",\"inconsciência\"],\"resistencias\":{\"fisico\":5,\"frio\":5,\"eletricidade\":5,\"fogo\":5},\"ataques\":{\"garra\":{\"bonus\":6,\"dano\":\"1d4+2 cortante\",\"propriedades\":[\"ágil\",\"precisa\"]}}}\n4. Extraia as estatísticas e habilidades especiais de Boss Skrawng, um chefe de gangue mitflit de nível 1.\n   → {\"nome\":\"Boss Skrawng\",\"nivel\":1,\"tipo\":\"NPC único, Fada, Maligno (mitflit)\",\"ac\":16,\"hp\":24,\"salvacoes\":{\"fortitude\":4,\"reflexos\":9,\"vontade\":8},\"habilidades\":{\"forca\":1,\"destreza\":4,\"constituicao\":1,\"inteligencia\":0,\"sabedoria\":2,\"carisma\":1},\"deslocamento\":6,\"fraqueza\":\"ferro frio 3\",\"idiomas\":[\"Comum\",\"Sakvroth\"],\"habilidades_especiais\":[\"Auto-aversão (-4 na CD de Vontade contra testes sociais)\",\"Empatia com Vermes\",\"Fúria Vingativa (+2 de dano contra quem já o feriu)\"],\"magias_inatas\":{\"tradicao\":\"primordial\",\"lista\":[\"Falar com Animais (artrópodes)\",\"Maldição\",\"Prestidigitação\"]},\"ataques\":{\"tridente\":{\"bonus\":6,\"dano\":\"1d8+1 perfurante\"},\"zarabatana\":{\"bonus\":9,\"dano\":\"1 perfurante + veneno de rã\"}}}\n5. Extraia os detalhes do perigo Parede Vigilante, uma aparição complexa de nível 4.\n   → {\"nome\":\"Parede Vigilante\",\"nivel\":4,\"tipo\":\"Aparição complexa\",\"ac\":21,\"dureza\":12,\"hp\":50,\"fraqueza\":\"vitalidade 5\",\"desabilitar\":\"Enganação CD 22 (treinado) ou Religião CD 22 (treinado)\",\"gatilho\":\"Uma criatura viva permanece na sala por pelo menos 1 rodada\",\"efeito_inicial\":\"Paranóia (Vontade CD 25): Sucesso crítico → imune; Sucesso → Assustado 1; Falha → Assustado 2 e não considera ninguém aliado; Falha crítica → Assustado 3 e Confuso\",\"rotina\":\"1 ação – causa 4d6 de dano mental (Vontade CD 21 básico) a criaturas que vê. As criaturas afetadas não reduzem o valor de Assustado no final do próximo turno.\",\"reinicio\":\"Fica inerte quando não há criaturas Assustadas; reinicia após 1 hora.\"}\n6. Extraia os detalhes do item mágico Envolvórios de Golpes Poderosos +1 com Golpe Poderoso (nível 2).\n   → {\"nome\":\"Envolvórios de Golpes Poderosos +1 com Golpe Poderoso\",\"nivel\":2,\"preco\":\"35 po\",\"volume\":0,\"runas\":{\"potencializacao\":1,\"golpe_poderoso\":true},\"propriedades\":[\"investido\",\"mágico\",\"desarmado\"],\"uso\":\"usado nas mãos\",\"efeito\":\"Trata-se como arma para aplicar runas; as runas de propriedade só se aplicam quando compatíveis com o ataque desarmado.\"}\n7. Extraia os detalhes da bomba alquímica Frasco de Ácido (Moderado) (nível 3).\n   → {\"nome\":\"Frasco de Ácido (Moderado)\",\"nivel\":3,\"preco\":\"10 po\",\"volume\":0.1,\"alcance\":6,\"dano\":\"1d6 ácido + 2d6 persistente + 2 de respingo\",\"propriedades\":[\"alquímico\",\"bomba\",\"consumível\",\"respingo\"],\"uso\":\"empunhado em uma mão\",\"ativacao\":\"Ação de Interagir (1 ação)\"}\n8. Extraia a ação básica Ataque do diretório actions/basic.\n   → {\"nome\":\"Ataque\",\"acoes\":1,\"propriedades\":[\"ataque\"],\"efeito\":\"Faça um teste de ataque corpo a corpo ou à distância contra a CA de um alvo. Em sucesso, cause dano conforme arma; em sucesso crítico, dobre o dano (e aplique a especialização crítica). Em falha, nenhum efeito. Aplica penalidade de múltiplos ataques normalmente.\"}\n9. Extraia a ação de perícia Tratar Ferimentos (Medicina) do diretório actions/skill.\n   → {\"nome\":\"Tratar Ferimentos\",\"acoes\":2,\"duracao\":\"10 minutos\",\"pericias\":[\"Medicina\"],\"alvo\":\"1 criatura viva ao alcance\",\"cd\":\"15 (normal) / 20 (ferido) / etc.\",\"efeito\":\"Sucesso: restaura 2d8 PV; Sucesso crítico: restaura 4d8 PV; Falha: sem efeito; Falha crítica: causa 1d8 de dano.\",\"frequencia\":\"Uma vez por hora por alvo\"}\n10. Extraia a ação de classe Rajada de Golpes do Monge do diretório actions/class.\n   → {\"nome\":\"Rajada de Golpes\",\"acoes\":1,\"frequencia\":\"uma vez por turno\",\"requisitos\":\"sem armadura e usando apenas ataques desarmados ou armas de monge\",\"efeito\":\"Faça dois ataques desarmados. Se ambos acertarem a mesma criatura, combine o dano para resistências e fraquezas. A penalidade de múltiplos ataques se aplica normalmente (segundo ataque com -5, terceiro -10).\"}\n11. Extraia a ação Demoralizar (Intimidação) do diretório action-macros.\n   → {\"nome\":\"Demoralizar\",\"acoes\":1,\"pericia\":\"Intimidação\",\"alvo\":\"1 criatura em até 9 m\",\"efeito\":\"Teste de Intimidação contra a CD de Vontade do alvo. Sucesso: Assustado 1; Sucesso crítico: Assustado 2; Falha: sem efeito; Falha crítica: o alvo fica imune por 1 hora.\"}\n12. Extraia os detalhes da magia Ferimento (nível 1, tradição divina).\n   → {\"nome\":\"Ferimento\",\"nivel\":1,\"tradicao\":\"divina\",\"propriedades\":[\"manipular\",\"vazio\"],\"dano\":\"1d8 de vazio (criaturas vivas) ou cura 1d8 (mortos-vivos voluntários)\",\"defesa\":\"Fortitude básica (vivos)\",\"acoes\":\"1 a 3 (variável)\",\"efeito_1_acao\":\"alcance toque\",\"efeito_2_acoes\":\"alcance 9 m, +8 de cura para mortos-vivos\",\"efeito_3_acoes\":\"emanação de 9 m, afeta todos vivos e mortos-vivos\",\"alturação\":\"+1: +1d8 de dano/cura, +8 extra para a versão de 2 ações\"}\n13. Extraia a condição Cego do diretório conditions.\n   → {\"nome\":\"Cego\",\"efeito\":\"Não pode ver. Todo terreno normal é difícil. Não pode detectar nada usando visão. Falha crítica automática em testes de Percepção que exijam visão. -4 de penalidade de status em Percepção. Fica desprevenido contra todas as criaturas. Não pode realizar ações com a propriedade visual.\",\"substitui\":\"Ofuscado\"}\n14. Extraia o antecedente Acólito do diretório backgrounds.\n   → {\"nome\":\"Acólito\",\"aumentos\":[\"Sabedoria (+2)\",\"Inteligência (+1)\"],\"pericia\":\"Religião (treinado)\",\"talento\":\"Estudante dos Cânones\",\"pericia_erudicao\":\"Escrita (treinado)\",\"descricao\":\"Passou seus primeiros dias em um templo ou mosteiro aprendendo os preceitos de sua fé. Serviu como noviço ou assistente do clero.\"}\n15. Extraia os detalhes da divindade Abadar do diretório deities.\n   → {\"nome\":\"Abadar\",\"alinhamento\":[\"Leal\",\"Neutro\"],\"dominios\":[\"Cidades\",\"Terra\",\"Viagem\",\"Riqueza\"],\"fonte\":[\"Ferimento\",\"Cura\"],\"pericia\":\"Sociedade\",\"armas\":[\"Besta\",\"Martelo Leve\"],\"descricao\":\"Deus das cidades, da lei, dos mercadores e da riqueza. Representado como um homem de pele dourada em vestes elegantes, carregando uma chave dourada.\"}\n16. Extraia a ancestralidade Anão do diretório ancestries.\n   → {\"nome\":\"Anão\",\"hp\":10,\"tamanho\":\"Médio\",\"deslocamento\":6,\"aumentos\":[\"Constituição (+2)\",\"Sabedoria (+1)\"],\"penalidade\":\"Carisma (-1)\",\"idiomas\":[\"Comum\",\"Anão\"],\"propriedades\":[\"anão\",\"humanóide\"],\"descricao\":\"Povo estoico e severo, moldado pelas montanhas. Conhecidos por sua habilidade artesanal, resiliência e lealdade.\",\"especiais\":[\"Visão no Escuro\",\"Adaga de Clã\",\"Resiliência Anã (bônus em testes de resistência contra veneno)\"]}\n17. Extraia uma carta do baralho de Acerto Crítico (Card 1).\n   → {\"nome\":\"Card 1\",\"titulo\":\"Golpe Esmagador\",\"propriedades\":[\"contundente\",\"crítico\"],\"efeito\":\"A força do golpe atordoa o alvo.\",\"resultados\":\"Alvo fica Atordoado 1 e caído.\",\"dano_extra\":\"2d6 de dano persistente\"}\n18. Extraia o efeito da Chapa de Armadura Ablativa (Maior) do diretório equipment-effects.\n   → {\"nome\":\"Chapa de Armadura Ablativa (Maior)\",\"fonte\":\"Chapa de Armadura Ablativa (Maior)\",\"duracao\":\"10 minutos ou até ser destruída\",\"efeito\":\"Resistência 5 contra dano físico\",\"ativacao\":\"Reação ao sofrer dano físico\"}\n19. Extraia o talento de classe Fúria do Barbaro do diretório class-features.\n   → {\"nome\":\"Fúria\",\"nivel\":1,\"propriedades\":[\"bárbaro\",\"fúria\"],\"efeito\":\"Canalize sua fúria interior. Ganha PV temporários, bônus de status no dano corpo a corpo e penalidade de status de -1 na CA. Não pode usar ações com a propriedade concentração, a menos que também tenham a propriedade fúria.\",\"duracao\":\"1 minuto (ou até se acalmar)\"}",
+  "data": {
+    "skills": [
+      {
+        "id": "acrobatics",
+        "name": "Acrobatics",
+        "ability": "dex"
+      },
+      {
+        "id": "arcana",
+        "name": "Arcana",
+        "ability": "int"
+      },
+      {
+        "id": "athletics",
+        "name": "Athletics",
+        "ability": "str"
+      },
+      {
+        "id": "crafting",
+        "name": "Crafting",
+        "ability": "int"
+      },
+      {
+        "id": "deception",
+        "name": "Deception",
+        "ability": "cha"
+      },
+      {
+        "id": "diplomacy",
+        "name": "Diplomacy",
+        "ability": "cha"
+      },
+      {
+        "id": "intimidation",
+        "name": "Intimidation",
+        "ability": "cha"
+      },
+      {
+        "id": "medicine",
+        "name": "Medicine",
+        "ability": "wis"
+      },
+      {
+        "id": "nature",
+        "name": "Nature",
+        "ability": "wis"
+      },
+      {
+        "id": "occultism",
+        "name": "Occultism",
+        "ability": "int"
+      },
+      {
+        "id": "performance",
+        "name": "Performance",
+        "ability": "cha"
+      },
+      {
+        "id": "religion",
+        "name": "Religion",
+        "ability": "wis"
+      },
+      {
+        "id": "society",
+        "name": "Society",
+        "ability": "int"
+      },
+      {
+        "id": "stealth",
+        "name": "Stealth",
+        "ability": "dex"
+      },
+      {
+        "id": "survival",
+        "name": "Survival",
+        "ability": "wis"
+      },
+      {
+        "id": "thievery",
+        "name": "Thievery",
+        "ability": "dex"
+      }
+    ],
+    "ancestries": [
+      {
+        "id": "human",
+        "name": "Human",
+        "boosts": [
+          "dex",
+          "con"
+        ],
+        "hp": 8,
+        "size": "Medium",
+        "speed": 25,
+        "traits": [
+          "Humanoid",
+          "Human"
+        ],
+        "languages": [
+          "Common"
+        ],
+        "feats": [
+          "human-natural-ambition",
+          "human-general-training",
+          "human-cooperative-nature"
+        ],
+        "blurb": "Versatile and adaptive, humans thrive anywhere."
+      },
+      {
+        "id": "elf",
+        "name": "Elf",
+        "boosts": [
+          "dex",
+          "int"
+        ],
+        "hp": 6,
+        "size": "Medium",
+        "speed": 30,
+        "traits": [
+          "Humanoid",
+          "Elf"
+        ],
+        "languages": [
+          "Common",
+          "Elvish"
+        ],
+        "feats": [
+          "elf-nimble",
+          "elf-lore",
+          "elf-otherworldly-magic"
+        ],
+        "blurb": "Ageless, graceful and attuned to magic."
+      },
+      {
+        "id": "dwarf",
+        "name": "Dwarf",
+        "boosts": [
+          "con",
+          "wis"
+        ],
+        "hp": 10,
+        "size": "Medium",
+        "speed": 20,
+        "traits": [
+          "Humanoid",
+          "Dwarf"
+        ],
+        "languages": [
+          "Common",
+          "Dwarven"
+        ],
+        "feats": [
+          "dwarf-lore",
+          "dwarf-rock-runner",
+          "dwarf-forge-blessed"
+        ],
+        "blurb": "Stout, stubborn, and carved from stone."
+      },
+      {
+        "id": "goblin",
+        "name": "Goblin",
+        "boosts": [
+          "dex",
+          "cha"
+        ],
+        "hp": 6,
+        "size": "Small",
+        "speed": 25,
+        "traits": [
+          "Humanoid",
+          "Goblin"
+        ],
+        "languages": [
+          "Common",
+          "Goblin"
+        ],
+        "feats": [
+          "goblin-lore",
+          "goblin-burn-it",
+          "goblin-very-sneaky"
+        ],
+        "blurb": "Chaotic fire-lovers with a talent for trouble."
+      },
+      {
+        "id": "halfling",
+        "name": "Halfling",
+        "boosts": [
+          "dex",
+          "wis"
+        ],
+        "hp": 6,
+        "size": "Small",
+        "speed": 25,
+        "traits": [
+          "Humanoid",
+          "Halfling"
+        ],
+        "languages": [
+          "Common",
+          "Halfling"
+        ],
+        "feats": [
+          "halfling-lore",
+          "halfling-sure-footed",
+          "halfling-daring-act"
+        ],
+        "blurb": "Cheerful, lucky folk who keep their heads low."
+      },
+      {
+        "id": "orc",
+        "name": "Orc",
+        "boosts": [
+          "str",
+          "con"
+        ],
+        "hp": 10,
+        "size": "Medium",
+        "speed": 25,
+        "traits": [
+          "Humanoid",
+          "Orc"
+        ],
+        "languages": [
+          "Common",
+          "Orcish"
+        ],
+        "feats": [
+          "orc-lore",
+          "orc-ferocity",
+          "orc-tusks"
+        ],
+        "blurb": "Fierce survivors with an unyielding will."
+      },
+      {
+        "id": "gnome",
+        "name": "Gnome",
+        "boosts": [
+          "con",
+          "cha"
+        ],
+        "hp": 8,
+        "size": "Small",
+        "speed": 25,
+        "traits": [
+          "Humanoid",
+          "Gnome",
+          "Fey"
+        ],
+        "languages": [
+          "Common",
+          "Gnomish",
+          "Sylvan"
+        ],
+        "feats": [
+          "gnome-lore",
+          "gnome-animal-accomplice",
+          "gnome-fey-influence"
+        ],
+        "blurb": "Bright-eyed fey-touched tinkerers with endless curiosity."
+      },
+      {
+        "id": "kobold",
+        "name": "Kobold",
+        "boosts": [
+          "dex",
+          "cha"
+        ],
+        "hp": 6,
+        "size": "Small",
+        "speed": 25,
+        "traits": [
+          "Humanoid",
+          "Kobold"
+        ],
+        "languages": [
+          "Common",
+          "Draconic"
+        ],
+        "feats": [
+          "kobold-lore",
+          "kobold-cave-climber",
+          "kobold-crafty"
+        ],
+        "blurb": "Plucky draconic underdogs with a talent for traps."
+      },
+      {
+        "id": "catfolk",
+        "name": "Catfolk",
+        "boosts": [
+          "dex",
+          "cha"
+        ],
+        "hp": 8,
+        "size": "Medium",
+        "speed": 25,
+        "traits": [
+          "Humanoid",
+          "Catfolk"
+        ],
+        "languages": [
+          "Common",
+          "Catfolk"
+        ],
+        "feats": [
+          "catfolk-lore",
+          "catfolk-cats-luck",
+          "catfolk-sharpened-claws"
+        ],
+        "blurb": "Graceful, curious wanderers with whiskers and claws."
+      },
+      {
+        "id": "tengu",
+        "name": "Tengu",
+        "boosts": [
+          "dex",
+          "wis"
+        ],
+        "hp": 6,
+        "size": "Medium",
+        "speed": 25,
+        "traits": [
+          "Humanoid",
+          "Tengu"
+        ],
+        "languages": [
+          "Common",
+          "Tengu"
+        ],
+        "feats": [
+          "tengu-lore",
+          "tengu-long-nosed",
+          "tengu-unerring-eye"
+        ],
+        "blurb": "Crow-kin scholars with a flair for the dramatic."
+      },
+      {
+        "id": "iruxi",
+        "name": "Lizardfolk (Iruxi)",
+        "boosts": [
+          "str",
+          "wis"
+        ],
+        "hp": 8,
+        "size": "Medium",
+        "speed": 25,
+        "traits": [
+          "Humanoid",
+          "Iruxi"
+        ],
+        "languages": [
+          "Common",
+          "Iruxi"
+        ],
+        "feats": [
+          "iruxi-lore",
+          "iruxi-unarmed-cunning",
+          "iruxi-wetlands-walk"
+        ],
+        "blurb": "Ancient reptilian people in tune with the wilds."
+      },
+      {
+        "id": "ysoki",
+        "name": "Ratfolk (Ysoki)",
+        "boosts": [
+          "dex",
+          "int"
+        ],
+        "hp": 6,
+        "size": "Small",
+        "speed": 25,
+        "traits": [
+          "Humanoid",
+          "Ratfolk"
+        ],
+        "languages": [
+          "Common",
+          "Ysoki"
+        ],
+        "feats": [
+          "ysoki-lore",
+          "ysoki-cheek-pouches",
+          "ysoki-junk-tinker"
+        ],
+        "blurb": "Clever, communal scavengers of the city byways."
+      },
+      {
+        "id": "leshy",
+        "name": "Leshy",
+        "boosts": [
+          "con",
+          "wis"
+        ],
+        "hp": 8,
+        "size": "Small",
+        "speed": 25,
+        "traits": [
+          "Leshy",
+          "Plant"
+        ],
+        "languages": [
+          "Common",
+          "Sylvan"
+        ],
+        "feats": [
+          "leshy-lore",
+          "leshy-plant-empathy",
+          "leshy-verdant-burst"
+        ],
+        "blurb": "Awakened plants grown from a primal seed of life."
+      },
+      {
+        "id": "android",
+        "name": "Android",
+        "boosts": [
+          "cha",
+          "int"
+        ],
+        "hp": 8,
+        "size": "Medium",
+        "speed": 25,
+        "traits": [
+          "Humanoid",
+          "Android"
+        ],
+        "languages": [
+          "Common",
+          "Androffan"
+        ],
+        "feats": [
+          "android-lore",
+          "android-constructed-heart",
+          "android-nanite-surge"
+        ],
+        "blurb": "Constructed synthetic lifeforms with an artificial soul."
+      },
+      {
+        "id": "aasimar",
+        "name": "Aasimar",
+        "boosts": [
+          "cha",
+          "wis"
+        ],
+        "hp": 6,
+        "size": "Medium",
+        "speed": 25,
+        "traits": [
+          "Humanoid",
+          "Aasimar"
+        ],
+        "languages": [
+          "Common",
+          "Celestial"
+        ],
+        "feats": [
+          "aasimar-lore",
+          "aasimar-halo",
+          "aasimar-celestial-eye"
+        ],
+        "blurb": "Mortal scions touched by celestial radiance."
+      },
+      {
+        "id": "tiefling",
+        "name": "Tiefling",
+        "boosts": [
+          "cha",
+          "int"
+        ],
+        "hp": 6,
+        "size": "Medium",
+        "speed": 25,
+        "traits": [
+          "Humanoid",
+          "Tiefling"
+        ],
+        "languages": [
+          "Common",
+          "Infernal"
+        ],
+        "feats": [
+          "tiefling-lore",
+          "tiefling-pitborn",
+          "tiefling-fiendish-resistance"
+        ],
+        "blurb": "Planar-touched souls carrying infernal bloodlines."
+      },
+      {
+        "id": "kitsune",
+        "name": "Kitsune",
+        "boosts": [
+          "cha",
+          "dex"
+        ],
+        "hp": 6,
+        "size": "Medium",
+        "speed": 25,
+        "traits": [
+          "Humanoid",
+          "Kitsune"
+        ],
+        "languages": [
+          "Common",
+          "Sylvan"
+        ],
+        "feats": [
+          "kitsune-lore",
+          "kitsune-fox-shape",
+          "kitsune-invigorating-breath"
+        ],
+        "blurb": "Shapeshifting fox spirits of wit and mischief."
+      }
+    ],
+    "heritages": [
+      {
+        "id": "standard",
+        "name": "Standard Heritage",
+        "summary": "No special heritage — the pure traits of your ancestry."
+      },
+      {
+        "id": "versatile",
+        "name": "Versatile Heritage",
+        "summary": "You gain one 1st-level general feat of your choice.",
+        "feat": "General feat"
+      },
+      {
+        "id": "skilled-human",
+        "name": "Skilled Heritage",
+        "ancestryId": "human",
+        "summary": "You gain training in one additional skill of your choice.",
+        "feat": "Additional trained skill"
+      },
+      {
+        "id": "wintertouched-human",
+        "name": "Wintertouched Human",
+        "ancestryId": "human",
+        "summary": "Cold resistance 5 and training in Survival.",
+        "feat": "Cold resistance"
+      },
+      {
+        "id": "double-heart",
+        "name": "Double-Hearted",
+        "ancestryId": "human",
+        "summary": "Extraordinary endurance: you gain 8 additional Hit Points.",
+        "feat": "+8 HP"
+      },
+      {
+        "id": "cavern-elf",
+        "name": "Cavern Elf",
+        "ancestryId": "elf",
+        "summary": "Darkvision and a sensitivity to sunlight."
+      },
+      {
+        "id": "woodland-elf",
+        "name": "Woodland Elf",
+        "ancestryId": "elf",
+        "summary": "Stealth in forests and the ability to hide in brush.",
+        "feat": "Nature-adapted"
+      },
+      {
+        "id": "seer-elf",
+        "name": "Seer Elf",
+        "ancestryId": "elf",
+        "summary": "You can glimpse strands of fate — cast augury-like insight."
+      },
+      {
+        "id": "forge-dwarf",
+        "name": "Forge Dwarf",
+        "ancestryId": "dwarf",
+        "summary": "Fire resistance and expertise in crafting and metalwork.",
+        "feat": "Fire resistance"
+      },
+      {
+        "id": "rock-dwarf",
+        "name": "Rock Dwarf",
+        "ancestryId": "dwarf",
+        "summary": "Stonecunning and darkvision from a life under the mountain."
+      },
+      {
+        "id": "strong-blood-dwarf",
+        "name": "Strong-Blooded Dwarf",
+        "ancestryId": "dwarf",
+        "summary": "+2 to saving throws against poison and disease."
+      },
+      {
+        "id": "razor-goblin",
+        "name": "Razor-Tooth Goblin",
+        "ancestryId": "goblin",
+        "summary": "A biting jaw attack — deal 1d6 piercing damage."
+      },
+      {
+        "id": "snow-goblin",
+        "name": "Snow Goblin",
+        "ancestryId": "goblin",
+        "summary": "Cold resistance, sure footing on ice and snow stealth."
+      },
+      {
+        "id": "tail-whisker-goblin",
+        "name": "Tail and Whisker Goblin",
+        "ancestryId": "goblin",
+        "summary": "Exaggerated ears and tail — +1 to Stealth and Perception."
+      },
+      {
+        "id": "twilight-halfling",
+        "name": "Twilight Halfling",
+        "ancestryId": "halfling",
+        "summary": "See in the dark like a twilight cat — low-light vision."
+      },
+      {
+        "id": "nomadic-halfling",
+        "name": "Nomadic Halfling",
+        "ancestryId": "halfling",
+        "summary": "Acclimatize to the weather of any region."
+      },
+      {
+        "id": "jumpy-halfling",
+        "name": "Jumpy Halfling",
+        "ancestryId": "halfling",
+        "summary": "Startling reactions: you are never flat-footed while conscious."
+      },
+      {
+        "id": "badlands-orc",
+        "name": "Badlands Orc",
+        "ancestryId": "orc",
+        "summary": "Heat resistance and survival training for the wastes."
+      },
+      {
+        "id": "winter-orc",
+        "name": "Winter Orc",
+        "ancestryId": "orc",
+        "summary": "Cold resistance and unshakeable tundra instincts."
+      },
+      {
+        "id": "hold-scarred-orc",
+        "name": "Hold-Scarred Orc",
+        "ancestryId": "orc",
+        "summary": "Scars of old battles — +2 Hit Points per level."
+      },
+      {
+        "id": "umbral-gnome",
+        "name": "Umbral Gnome",
+        "ancestryId": "gnome",
+        "summary": "Darkvision and a natural affinity for the shadows."
+      },
+      {
+        "id": "sensate-gnome",
+        "name": "Sensate Gnome",
+        "ancestryId": "gnome",
+        "summary": "Keen senses: precise scent and +1 to Perception."
+      },
+      {
+        "id": "wellspring-gnome",
+        "name": "Wellspring Gnome",
+        "ancestryId": "gnome",
+        "summary": "Bursting with fey magic — one innate cantrip."
+      },
+      {
+        "id": "cavern-kobold",
+        "name": "Cavern Kobold",
+        "ancestryId": "kobold",
+        "summary": "Darkvision and a burrower's instinct."
+      },
+      {
+        "id": "jungle-kobold",
+        "name": "Jungle Kobold",
+        "ancestryId": "kobold",
+        "summary": "A climbing speed among vines and ruins."
+      },
+      {
+        "id": "spellscale-kobold",
+        "name": "Spellscale Kobold",
+        "ancestryId": "kobold",
+        "summary": "Innate draconic magic — one cantrip."
+      },
+      {
+        "id": "clawed-catfolk",
+        "name": "Clawed Catfolk",
+        "ancestryId": "catfolk",
+        "summary": "Retractable claws — a 1d4 slashing unarmed attack."
+      },
+      {
+        "id": "liminal-catfolk",
+        "name": "Liminal Catfolk",
+        "ancestryId": "catfolk",
+        "summary": "You can perceive the borders between worlds."
+      },
+      {
+        "id": "mountain-catfolk",
+        "name": "Mountain Catfolk",
+        "ancestryId": "catfolk",
+        "summary": "Sure-footed climbers with a climb speed."
+      },
+      {
+        "id": "sky-tengu",
+        "name": "Sky Tengu",
+        "ancestryId": "tengu",
+        "summary": "You can glide — falling never deals damage."
+      },
+      {
+        "id": "forest-tengu",
+        "name": "Forest Tengu",
+        "ancestryId": "tengu",
+        "summary": "At home in the canopy — +1 to Perception."
+      },
+      {
+        "id": "storm-tengu",
+        "name": "Storm Tengu",
+        "ancestryId": "tengu",
+        "summary": "Electricity resistance from storm-kin blood."
+      },
+      {
+        "id": "frilled-lizardfolk",
+        "name": "Frilled Lizardfolk",
+        "ancestryId": "iruxi",
+        "summary": "An intimidating frill — bonus to Intimidation."
+      },
+      {
+        "id": "woodland-lizardfolk",
+        "name": "Woodland Lizardfolk",
+        "ancestryId": "iruxi",
+        "summary": "Climb speed and camouflage in green places."
+      },
+      {
+        "id": "wetland-lizardfolk",
+        "name": "Wetland Lizardfolk",
+        "ancestryId": "iruxi",
+        "summary": "A swim speed and amphibious breathing."
+      },
+      {
+        "id": "deep-rat",
+        "name": "Deep Rat",
+        "ancestryId": "ysoki",
+        "summary": "Darkvision for the deepest tunnels."
+      },
+      {
+        "id": "sewer-rat",
+        "name": "Sewer Rat",
+        "ancestryId": "ysoki",
+        "summary": "Disease resistance and an iron stomach."
+      },
+      {
+        "id": "snow-rat",
+        "name": "Snow Rat",
+        "ancestryId": "ysoki",
+        "summary": "Cold resistance and sure footing on ice."
+      },
+      {
+        "id": "fungus-leshy",
+        "name": "Fungus Leshy",
+        "ancestryId": "leshy",
+        "summary": "Poison resistance and darkvision in decay."
+      },
+      {
+        "id": "leaf-leshy",
+        "name": "Leaf Leshy",
+        "ancestryId": "leshy",
+        "summary": "Photosynthesize — you can go longer without food."
+      },
+      {
+        "id": "vine-leshy",
+        "name": "Vine Leshy",
+        "ancestryId": "leshy",
+        "summary": "Grasping vines — +1 to Athletics checks."
+      },
+      {
+        "id": "artisan-android",
+        "name": "Artisan Android",
+        "ancestryId": "android",
+        "summary": "Precision-calibrated hands — +1 to Crafting."
+      },
+      {
+        "id": "laborer-android",
+        "name": "Laborer Android",
+        "ancestryId": "android",
+        "summary": "Heavy-duty chassis — +1 to Athletics."
+      },
+      {
+        "id": "warrior-android",
+        "name": "Warrior Android",
+        "ancestryId": "android",
+        "summary": "Combat protocols — +1 to attack rolls with simple weapons."
+      },
+      {
+        "id": "lawbringer-aasimar",
+        "name": "Lawbringer Aasimar",
+        "ancestryId": "aasimar",
+        "summary": "Radiant energy — +1 to Diplomacy and Intimidation."
+      },
+      {
+        "id": "redeemer-aasimar",
+        "name": "Redeemer Aasimar",
+        "ancestryId": "aasimar",
+        "summary": "Healing hands — treat wounds with +1 on Medicine."
+      },
+      {
+        "id": "hellspawn-tiefling",
+        "name": "Hellspawn Tiefling",
+        "ancestryId": "tiefling",
+        "summary": "Fiendish heritage — fire resistance 5."
+      },
+      {
+        "id": "beastbrood-tiefling",
+        "name": "Beastbrood Tiefling",
+        "ancestryId": "tiefling",
+        "summary": "Bestial traits — a claw or horn unarmed attack."
+      },
+      {
+        "id": "grimspawn-tiefling",
+        "name": "Grimspawn Tiefling",
+        "ancestryId": "tiefling",
+        "summary": "Dark energy — +1 to Intimidation and Occultism."
+      },
+      {
+        "id": "celestial-kitsune",
+        "name": "Celestial Kitsune",
+        "ancestryId": "kitsune",
+        "summary": "Radiant fox spirit — +1 to Diplomacy."
+      },
+      {
+        "id": "dark-kitsune",
+        "name": "Dark Kitsune",
+        "ancestryId": "kitsune",
+        "summary": "Shadow-kissed — darkvision and +1 to Stealth."
+      }
+    ],
+    "backgrounds": [
+      {
+        "id": "acolyte",
+        "name": "Acolyte",
+        "boosts": [
+          "wis",
+          "int"
+        ],
+        "skills": [
+          "religion"
+        ],
+        "feature": "You know the rites and hierarchies of your faith."
+      },
+      {
+        "id": "criminal",
+        "name": "Criminal",
+        "boosts": [
+          "dex",
+          "int"
+        ],
+        "skills": [
+          "stealth",
+          "thievery"
+        ],
+        "feature": "You have contacts in the underworld."
+      },
+      {
+        "id": "sage",
+        "name": "Scholar",
+        "boosts": [
+          "int",
+          "wis"
+        ],
+        "skills": [
+          "arcana",
+          "occultism"
+        ],
+        "feature": "You can recall a dizzying breadth of lore."
+      },
+      {
+        "id": "soldier",
+        "name": "Soldier",
+        "boosts": [
+          "str",
+          "con"
+        ],
+        "skills": [
+          "athletics",
+          "intimidation"
+        ],
+        "feature": "You know how to fight, march and survive."
+      },
+      {
+        "id": "farmhand",
+        "name": "Farmhand",
+        "boosts": [
+          "str",
+          "con"
+        ],
+        "skills": [
+          "athletics",
+          "nature"
+        ],
+        "feature": "Hardened by honest work under open skies."
+      },
+      {
+        "id": "urchin",
+        "name": "Urchin",
+        "boosts": [
+          "dex",
+          "cha"
+        ],
+        "skills": [
+          "stealth",
+          "society"
+        ],
+        "feature": "You know the secret corners of every city."
+      },
+      {
+        "id": "herbalist",
+        "name": "Herbalist",
+        "boosts": [
+          "wis",
+          "con"
+        ],
+        "skills": [
+          "nature",
+          "medicine"
+        ],
+        "feature": "You can identify and brew useful plants."
+      },
+      {
+        "id": "hunter",
+        "name": "Hunter",
+        "boosts": [
+          "dex",
+          "wis"
+        ],
+        "skills": [
+          "survival",
+          "stealth"
+        ],
+        "feature": "You track prey across any terrain."
+      },
+      {
+        "id": "artisan",
+        "name": "Artisan",
+        "boosts": [
+          "int",
+          "dex"
+        ],
+        "skills": [
+          "crafting",
+          "society"
+        ],
+        "feature": "You have a guild's training in a trade."
+      },
+      {
+        "id": "performer",
+        "name": "Performer",
+        "boosts": [
+          "cha",
+          "dex"
+        ],
+        "skills": [
+          "performance",
+          "acrobatics"
+        ],
+        "feature": "You command the attention of any room."
+      },
+      {
+        "id": "noble",
+        "name": "Noble",
+        "boosts": [
+          "cha",
+          "int"
+        ],
+        "skills": [
+          "society",
+          "diplomacy"
+        ],
+        "feature": "Titles and manners open doors."
+      },
+      {
+        "id": "traveler",
+        "name": "Traveler",
+        "boosts": [
+          "cha",
+          "wis"
+        ],
+        "skills": [
+          "diplomacy",
+          "survival"
+        ],
+        "feature": "You have walked a hundred roads and made a hundred friends."
+      }
+    ],
+    "feats": [
+      {
+        "id": "human-natural-ambition",
+        "name": "Natural Ambition",
+        "kind": "ancestry",
+        "level": 1,
+        "traits": [
+          "Human"
+        ],
+        "ancestryId": "human",
+        "summary": "Gain a 1st-level class feat of your choice."
+      },
+      {
+        "id": "human-general-training",
+        "name": "General Training",
+        "kind": "ancestry",
+        "level": 1,
+        "traits": [
+          "Human"
+        ],
+        "ancestryId": "human",
+        "summary": "Gain a 1st-level general feat of your choice."
+      },
+      {
+        "id": "human-cooperative-nature",
+        "name": "Cooperative Nature",
+        "kind": "ancestry",
+        "level": 1,
+        "traits": [
+          "Human"
+        ],
+        "ancestryId": "human",
+        "summary": "You gain a +4 circumstance bonus to Aid checks."
+      },
+      {
+        "id": "elf-nimble",
+        "name": "Nimble Elf",
+        "kind": "ancestry",
+        "level": 1,
+        "traits": [
+          "Elf"
+        ],
+        "ancestryId": "elf",
+        "summary": "Your Speed increases by 5 feet."
+      },
+      {
+        "id": "elf-lore",
+        "name": "Elven Lore",
+        "kind": "ancestry",
+        "level": 1,
+        "traits": [
+          "Elf"
+        ],
+        "ancestryId": "elf",
+        "summary": "Trained in Arcana and Nature, and expert in recalling elven history."
+      },
+      {
+        "id": "elf-otherworldly-magic",
+        "name": "Otherworldly Magic",
+        "kind": "ancestry",
+        "level": 1,
+        "traits": [
+          "Elf"
+        ],
+        "ancestryId": "elf",
+        "summary": "Gain a cantrip from the arcane or primal spell list."
+      },
+      {
+        "id": "dwarf-lore",
+        "name": "Dwarven Lore",
+        "kind": "ancestry",
+        "level": 1,
+        "traits": [
+          "Dwarf"
+        ],
+        "ancestryId": "dwarf",
+        "summary": "Trained in Crafting, plus expertise recalling dwarven stonework and engineering."
+      },
+      {
+        "id": "dwarf-rock-runner",
+        "name": "Rock Runner",
+        "kind": "ancestry",
+        "level": 1,
+        "traits": [
+          "Dwarf"
+        ],
+        "ancestryId": "dwarf",
+        "summary": "Ignore difficult terrain in rocky environments."
+      },
+      {
+        "id": "dwarf-forge-blessed",
+        "name": "Forge-Blessed",
+        "kind": "ancestry",
+        "level": 1,
+        "traits": [
+          "Dwarf"
+        ],
+        "ancestryId": "dwarf",
+        "summary": "Fire resistance 5 and +1 to Crafting."
+      },
+      {
+        "id": "goblin-lore",
+        "name": "Goblin Lore",
+        "kind": "ancestry",
+        "level": 1,
+        "traits": [
+          "Goblin"
+        ],
+        "ancestryId": "goblin",
+        "summary": "Trained in Stealth and Thievery, plus goblin engineering lore."
+      },
+      {
+        "id": "goblin-burn-it",
+        "name": "Burn It!",
+        "kind": "ancestry",
+        "level": 1,
+        "traits": [
+          "Goblin"
+        ],
+        "ancestryId": "goblin",
+        "summary": "You deal 1 extra fire damage with fire spells and alchemical fire."
+      },
+      {
+        "id": "goblin-very-sneaky",
+        "name": "Very Sneaky",
+        "kind": "ancestry",
+        "level": 1,
+        "traits": [
+          "Goblin"
+        ],
+        "ancestryId": "goblin",
+        "summary": "Your Stealth is less hindered by moving quickly."
+      },
+      {
+        "id": "halfling-lore",
+        "name": "Halfling Lore",
+        "kind": "ancestry",
+        "level": 1,
+        "traits": [
+          "Halfling"
+        ],
+        "ancestryId": "halfling",
+        "summary": "Trained in Acrobatics, plus halfling history and lore."
+      },
+      {
+        "id": "halfling-sure-footed",
+        "name": "Sure-Footed",
+        "kind": "ancestry",
+        "level": 1,
+        "traits": [
+          "Halfling"
+        ],
+        "ancestryId": "halfling",
+        "summary": "You are not flat-footed on uneven ground or when Balancing."
+      },
+      {
+        "id": "halfling-daring-act",
+        "name": "Daring Act",
+        "kind": "ancestry",
+        "level": 1,
+        "traits": [
+          "Halfling"
+        ],
+        "ancestryId": "halfling",
+        "summary": "One action: Tumble Through a creature of any size; on a success you gain panache."
+      },
+      {
+        "id": "orc-lore",
+        "name": "Orc Lore",
+        "kind": "ancestry",
+        "level": 1,
+        "traits": [
+          "Orc"
+        ],
+        "ancestryId": "orc",
+        "summary": "Trained in Intimidation, plus orc history and war traditions."
+      },
+      {
+        "id": "orc-ferocity",
+        "name": "Orc Ferocity",
+        "kind": "ancestry",
+        "level": 1,
+        "traits": [
+          "Orc"
+        ],
+        "ancestryId": "orc",
+        "summary": "When reduced to 0 HP, stay at 1 HP instead (once per day)."
+      },
+      {
+        "id": "orc-tusks",
+        "name": "Tusks",
+        "kind": "ancestry",
+        "level": 1,
+        "traits": [
+          "Orc"
+        ],
+        "ancestryId": "orc",
+        "summary": "Your tusks are a 1d6 piercing unarmed attack."
+      },
+      {
+        "id": "gnome-lore",
+        "name": "Gnome Lore",
+        "kind": "ancestry",
+        "level": 1,
+        "traits": [
+          "Gnome"
+        ],
+        "ancestryId": "gnome",
+        "summary": "Trained in Arcana and Occultism, plus gnomish fey lore."
+      },
+      {
+        "id": "gnome-animal-accomplice",
+        "name": "Animal Accomplice",
+        "kind": "ancestry",
+        "level": 1,
+        "traits": [
+          "Gnome"
+        ],
+        "ancestryId": "gnome",
+        "summary": "You gain a tiny animal companion you share empathy with."
+      },
+      {
+        "id": "gnome-fey-influence",
+        "name": "Fey Influence",
+        "kind": "ancestry",
+        "level": 1,
+        "traits": [
+          "Gnome"
+        ],
+        "ancestryId": "gnome",
+        "summary": "Fey magic tints you — gain an innate cantrip."
+      },
+      {
+        "id": "kobold-lore",
+        "name": "Kobold Lore",
+        "kind": "ancestry",
+        "level": 1,
+        "traits": [
+          "Kobold"
+        ],
+        "ancestryId": "kobold",
+        "summary": "Trained in Crafting and Thievery, plus trap lore."
+      },
+      {
+        "id": "kobold-cave-climber",
+        "name": "Cave Climber",
+        "kind": "ancestry",
+        "level": 1,
+        "traits": [
+          "Kobold"
+        ],
+        "ancestryId": "kobold",
+        "summary": "You gain a climb Speed of 10 feet in natural terrain."
+      },
+      {
+        "id": "kobold-crafty",
+        "name": "Crafty",
+        "kind": "ancestry",
+        "level": 1,
+        "traits": [
+          "Kobold"
+        ],
+        "ancestryId": "kobold",
+        "summary": "You can use raw materials to make basic temporary gear."
+      },
+      {
+        "id": "catfolk-lore",
+        "name": "Cat Lore",
+        "kind": "ancestry",
+        "level": 1,
+        "traits": [
+          "Catfolk"
+        ],
+        "ancestryId": "catfolk",
+        "summary": "Trained in Acrobatics and Performance, plus catfolk traditions."
+      },
+      {
+        "id": "catfolk-cats-luck",
+        "name": "Cat's Luck",
+        "kind": "ancestry",
+        "level": 1,
+        "traits": [
+          "Catfolk"
+        ],
+        "ancestryId": "catfolk",
+        "summary": "Once per day, reroll a failed Reflex save."
+      },
+      {
+        "id": "catfolk-sharpened-claws",
+        "name": "Sharpened Claws",
+        "kind": "ancestry",
+        "level": 1,
+        "traits": [
+          "Catfolk"
+        ],
+        "ancestryId": "catfolk",
+        "summary": "Your claws deal 1d6 slashing and ignore 2 points of resistance."
+      },
+      {
+        "id": "tengu-lore",
+        "name": "Tengu Lore",
+        "kind": "ancestry",
+        "level": 1,
+        "traits": [
+          "Tengu"
+        ],
+        "ancestryId": "tengu",
+        "summary": "Trained in Society, plus tengu history and bird-lore."
+      },
+      {
+        "id": "tengu-long-nosed",
+        "name": "Long-Nosed Form",
+        "kind": "ancestry",
+        "level": 1,
+        "traits": [
+          "Tengu"
+        ],
+        "ancestryId": "tengu",
+        "summary": "A long beak grants +2 to checks to Recall Knowledge with taste."
+      },
+      {
+        "id": "tengu-unerring-eye",
+        "name": "Unerring Eye",
+        "kind": "ancestry",
+        "level": 1,
+        "traits": [
+          "Tengu"
+        ],
+        "ancestryId": "tengu",
+        "summary": "A bonus to Perception checks to detect illusions and hidden objects."
+      },
+      {
+        "id": "iruxi-lore",
+        "name": "Iruxi Lore",
+        "kind": "ancestry",
+        "level": 1,
+        "traits": [
+          "Lizardfolk"
+        ],
+        "ancestryId": "iruxi",
+        "summary": "Trained in Nature and Survival, plus iruxi history."
+      },
+      {
+        "id": "iruxi-unarmed-cunning",
+        "name": "Iruxi Unarmed Cunning",
+        "kind": "ancestry",
+        "level": 1,
+        "traits": [
+          "Lizardfolk"
+        ],
+        "ancestryId": "iruxi",
+        "summary": "Your unarmed attacks gain the finesse trait."
+      },
+      {
+        "id": "iruxi-wetlands-walk",
+        "name": "Wetlands Walk",
+        "kind": "ancestry",
+        "level": 1,
+        "traits": [
+          "Lizardfolk"
+        ],
+        "ancestryId": "iruxi",
+        "summary": "Ignore difficult terrain caused by mud, sand or water."
+      },
+      {
+        "id": "ysoki-lore",
+        "name": "Ysoki Lore",
+        "kind": "ancestry",
+        "level": 1,
+        "traits": [
+          "Ratfolk"
+        ],
+        "ancestryId": "ysoki",
+        "summary": "Trained in Crafting and Society, plus ysoki scavenger lore."
+      },
+      {
+        "id": "ysoki-cheek-pouches",
+        "name": "Cheek Pouches",
+        "kind": "ancestry",
+        "level": 1,
+        "traits": [
+          "Ratfolk"
+        ],
+        "ancestryId": "ysoki",
+        "summary": "You can store up to 4 items of negligible bulk in your cheeks."
+      },
+      {
+        "id": "ysoki-junk-tinker",
+        "name": "Junk Tinker",
+        "kind": "ancestry",
+        "level": 1,
+        "traits": [
+          "Ratfolk"
+        ],
+        "ancestryId": "ysoki",
+        "summary": "Craft temporary items from scrap and debris."
+      },
+      {
+        "id": "leshy-lore",
+        "name": "Leshy Lore",
+        "kind": "ancestry",
+        "level": 1,
+        "traits": [
+          "Leshy"
+        ],
+        "ancestryId": "leshy",
+        "summary": "Trained in Nature, plus knowledge of plants and natural places."
+      },
+      {
+        "id": "leshy-plant-empathy",
+        "name": "Plant Empathy",
+        "kind": "ancestry",
+        "level": 1,
+        "traits": [
+          "Leshy"
+        ],
+        "ancestryId": "leshy",
+        "summary": "You can communicate simple concepts with plants."
+      },
+      {
+        "id": "leshy-verdant-burst",
+        "name": "Verdant Burst",
+        "kind": "ancestry",
+        "level": 1,
+        "traits": [
+          "Leshy"
+        ],
+        "ancestryId": "leshy",
+        "summary": "When you die, you burst into a brief burst of plants."
+      },
+      {
+        "id": "android-lore",
+        "name": "Android Lore",
+        "kind": "ancestry",
+        "level": 1,
+        "traits": [
+          "Android"
+        ],
+        "ancestryId": "android",
+        "summary": "Trained in Crafting, plus knowledge of technology and Androffa."
+      },
+      {
+        "id": "android-constructed-heart",
+        "name": "Constructed Heart",
+        "kind": "ancestry",
+        "level": 1,
+        "traits": [
+          "Android"
+        ],
+        "ancestryId": "android",
+        "summary": "You heal from repairs — Medicine checks treat your wounds with +1."
+      },
+      {
+        "id": "android-nanite-surge",
+        "name": "Nanite Surge",
+        "kind": "ancestry",
+        "level": 1,
+        "traits": [
+          "Android"
+        ],
+        "ancestryId": "android",
+        "summary": "Once per day, reroll a failed skill check as nanites aid you."
+      },
+      {
+        "id": "aasimar-lore",
+        "name": "Aasimar Lore",
+        "kind": "ancestry",
+        "level": 1,
+        "traits": [
+          "Aasimar"
+        ],
+        "ancestryId": "aasimar",
+        "summary": "Trained in Religion, plus celestial history and heavens lore."
+      },
+      {
+        "id": "aasimar-halo",
+        "name": "Halo",
+        "kind": "ancestry",
+        "level": 1,
+        "traits": [
+          "Aasimar"
+        ],
+        "ancestryId": "aasimar",
+        "summary": "A halo of light sheds 10 feet of bright light."
+      },
+      {
+        "id": "aasimar-celestial-eye",
+        "name": "Celestial Eye",
+        "kind": "ancestry",
+        "level": 1,
+        "traits": [
+          "Aasimar"
+        ],
+        "ancestryId": "aasimar",
+        "summary": "Your eyes pierce deception — +1 to Perception against lies."
+      },
+      {
+        "id": "tiefling-lore",
+        "name": "Tiefling Lore",
+        "kind": "ancestry",
+        "level": 1,
+        "traits": [
+          "Tiefling"
+        ],
+        "ancestryId": "tiefling",
+        "summary": "Trained in Society, plus infernal planes lore."
+      },
+      {
+        "id": "tiefling-pitborn",
+        "name": "Pitborn",
+        "kind": "ancestry",
+        "level": 1,
+        "traits": [
+          "Tiefling"
+        ],
+        "ancestryId": "tiefling",
+        "summary": "Devil-touched — +1 to Diplomacy and Religion checks."
+      },
+      {
+        "id": "tiefling-fiendish-resistance",
+        "name": "Fiendish Resistance",
+        "kind": "ancestry",
+        "level": 1,
+        "traits": [
+          "Tiefling"
+        ],
+        "ancestryId": "tiefling",
+        "summary": "You gain resistance 5 to fire and negative energy."
+      },
+      {
+        "id": "kitsune-lore",
+        "name": "Kitsune Lore",
+        "kind": "ancestry",
+        "level": 1,
+        "traits": [
+          "Kitsune"
+        ],
+        "ancestryId": "kitsune",
+        "summary": "Trained in Deception and Society, plus kitsune folklore."
+      },
+      {
+        "id": "kitsune-fox-shape",
+        "name": "Fox Shape",
+        "kind": "ancestry",
+        "level": 1,
+        "traits": [
+          "Kitsune"
+        ],
+        "ancestryId": "kitsune",
+        "summary": "You can transform into a small fox (one action, unlimited)."
+      },
+      {
+        "id": "kitsune-invigorating-breath",
+        "name": "Invigorating Breath",
+        "kind": "ancestry",
+        "level": 1,
+        "traits": [
+          "Kitsune"
+        ],
+        "ancestryId": "kitsune",
+        "summary": "One action: heal yourself for 1d8 Hit Points (once per hour)."
+      },
+      {
+        "id": "fleet",
+        "name": "Fleet",
+        "kind": "general",
+        "level": 1,
+        "traits": [
+          "General"
+        ],
+        "summary": "Your Speed increases by 5 feet."
+      },
+      {
+        "id": "toughness",
+        "name": "Toughness",
+        "kind": "general",
+        "level": 1,
+        "traits": [
+          "General"
+        ],
+        "summary": "Increase your maximum HP by your level; recover from dying more easily."
+      },
+      {
+        "id": "diehard",
+        "name": "Diehard",
+        "kind": "general",
+        "level": 1,
+        "traits": [
+          "General"
+        ],
+        "summary": "You die at 4 HP below 0 instead of 3, and don't die until fully lost."
+      },
+      {
+        "id": "canny-acumen",
+        "name": "Canny Acumen",
+        "kind": "general",
+        "level": 1,
+        "traits": [
+          "General"
+        ],
+        "summary": "Increase proficiency in one saving throw or Perception to trained."
+      },
+      {
+        "id": "incredible-initiative",
+        "name": "Incredible Initiative",
+        "kind": "general",
+        "level": 1,
+        "traits": [
+          "General"
+        ],
+        "summary": "You gain a +2 circumstance bonus to initiative rolls."
+      },
+      {
+        "id": "hefty-hauler",
+        "name": "Hefty Hauler",
+        "kind": "general",
+        "level": 1,
+        "traits": [
+          "General"
+        ],
+        "summary": "Your carrying capacity increases by 2 Bulk."
+      },
+      {
+        "id": "fast-recovery",
+        "name": "Fast Recovery",
+        "kind": "general",
+        "level": 1,
+        "traits": [
+          "General"
+        ],
+        "summary": "You recover from persistent damage and diseases faster."
+      },
+      {
+        "id": "adopted-ancestry",
+        "name": "Adopted Ancestry",
+        "kind": "general",
+        "level": 1,
+        "traits": [
+          "General"
+        ],
+        "summary": "You can take ancestry feats of one other ancestry."
+      },
+      {
+        "id": "ancestral-paragon",
+        "name": "Ancestral Paragon",
+        "kind": "general",
+        "level": 1,
+        "traits": [
+          "General"
+        ],
+        "summary": "Gain one additional 1st-level ancestry feat."
+      },
+      {
+        "id": "light-armor-training",
+        "name": "Light Armor Training",
+        "kind": "general",
+        "level": 1,
+        "traits": [
+          "General"
+        ],
+        "summary": "You become trained in light armor."
+      },
+      {
+        "id": "armor-training",
+        "name": "Armor Training",
+        "kind": "general",
+        "level": 1,
+        "traits": [
+          "General"
+        ],
+        "summary": "You become trained in medium and heavy armor."
+      },
+      {
+        "id": "unconventional-weaponry",
+        "name": "Unconventional Weaponry",
+        "kind": "general",
+        "level": 1,
+        "traits": [
+          "General"
+        ],
+        "summary": "Gain training with an uncommon weapon of your ancestry."
+      },
+      {
+        "id": "assurance",
+        "name": "Assurance",
+        "kind": "skill",
+        "level": 1,
+        "traits": [
+          "Skill"
+        ],
+        "summary": "With one skill, you can forgo the roll and take 10 + your proficiency bonus."
+      },
+      {
+        "id": "dubious-knowledge",
+        "name": "Dubious Knowledge",
+        "kind": "skill",
+        "level": 1,
+        "traits": [
+          "Skill"
+        ],
+        "summary": "On a failed Recall Knowledge, you learn one true fact and one false one."
+      },
+      {
+        "id": "experienced-professional",
+        "name": "Experienced Professional",
+        "kind": "skill",
+        "level": 1,
+        "traits": [
+          "Skill"
+        ],
+        "summary": "Earn 3 gp per day with your trained profession skill."
+      },
+      {
+        "id": "group-coercion",
+        "name": "Group Coercion",
+        "kind": "skill",
+        "level": 1,
+        "traits": [
+          "Skill"
+        ],
+        "summary": "When Coercing, you can affect up to two additional targets."
+      },
+      {
+        "id": "intimidating-glare",
+        "name": "Intimidating Glare",
+        "kind": "skill",
+        "level": 1,
+        "traits": [
+          "Skill"
+        ],
+        "summary": "Demoralize without needing to speak a shared language."
+      },
+      {
+        "id": "quick-coercion",
+        "name": "Quick Coercion",
+        "kind": "skill",
+        "level": 1,
+        "traits": [
+          "Skill"
+        ],
+        "summary": "Coerce a creature in only one round of conversation."
+      },
+      {
+        "id": "read-lips",
+        "name": "Read Lips",
+        "kind": "skill",
+        "level": 1,
+        "traits": [
+          "Skill"
+        ],
+        "summary": "You can read the lips of someone you can see."
+      },
+      {
+        "id": "survey-wildlife",
+        "name": "Survey Wildlife",
+        "kind": "skill",
+        "level": 1,
+        "traits": [
+          "Skill"
+        ],
+        "summary": "Learn the presence and type of large animals in the area."
+      },
+      {
+        "id": "titan-wrestler",
+        "name": "Titan Wrestler",
+        "kind": "skill",
+        "level": 1,
+        "traits": [
+          "Skill"
+        ],
+        "summary": "Grapple, Trip or Shove creatures up to two sizes larger than you."
+      },
+      {
+        "id": "subtle-theft",
+        "name": "Subtle Theft",
+        "kind": "skill",
+        "level": 1,
+        "traits": [
+          "Skill"
+        ],
+        "summary": "When stealing, observers take a −2 penalty to Perception."
+      },
+      {
+        "id": "steady-balance",
+        "name": "Steady Balance",
+        "kind": "skill",
+        "level": 1,
+        "traits": [
+          "Skill"
+        ],
+        "summary": "You are not flat-footed while Balancing or on uneven ground."
+      },
+      {
+        "id": "battle-medicine",
+        "name": "Battle Medicine",
+        "kind": "skill",
+        "level": 1,
+        "traits": [
+          "Skill"
+        ],
+        "summary": "One action: Treat Wounds on a creature, once per day per creature."
+      }
+    ],
+    "classes": [
+      {
+        "id": "fighter",
+        "name": "Fighter",
+        "keyAbility": "str",
+        "hp": 10,
+        "perLevel": 6,
+        "trainedSkills": [
+          "athletics",
+          "intimidation"
+        ],
+        "blurb": "Weapon experts unmatched in martial skill.",
+        "startingItems": [
+          "Longsword",
+          "Chain shirt",
+          "Steel shield",
+          "Adventurer's pack"
+        ]
+      },
+      {
+        "id": "rogue",
+        "name": "Rogue",
+        "keyAbility": "dex",
+        "hp": 8,
+        "perLevel": 4,
+        "trainedSkills": [
+          "acrobatics",
+          "stealth",
+          "thievery",
+          "society"
+        ],
+        "blurb": "Skirmishers who strike where it hurts.",
+        "startingItems": [
+          "Shortsword",
+          "Dagger",
+          "Leather armor",
+          "Thieves' tools",
+          "Adventurer's pack"
+        ]
+      },
+      {
+        "id": "wizard",
+        "name": "Wizard",
+        "keyAbility": "int",
+        "hp": 6,
+        "perLevel": 4,
+        "trainedSkills": [
+          "arcana",
+          "occultism",
+          "society"
+        ],
+        "blurb": "Scholars of the arcane arts.",
+        "startingItems": [
+          "Quarterstaff",
+          "Spellbook",
+          "Arcane focus",
+          "Adventurer's pack"
+        ]
+      },
+      {
+        "id": "cleric",
+        "name": "Cleric",
+        "keyAbility": "wis",
+        "hp": 8,
+        "perLevel": 4,
+        "trainedSkills": [
+          "religion",
+          "medicine",
+          "society"
+        ],
+        "blurb": "Divine spellcasters of faith.",
+        "startingItems": [
+          "Mace",
+          "Chain shirt",
+          "Steel shield",
+          "Religious symbol",
+          "Healer's tools",
+          "Adventurer's pack"
+        ]
+      },
+      {
+        "id": "ranger",
+        "name": "Ranger",
+        "keyAbility": "dex",
+        "hp": 10,
+        "perLevel": 6,
+        "trainedSkills": [
+          "athletics",
+          "nature",
+          "survival",
+          "stealth"
+        ],
+        "blurb": "Hunters who master terrain and prey.",
+        "startingItems": [
+          "Longbow",
+          "Arrows (20)",
+          "Hatchet",
+          "Leather armor",
+          "Adventurer's pack"
+        ]
+      },
+      {
+        "id": "bard",
+        "name": "Bard",
+        "keyAbility": "cha",
+        "hp": 8,
+        "perLevel": 4,
+        "trainedSkills": [
+          "performance",
+          "diplomacy",
+          "occultism",
+          "society"
+        ],
+        "blurb": "Performers who weave magic into song.",
+        "startingItems": [
+          "Shortsword",
+          "Leather armor",
+          "Musical instrument (lute)",
+          "Adventurer's pack"
+        ]
+      },
+      {
+        "id": "monk",
+        "name": "Monk",
+        "keyAbility": "dex",
+        "hp": 10,
+        "perLevel": 6,
+        "trainedSkills": [
+          "acrobatics",
+          "athletics",
+          "stealth"
+        ],
+        "blurb": "Masters of unarmed combat and ki.",
+        "startingItems": [
+          "Bo staff",
+          "Adventurer's pack"
+        ]
+      },
+      {
+        "id": "alchemist",
+        "name": "Alchemist",
+        "keyAbility": "int",
+        "hp": 8,
+        "perLevel": 4,
+        "trainedSkills": [
+          "crafting",
+          "medicine",
+          "nature",
+          "occultism"
+        ],
+        "blurb": "Scientists of explosives and elixirs.",
+        "startingItems": [
+          "Alchemist's kit",
+          "Leather armor",
+          "Lesser alchemist's fire (2)",
+          "Adventurer's pack"
+        ]
+      },
+      {
+        "id": "barbarian",
+        "name": "Barbarian",
+        "keyAbility": "str",
+        "hp": 12,
+        "perLevel": 6,
+        "trainedSkills": [
+          "athletics",
+          "intimidation",
+          "nature",
+          "survival"
+        ],
+        "blurb": "Rage-driven warriors.",
+        "startingItems": [
+          "Greataxe",
+          "Hide armor",
+          "Adventurer's pack"
+        ]
+      },
+      {
+        "id": "sorcerer",
+        "name": "Sorcerer",
+        "keyAbility": "cha",
+        "hp": 6,
+        "perLevel": 4,
+        "trainedSkills": [
+          "arcana",
+          "diplomacy",
+          "society"
+        ],
+        "blurb": "Magic in the blood.",
+        "startingItems": [
+          "Quarterstaff",
+          "Arcane focus",
+          "Adventurer's pack"
+        ]
+      },
+      {
+        "id": "champion",
+        "name": "Champion",
+        "keyAbility": "str",
+        "hp": 10,
+        "perLevel": 6,
+        "trainedSkills": [
+          "religion",
+          "athletics",
+          "diplomacy"
+        ],
+        "blurb": "Holy warriors of a cause.",
+        "startingItems": [
+          "Longsword",
+          "Chain mail",
+          "Steel shield",
+          "Religious symbol",
+          "Adventurer's pack"
+        ]
+      },
+      {
+        "id": "druid",
+        "name": "Druid",
+        "keyAbility": "wis",
+        "hp": 8,
+        "perLevel": 4,
+        "trainedSkills": [
+          "nature",
+          "medicine",
+          "survival",
+          "religion"
+        ],
+        "blurb": "Guardians of the natural world.",
+        "startingItems": [
+          "Sickle",
+          "Leather armor",
+          "Wooden shield",
+          "Druidic focus",
+          "Adventurer's pack"
+        ]
+      }
+    ],
+    "armors": [
+      {
+        "id": "none",
+        "name": "Unarmored",
+        "category": "unarmored",
+        "acBonus": 0,
+        "price": 0,
+        "bulk": "—"
+      },
+      {
+        "id": "padded",
+        "name": "Padded Armor",
+        "category": "light",
+        "acBonus": 1,
+        "dexCap": 5,
+        "price": 2,
+        "bulk": "L"
+      },
+      {
+        "id": "leather",
+        "name": "Leather Armor",
+        "category": "light",
+        "acBonus": 1,
+        "dexCap": 4,
+        "price": 20,
+        "bulk": "1",
+        "note": "Flexible"
+      },
+      {
+        "id": "studded",
+        "name": "Studded Leather",
+        "category": "light",
+        "acBonus": 2,
+        "dexCap": 3,
+        "price": 30,
+        "bulk": "1"
+      },
+      {
+        "id": "chain-shirt",
+        "name": "Chain Shirt",
+        "category": "light",
+        "acBonus": 2,
+        "dexCap": 3,
+        "price": 50,
+        "bulk": "L"
+      },
+      {
+        "id": "hide",
+        "name": "Hide Armor",
+        "category": "medium",
+        "acBonus": 3,
+        "dexCap": 2,
+        "price": 20,
+        "bulk": "1"
+      },
+      {
+        "id": "scale",
+        "name": "Scale Mail",
+        "category": "medium",
+        "acBonus": 3,
+        "dexCap": 2,
+        "price": 40,
+        "bulk": "1"
+      },
+      {
+        "id": "breastplate",
+        "name": "Breastplate",
+        "category": "medium",
+        "acBonus": 4,
+        "dexCap": 1,
+        "price": 130,
+        "bulk": "1"
+      },
+      {
+        "id": "splint",
+        "name": "Splint Mail",
+        "category": "heavy",
+        "acBonus": 5,
+        "dexCap": 1,
+        "price": 60,
+        "bulk": "2"
+      },
+      {
+        "id": "chain-mail",
+        "name": "Chain Mail",
+        "category": "heavy",
+        "acBonus": 5,
+        "dexCap": 1,
+        "price": 60,
+        "bulk": "2"
+      },
+      {
+        "id": "plate",
+        "name": "Full Plate",
+        "category": "heavy",
+        "acBonus": 6,
+        "dexCap": 0,
+        "price": 300,
+        "bulk": "3",
+        "note": "Str 18"
+      }
+    ],
+    "weapons": [
+      {
+        "id": "dagger",
+        "name": "Dagger",
+        "category": "simple",
+        "hands": 1,
+        "damageDice": "1d4",
+        "damageType": "P",
+        "traits": [
+          "Agile",
+          "Finesse",
+          "Thrown 10 ft"
+        ],
+        "price": 2,
+        "bulk": "L"
+      },
+      {
+        "id": "club",
+        "name": "Club",
+        "category": "simple",
+        "hands": 1,
+        "damageDice": "1d6",
+        "damageType": "B",
+        "traits": [
+          "Thrown 10 ft"
+        ],
+        "price": 0,
+        "bulk": "1"
+      },
+      {
+        "id": "staff",
+        "name": "Staff",
+        "category": "simple",
+        "hands": 1,
+        "damageDice": "1d4",
+        "damageType": "B",
+        "traits": [
+          "Two-hand d8"
+        ],
+        "price": 0,
+        "bulk": "1"
+      },
+      {
+        "id": "spear",
+        "name": "Spear",
+        "category": "simple",
+        "hands": 1,
+        "damageDice": "1d6",
+        "damageType": "P",
+        "traits": [
+          "Thrown 20 ft"
+        ],
+        "price": 10,
+        "bulk": "1"
+      },
+      {
+        "id": "light-mace",
+        "name": "Light Mace",
+        "category": "simple",
+        "hands": 1,
+        "damageDice": "1d4",
+        "damageType": "B",
+        "traits": [
+          "Agile",
+          "Finesse",
+          "Shove"
+        ],
+        "price": 40,
+        "bulk": "L"
+      },
+      {
+        "id": "heavy-mace",
+        "name": "Heavy Mace",
+        "category": "simple",
+        "hands": 1,
+        "damageDice": "1d6",
+        "damageType": "B",
+        "traits": [
+          "Shove"
+        ],
+        "price": 10,
+        "bulk": "1"
+      },
+      {
+        "id": "sickle",
+        "name": "Sickle",
+        "category": "simple",
+        "hands": 1,
+        "damageDice": "1d4",
+        "damageType": "S",
+        "traits": [
+          "Agile",
+          "Finesse",
+          "Trip"
+        ],
+        "price": 20,
+        "bulk": "L"
+      },
+      {
+        "id": "javelin",
+        "name": "Javelin",
+        "category": "simple",
+        "hands": 1,
+        "damageDice": "1d6",
+        "damageType": "P",
+        "traits": [
+          "Thrown 30 ft"
+        ],
+        "price": 10,
+        "bulk": "L"
+      },
+      {
+        "id": "sling",
+        "name": "Sling",
+        "category": "simple",
+        "hands": 1,
+        "damageDice": "1d6",
+        "damageType": "B",
+        "traits": [
+          "Propulsive",
+          "Range 50 ft"
+        ],
+        "price": 0,
+        "bulk": "L"
+      },
+      {
+        "id": "shortbow",
+        "name": "Shortbow",
+        "category": "simple",
+        "hands": 2,
+        "damageDice": "1d6",
+        "damageType": "P",
+        "traits": [
+          "Deadly d10",
+          "Range 60 ft"
+        ],
+        "price": 30,
+        "bulk": "1"
+      },
+      {
+        "id": "crossbow",
+        "name": "Crossbow",
+        "category": "simple",
+        "hands": 2,
+        "damageDice": "1d8",
+        "damageType": "P",
+        "traits": [
+          "Range 120 ft",
+          "Reload 1"
+        ],
+        "price": 30,
+        "bulk": "1"
+      },
+      {
+        "id": "quarterstaff",
+        "name": "Quarterstaff",
+        "category": "simple",
+        "hands": 2,
+        "damageDice": "1d4",
+        "damageType": "B",
+        "traits": [
+          "Monk",
+          "Trip",
+          "Two-hand d8"
+        ],
+        "price": 0,
+        "bulk": "1"
+      },
+      {
+        "id": "shortsword",
+        "name": "Shortsword",
+        "category": "martial",
+        "hands": 1,
+        "damageDice": "1d6",
+        "damageType": "P",
+        "traits": [
+          "Agile",
+          "Finesse",
+          "Versatile S"
+        ],
+        "price": 90,
+        "bulk": "1"
+      },
+      {
+        "id": "rapier",
+        "name": "Rapier",
+        "category": "martial",
+        "hands": 1,
+        "damageDice": "1d6",
+        "damageType": "P",
+        "traits": [
+          "Deadly d8",
+          "Disarm",
+          "Finesse"
+        ],
+        "price": 200,
+        "bulk": "1"
+      },
+      {
+        "id": "scimitar",
+        "name": "Scimitar",
+        "category": "martial",
+        "hands": 1,
+        "damageDice": "1d6",
+        "damageType": "S",
+        "traits": [
+          "Finesse",
+          "Sweep"
+        ],
+        "price": 150,
+        "bulk": "1"
+      },
+      {
+        "id": "longsword",
+        "name": "Longsword",
+        "category": "martial",
+        "hands": 1,
+        "damageDice": "1d8",
+        "damageType": "S",
+        "traits": [
+          "Versatile P"
+        ],
+        "price": 100,
+        "bulk": "1"
+      },
+      {
+        "id": "warhammer",
+        "name": "Warhammer",
+        "category": "martial",
+        "hands": 1,
+        "damageDice": "1d8",
+        "damageType": "B",
+        "traits": [
+          "Shove"
+        ],
+        "price": 150,
+        "bulk": "1"
+      },
+      {
+        "id": "greataxe",
+        "name": "Greataxe",
+        "category": "martial",
+        "hands": 2,
+        "damageDice": "1d12",
+        "damageType": "S",
+        "traits": [
+          "Forceful",
+          "Sweep"
+        ],
+        "price": 200,
+        "bulk": "2"
+      },
+      {
+        "id": "greatsword",
+        "name": "Greatsword",
+        "category": "martial",
+        "hands": 2,
+        "damageDice": "1d12",
+        "damageType": "S",
+        "traits": [
+          "Versatile P"
+        ],
+        "price": 200,
+        "bulk": "2"
+      },
+      {
+        "id": "halberd",
+        "name": "Halberd",
+        "category": "martial",
+        "hands": 2,
+        "damageDice": "1d10",
+        "damageType": "P",
+        "traits": [
+          "Reach",
+          "Versatile S"
+        ],
+        "price": 300,
+        "bulk": "2"
+      },
+      {
+        "id": "longbow",
+        "name": "Longbow",
+        "category": "martial",
+        "hands": 2,
+        "damageDice": "1d8",
+        "damageType": "P",
+        "traits": [
+          "Deadly d10",
+          "Range 100 ft",
+          "Volley 30 ft"
+        ],
+        "price": 600,
+        "bulk": "2"
+      },
+      {
+        "id": "hand-crossbow",
+        "name": "Hand Crossbow",
+        "category": "martial",
+        "hands": 1,
+        "damageDice": "1d6",
+        "damageType": "P",
+        "traits": [
+          "Range 60 ft",
+          "Reload 1"
+        ],
+        "price": 300,
+        "bulk": "L"
+      },
+      {
+        "id": "light-hammer",
+        "name": "Light Hammer",
+        "category": "martial",
+        "hands": 1,
+        "damageDice": "1d6",
+        "damageType": "B",
+        "traits": [
+          "Agile",
+          "Thrown 20 ft"
+        ],
+        "price": 30,
+        "bulk": "L"
+      },
+      {
+        "id": "throwing-knife",
+        "name": "Throwing Knife",
+        "category": "martial",
+        "hands": 1,
+        "damageDice": "1d4",
+        "damageType": "P",
+        "traits": [
+          "Agile",
+          "Thrown 10 ft"
+        ],
+        "price": 30,
+        "bulk": "L"
+      }
+    ],
+    "gear": [
+      {
+        "id": "adventurers-pack",
+        "name": "Adventurer's Pack",
+        "category": "adventuring",
+        "price": 10,
+        "bulk": "1",
+        "summary": "Backpack, bedroll, belt pouch, chalk, flint & steel, rope, rations, soap, torches, waterskin."
+      },
+      {
+        "id": "backpack",
+        "name": "Backpack",
+        "category": "adventuring",
+        "price": 10,
+        "bulk": "L",
+        "summary": "Carries up to 4 Bulk of gear."
+      },
+      {
+        "id": "bedroll",
+        "name": "Bedroll",
+        "category": "adventuring",
+        "price": 1,
+        "bulk": "L",
+        "summary": "A warm place to sleep outdoors."
+      },
+      {
+        "id": "rations",
+        "name": "Rations (1 week)",
+        "category": "consumable",
+        "price": 4,
+        "bulk": "L",
+        "summary": "Enough food and water for one week."
+      },
+      {
+        "id": "waterskin",
+        "name": "Waterskin",
+        "category": "adventuring",
+        "price": 1,
+        "bulk": "L",
+        "summary": "Holds 1 day of water."
+      },
+      {
+        "id": "rope",
+        "name": "Rope (50 ft)",
+        "category": "adventuring",
+        "price": 5,
+        "bulk": "L",
+        "summary": "Hempen rope, 50 feet."
+      },
+      {
+        "id": "torch",
+        "name": "Torch",
+        "category": "consumable",
+        "price": 1,
+        "bulk": "L",
+        "summary": "Sheds 20 ft of bright light for 1 hour."
+      },
+      {
+        "id": "lantern",
+        "name": "Hooded Lantern",
+        "category": "adventuring",
+        "price": 70,
+        "bulk": "1",
+        "summary": "Sheds 30 ft of bright light; hood adjusts it."
+      },
+      {
+        "id": "chalk",
+        "name": "Chalk (10)",
+        "category": "adventuring",
+        "price": 1,
+        "bulk": "—",
+        "summary": "Mark walls and trails."
+      },
+      {
+        "id": "mirror",
+        "name": "Hand Mirror",
+        "category": "adventuring",
+        "price": 10,
+        "bulk": "—",
+        "summary": "Peek around corners."
+      },
+      {
+        "id": "flint-steel",
+        "name": "Flint and Steel",
+        "category": "adventuring",
+        "price": 1,
+        "bulk": "—",
+        "summary": "Start fires."
+      },
+      {
+        "id": "tent",
+        "name": "Tent",
+        "category": "adventuring",
+        "price": 20,
+        "bulk": "1",
+        "summary": "Shelter for one person."
+      },
+      {
+        "id": "crowbar",
+        "name": "Crowbar",
+        "category": "tool",
+        "price": 5,
+        "bulk": "L",
+        "summary": "+2 to Force Open checks."
+      },
+      {
+        "id": "grappling-hook",
+        "name": "Grappling Hook",
+        "category": "tool",
+        "price": 1,
+        "bulk": "L",
+        "summary": "Anchor a rope."
+      },
+      {
+        "id": "pitons",
+        "name": "Pitons (10)",
+        "category": "tool",
+        "price": 1,
+        "bulk": "L",
+        "summary": "Spikes for climbing."
+      },
+      {
+        "id": "hammer",
+        "name": "Hammer",
+        "category": "tool",
+        "price": 1,
+        "bulk": "L",
+        "summary": "Drive pitons and break things."
+      },
+      {
+        "id": "compass",
+        "name": "Compass",
+        "category": "tool",
+        "price": 10,
+        "bulk": "—",
+        "summary": "Never lose your bearings."
+      },
+      {
+        "id": "healers-tools",
+        "name": "Healer's Tools",
+        "category": "tool",
+        "price": 50,
+        "bulk": "1",
+        "summary": "Required to Treat Wounds."
+      },
+      {
+        "id": "thieves-tools",
+        "name": "Thieves' Tools",
+        "category": "tool",
+        "price": 30,
+        "bulk": "L",
+        "summary": "Required to Pick Locks."
+      },
+      {
+        "id": "alchemists-lab",
+        "name": "Alchemist's Lab",
+        "category": "tool",
+        "price": 50,
+        "bulk": "2",
+        "summary": "Required for alchemical crafting."
+      },
+      {
+        "id": "artisans-tools",
+        "name": "Artisan's Tools",
+        "category": "tool",
+        "price": 40,
+        "bulk": "1",
+        "summary": "Required to Craft with a trade."
+      },
+      {
+        "id": "musical-instrument",
+        "name": "Musical Instrument",
+        "category": "tool",
+        "price": 80,
+        "bulk": "1",
+        "summary": "Perform with your chosen instrument."
+      },
+      {
+        "id": "religious-symbol",
+        "name": "Religious Symbol",
+        "category": "tool",
+        "price": 1,
+        "bulk": "—",
+        "summary": "Focus for divine spells."
+      },
+      {
+        "id": "druidic-focus",
+        "name": "Druidic Focus",
+        "category": "tool",
+        "price": 10,
+        "bulk": "L",
+        "summary": "Focus for primal spells."
+      },
+      {
+        "id": "spellbook",
+        "name": "Spellbook",
+        "category": "adventuring",
+        "price": 10,
+        "bulk": "1",
+        "summary": "A wizard's spellbook."
+      },
+      {
+        "id": "component-pouch",
+        "name": "Spell Component Pouch",
+        "category": "tool",
+        "price": 5,
+        "bulk": "L",
+        "summary": "Material components for spells."
+      },
+      {
+        "id": "manacles",
+        "name": "Manacles",
+        "category": "adventuring",
+        "price": 30,
+        "bulk": "—",
+        "summary": "Restrain captives."
+      },
+      {
+        "id": "signal-whistle",
+        "name": "Signal Whistle",
+        "category": "adventuring",
+        "price": 1,
+        "bulk": "—",
+        "summary": "Audible for a mile."
+      },
+      {
+        "id": "soap",
+        "name": "Soap",
+        "category": "adventuring",
+        "price": 1,
+        "bulk": "—",
+        "summary": "Stay clean on the road."
+      },
+      {
+        "id": "whetstone",
+        "name": "Whetstone",
+        "category": "tool",
+        "price": 1,
+        "bulk": "—",
+        "summary": "Sharpen a weapon over 10 minutes."
+      }
+    ],
+    "conditions": [
+      {
+        "id": "blinded",
+        "name": "Blinded",
+        "summary": "Can't see. Attack rolls have disadvantage, attacks against you have advantage, and sight-based checks auto-fail.",
+        "effects": {
+          "attackDisadvantage": true,
+          "attacksAgainstAdvantage": true,
+          "autoFailSightChecks": true,
+          "pf2ePenalty": -2,
+          "gurpsPenalty": -3
+        }
+      },
+      {
+        "id": "poisoned",
+        "name": "Poisoned",
+        "summary": "Attack rolls and ability checks have disadvantage.",
+        "effects": {
+          "attackDisadvantage": true,
+          "abilityCheckDisadvantage": true,
+          "pf2ePenalty": -2,
+          "gurpsPenalty": -2
+        }
+      },
+      {
+        "id": "prone",
+        "name": "Prone",
+        "summary": "Attack rolls have disadvantage; melee attacks against you have advantage, ranged attacks have disadvantage.",
+        "effects": {
+          "attackDisadvantage": true,
+          "attacksAgainstAdvantage": true,
+          "pf2ePenalty": -2,
+          "gurpsPenalty": -2
+        }
+      },
+      {
+        "id": "restrained",
+        "name": "Restrained",
+        "summary": "Attack rolls and Dexterity saves have disadvantage; attacks against you have advantage; speed is 0.",
+        "effects": {
+          "attackDisadvantage": true,
+          "attacksAgainstAdvantage": true,
+          "dexSaveDisadvantage": true,
+          "speedZero": true,
+          "pf2ePenalty": -2,
+          "gurpsPenalty": -2
+        }
+      },
+      {
+        "id": "stunned",
+        "name": "Stunned",
+        "summary": "You can't act; auto-fail Strength/Dexterity saves and ability checks; attacks against you have advantage.",
+        "effects": {
+          "autoFailStrDexSaves": true,
+          "autoFailSightChecks": true,
+          "attacksAgainstAdvantage": true,
+          "abilityCheckDisadvantage": true,
+          "speedZero": true,
+          "pf2ePenalty": -3,
+          "gurpsPenalty": -3
+        }
+      },
+      {
+        "id": "frightened",
+        "name": "Frightened",
+        "summary": "While the source is visible, ability checks and attack rolls have disadvantage.",
+        "effects": {
+          "attackDisadvantage": true,
+          "abilityCheckDisadvantage": true,
+          "pf2ePenalty": -1,
+          "gurpsPenalty": -1
+        }
+      },
+      {
+        "id": "grappled",
+        "name": "Grappled",
+        "summary": "Your speed becomes 0, and attack rolls against anyone but the grappler have disadvantage.",
+        "effects": {
+          "speedZero": true,
+          "pf2ePenalty": -1,
+          "gurpsPenalty": -1
+        }
+      },
+      {
+        "id": "exhausted",
+        "name": "Exhausted",
+        "summary": "Each level: -2 penalty to all ability checks and attack rolls, speed halved.",
+        "effects": {
+          "abilityCheckDisadvantage": true,
+          "attackDisadvantage": true,
+          "pf2ePenalty": -2,
+          "gurpsPenalty": -2
+        }
+      },
+      {
+        "id": "dazed",
+        "name": "Dazed",
+        "summary": "You can take one action per turn. Check penalties apply.",
+        "effects": {
+          "abilityCheckDisadvantage": true,
+          "pf2ePenalty": -1,
+          "gurpsPenalty": -1
+        }
+      },
+      {
+        "id": "incapacitated",
+        "name": "Incapacitated",
+        "summary": "You can't take actions or reactions. Strength and Dexterity saves and checks auto-fail; attacks against you have advantage.",
+        "effects": {
+          "autoFailStrDexSaves": true,
+          "abilityCheckDisadvantage": true,
+          "attacksAgainstAdvantage": true,
+          "speedZero": true,
+          "pf2ePenalty": -3,
+          "gurpsPenalty": -3
+        }
+      },
+      {
+        "id": "deafened",
+        "name": "Deafened",
+        "summary": "You can't hear. Checks and saves that rely on hearing fail automatically, and perception suffers.",
+        "effects": {
+          "pf2ePenalty": -1,
+          "gurpsPenalty": -1
+        }
+      },
+      {
+        "id": "hidden",
+        "name": "Hidden",
+        "summary": "You're out of sight. Attack rolls you make have advantage (unseen attacker).",
+        "effects": {
+          "attackAdvantage": true,
+          "attacksAgainstDisadvantage": true
+        }
+      },
+      {
+        "id": "invisible",
+        "name": "Invisible",
+        "summary": "You can't be seen. Attack rolls you make have advantage, and attacks against you have disadvantage.",
+        "effects": {
+          "attackAdvantage": true,
+          "attacksAgainstDisadvantage": true
+        }
+      }
+    ],
+    "encounter_difficulties": [
+      {
+        "id": "trivial",
+        "label": "Trivial",
+        "scale": 0.6,
+        "hint": "A lone weakling — barely a fight."
+      },
+      {
+        "id": "easy",
+        "label": "Easy",
+        "scale": 0.8,
+        "hint": "A modest threat you can brush aside."
+      },
+      {
+        "id": "standard",
+        "label": "Standard",
+        "scale": 1,
+        "hint": "A fair fight on equal terms."
+      },
+      {
+        "id": "hard",
+        "label": "Hard",
+        "scale": 1.35,
+        "hint": "They outmatch you — bring everything."
+      },
+      {
+        "id": "deadly",
+        "label": "Deadly",
+        "scale": 1.8,
+        "hint": "A genuine risk of death."
+      }
+    ],
+    "enemies": [
+      {
+        "id": "goblin-warrior",
+        "name": "Goblin Warrior",
+        "ac": 16,
+        "hp": 9,
+        "maxHp": 9,
+        "attackBonus": 6,
+        "damage": "1d6",
+        "xp": 40,
+        "gold": 3,
+        "loot": [
+          "a goblin dogslicer"
+        ]
+      },
+      {
+        "id": "zombie-shambler",
+        "name": "Zombie Shambler",
+        "ac": 13,
+        "hp": 20,
+        "maxHp": 20,
+        "attackBonus": 7,
+        "damage": "1d8+3",
+        "xp": 40,
+        "gold": 1
+      },
+      {
+        "id": "giant-spider",
+        "name": "Giant Spider",
+        "ac": 16,
+        "hp": 15,
+        "maxHp": 15,
+        "attackBonus": 10,
+        "damage": "1d8+2",
+        "xp": 40,
+        "gold": 5,
+        "loot": [
+          "a venom gland",
+          "a wad of spider silk"
+        ]
+      },
+      {
+        "id": "skeleton-guard",
+        "name": "Skeleton Guard",
+        "ac": 15,
+        "hp": 12,
+        "maxHp": 12,
+        "attackBonus": 6,
+        "damage": "1d6+2",
+        "xp": 40,
+        "gold": 2
+      },
+      {
+        "id": "orc-brute",
+        "name": "Orc Brute",
+        "ac": 15,
+        "hp": 22,
+        "maxHp": 22,
+        "attackBonus": 8,
+        "damage": "1d12+3",
+        "xp": 80,
+        "gold": 10,
+        "loot": [
+          "an orcish greataxe"
+        ]
+      },
+      {
+        "id": "worg",
+        "name": "Worg",
+        "ac": 14,
+        "hp": 26,
+        "maxHp": 26,
+        "attackBonus": 9,
+        "damage": "2d6+4",
+        "xp": 80,
+        "gold": 8,
+        "loot": [
+          "a worg pelt"
+        ]
+      },
+      {
+        "id": "cult-leader",
+        "name": "Cult Leader",
+        "ac": 18,
+        "hp": 32,
+        "maxHp": 32,
+        "attackBonus": 10,
+        "damage": "1d8+4",
+        "xp": 160,
+        "gold": 30,
+        "loot": [
+          "a tarnished ritual dagger"
+        ]
+      },
+      {
+        "id": "otyugh",
+        "name": "Otyugh",
+        "ac": 18,
+        "hp": 40,
+        "maxHp": 40,
+        "attackBonus": 9,
+        "damage": "2d6+4",
+        "xp": 120,
+        "gold": 20,
+        "loot": [
+          "a swallowed pouch of coins"
+        ]
+      },
+      {
+        "id": "ghost",
+        "name": "Ghost",
+        "ac": 16,
+        "hp": 22,
+        "maxHp": 22,
+        "attackBonus": 11,
+        "damage": "2d6+2",
+        "xp": 160,
+        "gold": 0,
+        "loot": [
+          "a mourning veil"
+        ]
+      },
+      {
+        "id": "hill-giant",
+        "name": "Hill Giant",
+        "ac": 17,
+        "hp": 60,
+        "maxHp": 60,
+        "attackBonus": 11,
+        "damage": "3d8+6",
+        "xp": 240,
+        "gold": 50,
+        "loot": [
+          "a giant's club",
+          "a pouch of gold teeth"
+        ]
+      },
+      {
+        "id": "kobold-warrior",
+        "name": "Kobold Warrior",
+        "ac": 15,
+        "hp": 6,
+        "maxHp": 6,
+        "attackBonus": 5,
+        "damage": "1d4",
+        "xp": 20,
+        "gold": 1,
+        "loot": [
+          "a scrap of jade"
+        ]
+      },
+      {
+        "id": "rat-swarm",
+        "name": "Rat Swarm",
+        "ac": 13,
+        "hp": 20,
+        "maxHp": 20,
+        "attackBonus": 8,
+        "damage": "1d6",
+        "xp": 60,
+        "gold": 0,
+        "loot": [
+          "a gnawed silver button"
+        ]
+      },
+      {
+        "id": "ghoul",
+        "name": "Ghoul",
+        "ac": 16,
+        "hp": 18,
+        "maxHp": 18,
+        "attackBonus": 8,
+        "damage": "1d6+2",
+        "xp": 80,
+        "gold": 4,
+        "loot": [
+          "a cold iron key"
+        ]
+      },
+      {
+        "id": "hobgoblin-soldier",
+        "name": "Hobgoblin Soldier",
+        "ac": 18,
+        "hp": 16,
+        "maxHp": 16,
+        "attackBonus": 7,
+        "damage": "1d8+2",
+        "xp": 80,
+        "gold": 12,
+        "loot": [
+          "a hobgoblin spear",
+          "a unit banner scrap"
+        ]
+      },
+      {
+        "id": "owlbear",
+        "name": "Owlbear",
+        "ac": 18,
+        "hp": 55,
+        "maxHp": 55,
+        "attackBonus": 12,
+        "damage": "1d10+6",
+        "xp": 240,
+        "gold": 30,
+        "loot": [
+          "an owlbear feather",
+          "a gold ring in its gullet"
+        ]
+      }
+    ]
+  },
+  "training_corpus": [
+    {
+      "instruction": "Forneça uma visão geral da estrutura de diretórios do módulo Pathfinder 2e para Foundry VTT contendo bestiários, ações, equipamentos, classes, etc.",
+      "output": {
+        "tipo": "estrutura",
+        "diretorios": [
+          "abomination-vaults-bestiary",
+          "action-macros",
+          "actions",
+          "ancestry-features",
+          "backgrounds",
+          "classes",
+          "conditions",
+          "deities",
+          "equipment",
+          "equipment-effects"
+        ],
+        "descricao": "O módulo contém dados de bestiários para vários APs, macros de ações, opções de personagem (ancestrais, antecedentes, classes, talentos), mecânicas de jogo (condições, divindades, equipamentos) e baralhos de acerto crítico."
+      }
+    },
+    {
+      "instruction": "Extraia as estatísticas e habilidades do NPC Beluthus, um devorador de nível 11 do bestiário de Abomination Vaults.",
+      "output": {
+        "nome": "Beluthus",
+        "nivel": 11,
+        "tipo": "NPC único, Morto-vivo, Maligno",
+        "ac": 31,
+        "hp": 175,
+        "cura_negativa": true,
+        "salvacoes": {
+          "fortitude": 20,
+          "reflexos": 18,
+          "vontade": 24
+        },
+        "habilidades": {
+          "forca": 7,
+          "destreza": 3,
+          "constituicao": 5,
+          "inteligencia": 5,
+          "sabedoria": 4,
+          "carisma": 5
+        },
+        "deslocamento": {
+          "terrestre": 30,
+          "voo": 30
+        },
+        "idiomas": [
+          "Ctônio",
+          "Comum",
+          "Diabólico",
+          "Empíreo",
+          "Nécril"
+        ],
+        "imunidades": [
+          "sangramento",
+          "efeitos de morte",
+          "doença",
+          "paralisia",
+          "veneno",
+          "inconsciência"
+        ],
+        "ataques": {
+          "garra": {
+            "bonus": 24,
+            "dano": "2d10+13 cortante",
+            "efeitos": [
+              "drenar vida"
+            ]
+          }
+        },
+        "magias_inatas": {
+          "tradicao": "ocultista",
+          "cd": 31,
+          "lista": [
+            "Debilidade Mental",
+            "Visão Verdadeira",
+            "Confusão",
+            "Sugestão",
+            "Vincular Morto-Vivo",
+            "Paralisia",
+            "Ferimento",
+            "Toque da Morte"
+          ]
+        },
+        "habilidades_especiais": [
+          "Desvio de Magia",
+          "Devorar Alma",
+          "Drenar Vida",
+          "Magias da Alma"
+        ]
+      }
+    },
+    {
+      "instruction": "Extraia as estatísticas do Esqueleto Guarda de Deadtide, uma criatura morta-viva de nível -1.",
+      "output": {
+        "nome": "Esqueleto Guarda de Deadtide",
+        "nivel": -1,
+        "tipo": "Morto-vivo, Maligno, Mente vazia",
+        "ac": 16,
+        "hp": 4,
+        "cura_negativa": true,
+        "salvacoes": {
+          "fortitude": 2,
+          "reflexos": 8,
+          "vontade": 2
+        },
+        "habilidades": {
+          "forca": 2,
+          "destreza": 4,
+          "constituicao": 0,
+          "inteligencia": -5,
+          "sabedoria": 0,
+          "carisma": 0
+        },
+        "deslocamento": 7.5,
+        "imunidades": [
+          "sangramento",
+          "efeitos de morte",
+          "doença",
+          "paralisia",
+          "veneno",
+          "inconsciência"
+        ],
+        "resistencias": {
+          "fisico": 5,
+          "frio": 5,
+          "eletricidade": 5,
+          "fogo": 5
+        },
+        "ataques": {
+          "garra": {
+            "bonus": 6,
+            "dano": "1d4+2 cortante",
+            "propriedades": [
+              "ágil",
+              "precisa"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "instruction": "Extraia as estatísticas e habilidades especiais de Boss Skrawng, um chefe de gangue mitflit de nível 1.",
+      "output": {
+        "nome": "Boss Skrawng",
+        "nivel": 1,
+        "tipo": "NPC único, Fada, Maligno (mitflit)",
+        "ac": 16,
+        "hp": 24,
+        "salvacoes": {
+          "fortitude": 4,
+          "reflexos": 9,
+          "vontade": 8
+        },
+        "habilidades": {
+          "forca": 1,
+          "destreza": 4,
+          "constituicao": 1,
+          "inteligencia": 0,
+          "sabedoria": 2,
+          "carisma": 1
+        },
+        "deslocamento": 6,
+        "fraqueza": "ferro frio 3",
+        "idiomas": [
+          "Comum",
+          "Sakvroth"
+        ],
+        "habilidades_especiais": [
+          "Auto-aversão (-4 na CD de Vontade contra testes sociais)",
+          "Empatia com Vermes",
+          "Fúria Vingativa (+2 de dano contra quem já o feriu)"
+        ],
+        "magias_inatas": {
+          "tradicao": "primordial",
+          "lista": [
+            "Falar com Animais (artrópodes)",
+            "Maldição",
+            "Prestidigitação"
+          ]
+        },
+        "ataques": {
+          "tridente": {
+            "bonus": 6,
+            "dano": "1d8+1 perfurante"
+          },
+          "zarabatana": {
+            "bonus": 9,
+            "dano": "1 perfurante + veneno de rã"
+          }
+        }
+      }
+    },
+    {
+      "instruction": "Extraia os detalhes do perigo Parede Vigilante, uma aparição complexa de nível 4.",
+      "output": {
+        "nome": "Parede Vigilante",
+        "nivel": 4,
+        "tipo": "Aparição complexa",
+        "ac": 21,
+        "dureza": 12,
+        "hp": 50,
+        "fraqueza": "vitalidade 5",
+        "desabilitar": "Enganação CD 22 (treinado) ou Religião CD 22 (treinado)",
+        "gatilho": "Uma criatura viva permanece na sala por pelo menos 1 rodada",
+        "efeito_inicial": "Paranóia (Vontade CD 25): Sucesso crítico → imune; Sucesso → Assustado 1; Falha → Assustado 2 e não considera ninguém aliado; Falha crítica → Assustado 3 e Confuso",
+        "rotina": "1 ação – causa 4d6 de dano mental (Vontade CD 21 básico) a criaturas que vê. As criaturas afetadas não reduzem o valor de Assustado no final do próximo turno.",
+        "reinicio": "Fica inerte quando não há criaturas Assustadas; reinicia após 1 hora."
+      }
+    },
+    {
+      "instruction": "Extraia os detalhes do item mágico Envolvórios de Golpes Poderosos +1 com Golpe Poderoso (nível 2).",
+      "output": {
+        "nome": "Envolvórios de Golpes Poderosos +1 com Golpe Poderoso",
+        "nivel": 2,
+        "preco": "35 po",
+        "volume": 0,
+        "runas": {
+          "potencializacao": 1,
+          "golpe_poderoso": true
+        },
+        "propriedades": [
+          "investido",
+          "mágico",
+          "desarmado"
+        ],
+        "uso": "usado nas mãos",
+        "efeito": "Trata-se como arma para aplicar runas; as runas de propriedade só se aplicam quando compatíveis com o ataque desarmado."
+      }
+    },
+    {
+      "instruction": "Extraia os detalhes da bomba alquímica Frasco de Ácido (Moderado) (nível 3).",
+      "output": {
+        "nome": "Frasco de Ácido (Moderado)",
+        "nivel": 3,
+        "preco": "10 po",
+        "volume": 0.1,
+        "alcance": 6,
+        "dano": "1d6 ácido + 2d6 persistente + 2 de respingo",
+        "propriedades": [
+          "alquímico",
+          "bomba",
+          "consumível",
+          "respingo"
+        ],
+        "uso": "empunhado em uma mão",
+        "ativacao": "Ação de Interagir (1 ação)"
+      }
+    },
+    {
+      "instruction": "Extraia a ação básica Ataque do diretório actions/basic.",
+      "output": {
+        "nome": "Ataque",
+        "acoes": 1,
+        "propriedades": [
+          "ataque"
+        ],
+        "efeito": "Faça um teste de ataque corpo a corpo ou à distância contra a CA de um alvo. Em sucesso, cause dano conforme arma; em sucesso crítico, dobre o dano (e aplique a especialização crítica). Em falha, nenhum efeito. Aplica penalidade de múltiplos ataques normalmente."
+      }
+    },
+    {
+      "instruction": "Extraia a ação de perícia Tratar Ferimentos (Medicina) do diretório actions/skill.",
+      "output": {
+        "nome": "Tratar Ferimentos",
+        "acoes": 2,
+        "duracao": "10 minutos",
+        "pericias": [
+          "Medicina"
+        ],
+        "alvo": "1 criatura viva ao alcance",
+        "cd": "15 (normal) / 20 (ferido) / etc.",
+        "efeito": "Sucesso: restaura 2d8 PV; Sucesso crítico: restaura 4d8 PV; Falha: sem efeito; Falha crítica: causa 1d8 de dano.",
+        "frequencia": "Uma vez por hora por alvo"
+      }
+    },
+    {
+      "instruction": "Extraia a ação de classe Rajada de Golpes do Monge do diretório actions/class.",
+      "output": {
+        "nome": "Rajada de Golpes",
+        "acoes": 1,
+        "frequencia": "uma vez por turno",
+        "requisitos": "sem armadura e usando apenas ataques desarmados ou armas de monge",
+        "efeito": "Faça dois ataques desarmados. Se ambos acertarem a mesma criatura, combine o dano para resistências e fraquezas. A penalidade de múltiplos ataques se aplica normalmente (segundo ataque com -5, terceiro -10)."
+      }
+    },
+    {
+      "instruction": "Extraia a ação Demoralizar (Intimidação) do diretório action-macros.",
+      "output": {
+        "nome": "Demoralizar",
+        "acoes": 1,
+        "pericia": "Intimidação",
+        "alvo": "1 criatura em até 9 m",
+        "efeito": "Teste de Intimidação contra a CD de Vontade do alvo. Sucesso: Assustado 1; Sucesso crítico: Assustado 2; Falha: sem efeito; Falha crítica: o alvo fica imune por 1 hora."
+      }
+    },
+    {
+      "instruction": "Extraia os detalhes da magia Ferimento (nível 1, tradição divina).",
+      "output": {
+        "nome": "Ferimento",
+        "nivel": 1,
+        "tradicao": "divina",
+        "propriedades": [
+          "manipular",
+          "vazio"
+        ],
+        "dano": "1d8 de vazio (criaturas vivas) ou cura 1d8 (mortos-vivos voluntários)",
+        "defesa": "Fortitude básica (vivos)",
+        "acoes": "1 a 3 (variável)",
+        "efeito_1_acao": "alcance toque",
+        "efeito_2_acoes": "alcance 9 m, +8 de cura para mortos-vivos",
+        "efeito_3_acoes": "emanação de 9 m, afeta todos vivos e mortos-vivos",
+        "alturação": "+1: +1d8 de dano/cura, +8 extra para a versão de 2 ações"
+      }
+    },
+    {
+      "instruction": "Extraia a condição Cego do diretório conditions.",
+      "output": {
+        "nome": "Cego",
+        "efeito": "Não pode ver. Todo terreno normal é difícil. Não pode detectar nada usando visão. Falha crítica automática em testes de Percepção que exijam visão. -4 de penalidade de status em Percepção. Fica desprevenido contra todas as criaturas. Não pode realizar ações com a propriedade visual.",
+        "substitui": "Ofuscado"
+      }
+    },
+    {
+      "instruction": "Extraia o antecedente Acólito do diretório backgrounds.",
+      "output": {
+        "nome": "Acólito",
+        "aumentos": [
+          "Sabedoria (+2)",
+          "Inteligência (+1)"
+        ],
+        "pericia": "Religião (treinado)",
+        "talento": "Estudante dos Cânones",
+        "pericia_erudicao": "Escrita (treinado)",
+        "descricao": "Passou seus primeiros dias em um templo ou mosteiro aprendendo os preceitos de sua fé. Serviu como noviço ou assistente do clero."
+      }
+    },
+    {
+      "instruction": "Extraia os detalhes da divindade Abadar do diretório deities.",
+      "output": {
+        "nome": "Abadar",
+        "alinhamento": [
+          "Leal",
+          "Neutro"
+        ],
+        "dominios": [
+          "Cidades",
+          "Terra",
+          "Viagem",
+          "Riqueza"
+        ],
+        "fonte": [
+          "Ferimento",
+          "Cura"
+        ],
+        "pericia": "Sociedade",
+        "armas": [
+          "Besta",
+          "Martelo Leve"
+        ],
+        "descricao": "Deus das cidades, da lei, dos mercadores e da riqueza. Representado como um homem de pele dourada em vestes elegantes, carregando uma chave dourada."
+      }
+    },
+    {
+      "instruction": "Extraia a ancestralidade Anão do diretório ancestries.",
+      "output": {
+        "nome": "Anão",
+        "hp": 10,
+        "tamanho": "Médio",
+        "deslocamento": 6,
+        "aumentos": [
+          "Constituição (+2)",
+          "Sabedoria (+1)"
+        ],
+        "penalidade": "Carisma (-1)",
+        "idiomas": [
+          "Comum",
+          "Anão"
+        ],
+        "propriedades": [
+          "anão",
+          "humanóide"
+        ],
+        "descricao": "Povo estoico e severo, moldado pelas montanhas. Conhecidos por sua habilidade artesanal, resiliência e lealdade.",
+        "especiais": [
+          "Visão no Escuro",
+          "Adaga de Clã",
+          "Resiliência Anã (bônus em testes de resistência contra veneno)"
+        ]
+      }
+    },
+    {
+      "instruction": "Extraia uma carta do baralho de Acerto Crítico (Card 1).",
+      "output": {
+        "nome": "Card 1",
+        "titulo": "Golpe Esmagador",
+        "propriedades": [
+          "contundente",
+          "crítico"
+        ],
+        "efeito": "A força do golpe atordoa o alvo.",
+        "resultados": "Alvo fica Atordoado 1 e caído.",
+        "dano_extra": "2d6 de dano persistente"
+      }
+    },
+    {
+      "instruction": "Extraia o efeito da Chapa de Armadura Ablativa (Maior) do diretório equipment-effects.",
+      "output": {
+        "nome": "Chapa de Armadura Ablativa (Maior)",
+        "fonte": "Chapa de Armadura Ablativa (Maior)",
+        "duracao": "10 minutos ou até ser destruída",
+        "efeito": "Resistência 5 contra dano físico",
+        "ativacao": "Reação ao sofrer dano físico"
+      }
+    },
+    {
+      "instruction": "Extraia o talento de classe Fúria do Barbaro do diretório class-features.",
+      "output": {
+        "nome": "Fúria",
+        "nivel": 1,
+        "propriedades": [
+          "bárbaro",
+          "fúria"
+        ],
+        "efeito": "Canalize sua fúria interior. Ganha PV temporários, bônus de status no dano corpo a corpo e penalidade de status de -1 na CA. Não pode usar ações com a propriedade concentração, a menos que também tenham a propriedade fúria.",
+        "duracao": "1 minuto (ou até se acalmar)"
+      }
+    }
+  ]
+}
