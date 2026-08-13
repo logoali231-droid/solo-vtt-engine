@@ -4,13 +4,14 @@ import { useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import {
   chatWithProvider,
+  fetchOllamaModels,
   GM_PROVIDERS,
   hordeModelStatus,
   HORDE_RPG_MODELS,
   NARRATOR_LENGTHS,
   providerOf,
 } from "@/lib/rpg/gm/providers";
-import type { HordeStatusResult } from "@/lib/rpg/gm/providers";
+import type { HordeStatusResult, OllamaModelInfo } from "@/lib/rpg/gm/providers";
 import { loadGmSettings, saveGmSettings } from "@/lib/rpg/storage";
 import type { GmLanguage, GmSettings } from "@/lib/rpg/types";
 import { Ghost, Loader2, PlugZap, RefreshCw, Star } from "lucide-react";
@@ -21,6 +22,9 @@ export default function SettingsPanel() {
   const [testing, setTesting] = useState(false);
   const [hordeStatus, setHordeStatus] = useState<HordeStatusResult | null>(null);
   const [checkingHorde, setCheckingHorde] = useState(false);
+  const [ollamaModels, setOllamaModels] = useState<OllamaModelInfo[] | null>(null);
+  const [scanningOllama, setScanningOllama] = useState(false);
+  const [ollamaError, setOllamaError] = useState<string | null>(null);
   const hordeStatusAction = useAction(api.gm.hordeStatus);
 
   const patch = (p: Partial<GmSettings>) => {
@@ -69,6 +73,36 @@ export default function SettingsPanel() {
     void checkHorde(name);
   };
 
+  /** Ask the running Ollama server which models are installed (native
+   *  /api/tags), so user-created fine-tuned models show up one-click. */
+  const scanOllama = async () => {
+    setScanningOllama(true);
+    setOllamaError(null);
+    const res = await fetchOllamaModels(settings.baseUrl);
+    if (res.ok && res.models) {
+      setOllamaModels(res.models);
+      if (res.models.length === 0) {
+        setOllamaError(
+          "Your Ollama server has no models installed yet. In a terminal run `ollama pull <model>` or `ollama create <name> -f Modelfile` to add your fine-tuned model, then scan again.",
+        );
+      }
+    } else {
+      setOllamaModels([]);
+      setOllamaError(res.error ?? "Could not reach the Ollama server.");
+    }
+    setScanningOllama(false);
+  };
+
+  // Auto-scan once when the Ollama provider becomes active. scanOllama only
+  // sets state after the network call settles — a fetch-on-mount pattern.
+  useEffect(() => {
+    if (settings.provider === "ollama" && ollamaModels === null) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- async fetch guard
+      void scanOllama();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings.provider]);
+
   const testConnection = async () => {
     if (settings.provider === "builtin") {
       toast.info(
@@ -89,6 +123,18 @@ export default function SettingsPanel() {
       setTesting(false);
     }
   };
+
+  // Hardcoded catalog + anything discovered live on the user's Ollama server
+  // (installed/fine-tuned models appear as extra one-click chips).
+  const modelChips = [
+    ...provider.models,
+    ...(settings.provider === "ollama"
+      ? (ollamaModels ?? []).map((m) => m.name)
+      : []),
+  ].filter((m, i, arr) => arr.indexOf(m) === i);
+  const modelSizes = new Map(
+    (ollamaModels ?? []).map((m) => [m.name, m.size]),
+  );
 
   return (
     <div className="flex flex-col gap-5">
@@ -192,16 +238,23 @@ export default function SettingsPanel() {
       <div>
         <p className="mb-1.5 text-[10px] font-bold uppercase tracking-widest text-stone-400">Model</p>
         <div className="flex flex-wrap gap-1.5">
-          {provider.models.map((m) => (
+          {modelChips.map((m) => (
             <button
               key={m}
               type="button"
               onClick={() => patch({ model: m })}
+              title={
+                modelSizes.has(m)
+                  ? `${m} · installed on your Ollama server (${modelSizes.get(m)})`
+                  : undefined
+              }
               className={cn(
                 "max-w-full truncate rounded-full border px-2.5 py-1 font-mono text-[10px] transition-colors",
                 settings.model === m
                   ? "border-teal-500 bg-teal-500/10 text-teal-800"
-                  : "border-stone-200 bg-white text-stone-500 hover:border-stone-300 hover:text-stone-800",
+                  : modelSizes.has(m)
+                    ? "border-sky-400/50 bg-sky-50 text-sky-700 hover:border-sky-500 hover:bg-sky-100"
+                    : "border-stone-200 bg-white text-stone-500 hover:border-stone-300 hover:text-stone-800",
               )}
             >
               {m}
@@ -216,7 +269,7 @@ export default function SettingsPanel() {
           className="mt-2 h-9 w-full rounded-lg border border-stone-300 bg-white px-3 font-mono text-xs text-stone-800 outline-none transition-colors focus:border-teal-500"
         />
         <datalist id="settings-model-options">
-          {provider.models.map((m) => (
+          {modelChips.map((m) => (
             <option key={m} value={m} />
           ))}
         </datalist>
@@ -407,6 +460,101 @@ export default function SettingsPanel() {
             placeholder="http://localhost:11434"
             className="h-9 w-full rounded-lg border border-stone-300 bg-white px-3 font-mono text-xs text-stone-800 outline-none focus:border-teal-500"
           />
+        </div>
+      )}
+
+      {/* Ollama — live installed-model discovery (fine-tuned models included) */}
+      {settings.provider === "ollama" && (
+        <div className="rounded-xl border border-sky-500/30 bg-sky-950/40 p-3">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-sky-300">
+              Your Ollama server · installed models
+            </p>
+            <button
+              type="button"
+              onClick={() => void scanOllama()}
+              disabled={scanningOllama}
+              className="flex items-center gap-1 rounded-md border border-sky-500/40 bg-sky-500/10 px-2 py-1 text-[10px] font-bold text-sky-300 transition-colors hover:bg-sky-500/20 disabled:opacity-50"
+            >
+              {scanningOllama ? (
+                <Loader2 className="size-3 animate-spin" />
+              ) : (
+                <RefreshCw className="size-3" />
+              )}
+              {scanningOllama ? "Scanning…" : "Scan again"}
+            </button>
+          </div>
+          <p className="mt-1 text-[10px] leading-relaxed text-sky-200/60">
+            Scans <code className="text-sky-300">{settings.baseUrl || "http://localhost:11434"}</code> via{" "}
+            <code className="text-sky-300">/api/tags</code> — any model you created with{" "}
+            <code className="text-sky-300">ollama create</code> (fine-tunes included) shows up here.
+          </p>
+
+          {ollamaModels && ollamaModels.length > 0 && (
+            <div className="mt-3">
+              <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-sky-400">
+                Installed on your server
+              </p>
+              <div className="flex max-h-40 flex-col gap-1 overflow-y-auto pr-1">
+                {ollamaModels.map((m) => (
+                  <button
+                    key={m.name}
+                    type="button"
+                    onClick={() => patch({ model: m.name })}
+                    className={cn(
+                      "flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-left transition-colors",
+                      settings.model === m.name
+                        ? "border-sky-400/70 bg-sky-500/15 ring-1 ring-sky-400/60"
+                        : "border-sky-500/20 bg-sky-900/30 hover:bg-sky-900/60",
+                    )}
+                  >
+                    <span className="min-w-0 flex-1 truncate font-mono text-[10px] font-semibold text-sky-100">
+                      {m.name}
+                    </span>
+                    {m.size && (
+                      <span className="shrink-0 text-[9px] font-bold text-sky-300/70">{m.size}</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {ollamaError && (
+            <p className="mt-2 rounded-lg border border-rose-500/30 bg-rose-950/40 px-2.5 py-2 text-[10px] leading-relaxed text-rose-300">
+              {ollamaError}
+            </p>
+          )}
+          {ollamaModels === null && !scanningOllama && (
+            <p className="mt-2 text-[10px] text-sky-200/60">Press “Scan again” to list your models.</p>
+          )}
+
+          <div className="mt-3 rounded-lg border border-sky-500/20 bg-sky-900/40 p-2.5 text-[10px] leading-relaxed text-sky-200/70">
+            <p className="mb-1 font-bold uppercase tracking-widest text-sky-300">
+              How to connect your own fine-tuned model
+            </p>
+            <ol className="list-decimal space-y-1 pl-4">
+              <li>
+                On the PC running Ollama: <code className="text-sky-200">ollama create my-gm -f Modelfile</code>{" "}
+                (or a stock pull with <code className="text-sky-200">ollama pull qwen3:8b</code>). Check{" "}
+                <code className="text-sky-200">ollama list</code> for the exact name to select here.
+              </li>
+              <li>
+                This app is hosted on a different origin than your PC, so Ollama blocks the browser by default.
+                Restart it allowing browser access — on Linux: <code className="text-sky-200">sudo systemctl edit ollama.service</code>{" "}
+                → add <code className="text-sky-200">Environment="OLLAMA_ORIGINS=*"</code> →{" "}
+                <code className="text-sky-200">sudo systemctl restart ollama</code>.
+              </li>
+              <li>
+                Playing from another device? Also set <code className="text-sky-200">OLLAMA_HOST=0.0.0.0</code> and use your
+                PC's LAN IP (e.g. <code className="text-sky-200">http://192.168.1.10:11434</code>) as the Base URL above.
+              </li>
+              <li>
+                Pick your model above and press{" "}
+                <span className="font-bold text-sky-200">Test connection</span>.
+              </li>
+            </ol>
+          </div>
         </div>
       )}
 

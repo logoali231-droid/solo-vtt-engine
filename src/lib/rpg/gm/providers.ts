@@ -246,6 +246,72 @@ export function providerOf(id: GmSettings["provider"]): GmProviderDef {
 }
 
 // ---------------------------------------------------------------------------
+// Ollama — discover models actually installed on the user's own server,
+// including custom fine-tuned models created with `ollama create …`.
+// ---------------------------------------------------------------------------
+
+export interface OllamaModelInfo {
+  name: string;
+  size: string;
+}
+
+export interface OllamaScanResult {
+  ok: boolean;
+  models?: OllamaModelInfo[];
+  error?: string;
+}
+
+function formatBytes(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "";
+  const gb = bytes / 1024 / 1024 / 1024;
+  return gb >= 1 ? `${gb.toFixed(1)} GB` : `${Math.round(bytes / 1024 / 1024)} MB`;
+}
+
+/** List the models on a running Ollama server via the native /api/tags
+ *  endpoint. Unlike the OpenAI-compatible shim, this works for *any* model
+ *  name — stock pulls (qwen3:8b) and locally fine-tuned ones alike. CORS is
+ *  governed by the server's OLLAMA_ORIGINS env var; we surface that in the
+ *  error message because it is the most common failure when the app is
+ *  hosted on a different origin than the PC running Ollama. */
+export async function fetchOllamaModels(
+  baseUrl: string,
+): Promise<OllamaScanResult> {
+  const base =
+    (baseUrl || "").replace(/\/+$/, "") || "http://localhost:11434";
+  try {
+    const res = await fetch(`${base}/api/tags`, { method: "GET" });
+    if (!res.ok) {
+      return {
+        ok: false,
+        error: `Ollama answered with ${res.status}. Check that the server is running and the Base URL is correct (${base}).`,
+      };
+    }
+    const data = (await res.json()) as {
+      models?: { name?: string; size?: number }[];
+    };
+    const models = (data.models ?? [])
+      .map((m) => ({
+        name: String(m.name ?? "").trim(),
+        size: typeof m.size === "number" ? formatBytes(m.size) : "",
+      }))
+      .filter((m) => m.name.length > 0)
+      .sort((a, b) => a.name.localeCompare(b.name));
+    return { ok: true, models };
+  } catch (err) {
+    const blocked =
+      err instanceof TypeError && err.message.includes("Failed to fetch");
+    return {
+      ok: false,
+      error: blocked
+        ? "Cannot reach Ollama. Either it is not running (start it with `ollama serve`) or the browser was blocked — when the app is hosted on a different origin than your PC, restart Ollama with OLLAMA_ORIGINS=* (see the box below)."
+        : err instanceof Error
+          ? err.message
+          : String(err),
+    };
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Smart context management
 // ---------------------------------------------------------------------------
 
