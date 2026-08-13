@@ -27,11 +27,27 @@
 //     --ratios "rules/alpaca-all.jsonl:0.2,rules/narrative-sessions.jsonl:0.8"
 // ============================================================================
 
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
+const ROOT = resolve(SCRIPT_DIR, "..");
+
+/** Find a data file in the repo layout (one folder above the script, e.g.
+ *  scripts/ + rules/) OR next to the script itself (plain Downloads folder).
+ *  This makes the tool work no matter where you drop it. */
+function resolveInput(p: string): string {
+  const candidates = [join(ROOT, p), join(SCRIPT_DIR, p)];
+  for (const c of candidates) {
+    try {
+      if (statSync(c).isFile()) return c;
+    } catch {
+      // try next candidate
+    }
+  }
+  return candidates[0]; // repo convention — the normal error will surface
+}
 
 interface AlpacaRow {
   instruction: string;
@@ -91,22 +107,36 @@ function parseArgs(argv: string[]): {
 // ---------------------------------------------------------------------------
 
 function readRows(path: string): Record<string, unknown>[] {
-  const full = join(ROOT, path);
+  const full = resolveInput(path);
   const text = readFileSync(full, "utf8");
-  if (path.endsWith(".jsonl")) {
-    return text
-      .split(/\r?\n/)
-      .filter((l) => l.trim())
-      .map((l, i) => {
-        try {
-          return JSON.parse(l);
-        } catch (err) {
-          console.error(`  ✗ ${path}:${i + 1} is not valid JSON — ${(err as Error).message}`);
-          process.exit(1);
-        }
-      });
+  const lines = text.split(/\r?\n/).filter((l) => l.trim());
+
+  // JSONL content — also when the extension is .json but every line is one
+  // JSON object (a very common export shape).
+  const looksJsonl =
+    lines.length > 1 &&
+    lines.every((l) => {
+      const t = l.trim();
+      return t.startsWith("{") || t.startsWith("[");
+    });
+  if (path.endsWith(".jsonl") || looksJsonl) {
+    return lines.map((l, i) => {
+      try {
+        return JSON.parse(l);
+      } catch (err) {
+        console.error(`  ✗ ${path}:${i + 1} is not valid JSON — ${(err as Error).message}`);
+        process.exit(1);
+      }
+    });
   }
+
   const data = JSON.parse(text) as unknown;
+  // Unwrap common wrapper keys, e.g. { "data": [...] }, { "conversations": [...] }.
+  if (data && typeof data === "object" && !Array.isArray(data)) {
+    for (const value of Object.values(data)) {
+      if (Array.isArray(value)) return value as Record<string, unknown>[];
+    }
+  }
   if (!Array.isArray(data)) {
     console.error(`  ✗ ${path}: expected a JSON array of training rows`);
     process.exit(1);
@@ -207,6 +237,10 @@ function sampleTo(rows: AlpacaRow[], target: number): AlpacaRow[] {
 
 const { files, out, ratios } = parseArgs(process.argv.slice(2));
 
+// Write output next to wherever the data actually lives (rules/ in the repo,
+// or the flat Downloads folder on a user's PC).
+const outDir = dirname(resolveInput(files[0]));
+
 console.log("Merging training datasets → rules/");
 const sources: SourceFile[] = [];
 for (const file of files) {
@@ -266,13 +300,18 @@ const base = out.endsWith(".jsonl")
   : out.endsWith(".json")
     ? out.slice(0, -".json".length)
     : out;
-mkdirSync(dirname(join(ROOT, base)), { recursive: true });
+// A path with a folder (repo convention: rules/training-mixed) resolves from
+// the project root; a bare filename lands next to the data (Downloads folder).
+const outPath = out.includes("/") || out.includes("\\")
+  ? join(ROOT, base)
+  : join(outDir, base);
+mkdirSync(dirname(outPath), { recursive: true });
 writeFileSync(
-  join(ROOT, `${base}.jsonl`),
+  `${outPath}.jsonl`,
   rows.map((r) => JSON.stringify(r)).join("\n") + "\n",
   "utf8",
 );
-writeFileSync(join(ROOT, `${base}.json`), JSON.stringify(rows, null, 2), "utf8");
+writeFileSync(`${outPath}.json`, JSON.stringify(rows, null, 2), "utf8");
 
 console.log(`  ✓ ${base}.jsonl + ${base}.json (${rows.length} rows total)`);
 console.log("Sample row:");
