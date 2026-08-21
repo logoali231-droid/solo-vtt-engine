@@ -470,10 +470,19 @@ export default function GameBoard({
           updatedAt: Date.now(),
         }));
         if (reply.usedFallback && snap.gmMode === "live") {
+          const reason = reply.fallbackReason ? ` (${reply.fallbackReason})` : "";
           toast.info(
             settingsRef.current.language === "pt-BR"
               ? "GM ao vivo indisponível — o narrador local assumiu."
               : "Live GM unavailable — switched to the local narrator.",
+          );
+          // Persistent, visible in the adventure log — a silent local-narrator
+          // takeover must never be mistaken for the real AI ignoring input.
+          pushLog(
+            "system",
+            settingsRef.current.language === "pt-BR"
+              ? `⚠ GM ao vivo indisponível${reason} — o narrador local (offline) respondeu esta vez. Verifique o provedor de IA nas configurações.`
+              : `⚠ Live GM unavailable${reason} — the offline local narrator replied this time. Check the AI provider in Settings.`,
           );
         }
         // Code-based learning: mechanically extract facts from this interaction
