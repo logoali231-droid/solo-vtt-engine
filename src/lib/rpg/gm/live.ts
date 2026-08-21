@@ -20,6 +20,10 @@ import { localRespond } from "./local";
 export interface GmReply {
   text: string;
   usedFallback: boolean;
+  /** When usedFallback is true in live mode: why the live AI was unavailable
+   *  (provider error, bad key, CORS, empty reply…). Surfaced in the log so a
+   *  silent local-narrator takeover is never mistaken for the real AI. */
+  fallbackReason?: string;
 }
 
 /** Shared storytelling voice — keeps every AI backend (the server action and
@@ -250,10 +254,11 @@ export function useGmClient(settings: GmSettings) {
     adventure: AdventureState,
     onDelta: (text: string) => void,
   ): Promise<GmReply> {
+    let failReason = "";
     const fallback = (): GmReply => {
       const text = localRespond(turn, adventure, settings.language);
       onDelta(text);
-      return { text, usedFallback: true };
+      return { text, usedFallback: true, fallbackReason: failReason || undefined };
     };
     if (adventure.gmMode !== "live") return fallback();
 
@@ -277,6 +282,10 @@ export function useGmClient(settings: GmSettings) {
           onDelta(res.text);
           return { text: res.text, usedFallback: false };
         }
+        failReason =
+          res.code === "not_configured"
+            ? "built-in provider not configured"
+            : `${res.code}${res.detail ? ` — ${res.detail.slice(0, 160)}` : ""}`;
       } else {
         const system = buildSystemPrompt(
           settings,
@@ -299,8 +308,10 @@ export function useGmClient(settings: GmSettings) {
           onDelta(acc);
         });
         if (text) return { text, usedFallback: false };
+        failReason = "provider returned an empty response";
       }
-    } catch {
+    } catch (err) {
+      failReason = err instanceof Error ? err.message : String(err);
       // fall through to the local narrator
     }
     return fallback();
