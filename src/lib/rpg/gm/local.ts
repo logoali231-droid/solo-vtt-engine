@@ -24,6 +24,17 @@ function chance(p: number): boolean {
   return Math.random() < p;
 }
 
+// Strip conversational scaffolding ("i want to…", "i'll…") down to the bare
+// action so it can be woven back into narration in third person.
+function weaveAction(text: string): string | null {
+  let t = text.trim().replace(/[.!?…]+$/, "");
+  t = t.replace(/^(i\s+(want|would like|would|try|decide|need)\s+to\s+|i\s+will\s+|i'?ll\s+|let'?s\s+|lets\s+|i\s+|we\s+)/i, "");
+  t = t.trim();
+  if (!t || t.length < 3 || /^(sup|hi|hello|hey|yo|ok|okay|k|kk)$/i.test(t)) return null;
+  const snippet = t.length > 90 ? `${t.slice(0, 87)}…` : t;
+  return snippet.charAt(0).toLowerCase() + snippet.slice(1);
+}
+
 // ---------------------------------------------------------------------------
 // Banks — English
 // ---------------------------------------------------------------------------
@@ -116,6 +127,12 @@ const EN = {
     "The world shifts around you, patient as stone. Something here is waiting for you to make up your mind.",
     "You take stock. The scene is still, but it is the stillness of a held breath.",
     "The moment stretches. Around you, the small sounds of the world continue — wind, water, the distant cry of something hunting.",
+  ],
+  // Small talk / ultra-short inputs — acknowledge and invite a real action.
+  smallTalk: [
+    "The moment hangs, waiting for more than a word. Whatever you mean to do, say it plainly — search the ruin, greet the stranger, take the road — or ask the oracle a direct question.",
+    "The world does not move on a nod alone. Name an action and it will answer: look around, talk to someone, press on down the road.",
+    "A shrug is not a plan. The scene waits — decide what you do, and the dice will settle what follows.",
   ],
   roads: ["deeper into the wilds", "toward the village lights", "past the old keep", "into the dark wood"],
   watchHint: " Near the edge of the firelight, something watches. It does not approach — yet.",
@@ -318,6 +335,12 @@ const PT: typeof EN = {
     "O mundo se move ao seu redor, paciente como pedra. Algo aqui espera que você tome uma decisão.",
     "Você avalia a cena. Tudo está parado, mas é a quietude de uma respiração presa.",
     "O momento se alonga. Ao redor, os pequenos sons do mundo continuam — vento, água, o grito distante de algo caçando.",
+  ],
+  // Small talk / entradas curtas demais — reconhece e convida a uma ação real.
+  smallTalk: [
+    "O momento paira, esperando mais do que uma palavra. Diga o que pretende fazer — vasculhar a ruína, cumprimentar o estranho, tomar a estrada — ou pergunte direto ao oráculo.",
+    "O mundo não se move com um aceno. Diga uma ação e ele responderá: olhar ao redor, falar com alguém, seguir pela estrada.",
+    "Um ombro erguido não é um plano. A cena espera — decida o que você faz, e os dados resolverão o que vem depois.",
   ],
   roads: ["mais fundo no ermo", "em direção às luzes da vila", "para além do velho castelo", "para dentro da mata escura"],
   watchHint: " Perto da borda da luz da fogueira, algo observa. Não se aproxima — ainda.",
@@ -702,6 +725,19 @@ export function localRespond(
     );
   }
 
+  // Small talk / ultra-short inputs — these used to fall through into the
+  // oracle ("Sup?") or travel ("K lets go") branches and get ignored. Answer
+  // them directly instead of steamrolling the player with canned prose.
+  const wordCount = lower.split(/\s+/).filter(Boolean).length;
+  if (
+    wordCount <= 3 &&
+    /(^|\s)(sup|hi+|hello|hey|yo|oi+|ola|olá|eae|ok|okay|k|kk+|cool|nice|hmm+|continue|continua|go on|and then|e agora|what now)(\s|$|[?.!,])/.test(
+      lower,
+    )
+  ) {
+    return pick(b.smallTalk);
+  }
+
   // NPC generator — "npc", "who is this", "meet someone"…
   if (
     /(^|\s)(npc|stranger|who is (this|that)|meet someone|introduce someone|roll an npc|personagem|quem é (esse|essa)|estranho|apresente alguém|conhecer alguém)/.test(
@@ -711,8 +747,14 @@ export function localRespond(
     return npcGenerator(language);
   }
 
-  // Oracle questions
-  if (text.startsWith("oracle") || /^[?]|oráculo|oraculo/.test(lower) || text.endsWith("?")) {
+  // Oracle questions — a lone short utterance ending in "?" is small talk,
+  // not an oracle reading; require at least two words for that route.
+  if (
+    text.startsWith("oracle") ||
+    /^[?]/.test(lower) ||
+    /^(oráculo|oraculo)/.test(lower) ||
+    (text.endsWith("?") && wordCount >= 2)
+  ) {
     const q = text
       .replace(/^oracle[:,\s]*/i, "")
       .replace(/^[?]/, "")
@@ -812,10 +854,20 @@ export function localRespond(
   }
 
   // Generic — genre-flavored filler when nothing more specific matches.
+  // Weave the player's own words back in so the narration visibly responds
+  // to what they typed instead of ignoring it.
   if (turn.dice) return reactToDice(turn.dice, adventure, language);
   const prefs: AdventurePrefs = prefsOf(adventure.character.adventurePrefs);
   const genreLines = b.genreGeneric[prefs.genre as keyof typeof b.genreGeneric];
   const filler = pick(genreLines && genreLines.length > 0 ? genreLines : b.generic);
+  const action = weaveAction(text);
+  if (action) {
+    const lead =
+      language === "pt-BR"
+        ? `Você age conforme disse — ${action}.`
+        : `You act on it — ${action}.`;
+    return `${lead} ${filler} ${language === "pt-BR" ? "O caminho adiante leva" : "The road ahead leads"} ${pick(b.roads)}.`;
+  }
   return (
     filler +
     ` ${language === "pt-BR" ? "O caminho adiante leva" : "The road ahead leads"} ${pick(b.roads)}.`
