@@ -7,6 +7,7 @@ import {
   Accessibility,
   BadgeDollarSign,
   BookmarkPlus,
+  BrainCircuit,
   Dices,
   Download,
   Eye,
@@ -49,6 +50,7 @@ interface Props {
   onNewCharacter: () => void;
   onBackToHub?: () => void;
   onExport: () => void;
+  onExportTraining: () => void;
   onImport: (file: File) => void;
   onSaveToLibrary: () => void;
   onSignOut: () => void;
@@ -66,6 +68,7 @@ export default function TopBar({
   onNewCharacter,
   onBackToHub,
   onExport,
+  onExportTraining,
   onImport,
   onSaveToLibrary,
   onSignOut,
@@ -231,6 +234,15 @@ export default function TopBar({
             className="hidden size-8 items-center justify-center rounded-lg border border-slate-800 text-slate-400 transition-colors hover:text-slate-200 sm:flex"
           >
             <Download className="size-4" />
+          </button>
+          <button
+            type="button"
+            onClick={onExportTraining}
+            title="Export training data for fine-tuning"
+            aria-label="Export training data"
+            className="hidden size-8 items-center justify-center rounded-lg border border-slate-800 text-slate-400 transition-colors hover:border-emerald-500/50 hover:text-emerald-300 sm:flex"
+          >
+            <BrainCircuit className="size-4" />
           </button>
           <button
             type="button"

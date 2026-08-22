@@ -56,6 +56,7 @@ import {
   saveLorebook,
   saveToLibrary,
 } from "@/lib/rpg/storage";
+import { exportTrainingData } from "@/lib/rpg/trainingExport";
 import { generateOpening } from "@/lib/rpg/gm/local";
 import { randomEnemy } from "@/lib/rpg/data/enemies";
 import { useGmClient } from "@/lib/rpg/gm/live";
@@ -2521,6 +2522,7 @@ export default function GameBoard({
         onNewCharacter={onNewCharacter}
         onBackToHub={onBackToHub}
         onExport={() => exportAdventureJSON(adventure)}
+        onExportTraining={() => exportTrainingData(adventure)}
         onImport={handleImport}
         onSaveToLibrary={() => {
           setSaveLabel(c.name);

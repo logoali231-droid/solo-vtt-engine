@@ -338,7 +338,7 @@ export default function SettingsPanel() {
             <input
               type="password"
               value={settings.apiKey}
-              onChange={(e) => patch({ apiKey: e.target.value })}
+              onChange={(e) => patch({ apiKey: e.target.value.trim() })}
               placeholder="Place your Horde AI key here (Optional)"
               autoComplete="off"
               className="h-9 w-full rounded-lg border border-emerald-500/30 bg-emerald-950 px-3 font-mono text-xs text-emerald-100 outline-none transition-colors placeholder:text-emerald-200/40 focus:border-emerald-400"
@@ -567,7 +567,7 @@ export default function SettingsPanel() {
           <input
             type="password"
             value={settings.apiKey}
-            onChange={(e) => patch({ apiKey: e.target.value })}
+            onChange={(e) => patch({ apiKey: e.target.value.trim() })}
             placeholder={provider.keyPlaceholder ?? "sk-…"}
             className="h-9 w-full rounded-lg border border-stone-300 bg-white px-3 font-mono text-xs text-stone-800 outline-none focus:border-teal-500"
           />

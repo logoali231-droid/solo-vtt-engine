@@ -68,7 +68,7 @@ export const GM_PROVIDERS: GmProviderDef[] = [
     tagline: "Blazing-fast open models. Free tier: ~1k requests/day.",
     tier: "free",
     needsKey: true,
-    models: ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "gemma2-9b-it"],
+    models: ["llama-3.3-70b-versatile", "openai/gpt-oss-20b", "moonshotai/kimi-k2-instruct", "qwen/qwen3-32b"],
     keyPlaceholder: "gsk_…",
   },
   {
